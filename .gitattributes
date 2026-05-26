@@ -1,0 +1,32 @@
+# MySpace++ — line ending discipline
+# Bash scripts and the core cc binary MUST be LF — git on Windows would
+# otherwise auto-convert to CRLF and the Linux Docker container would
+# fail to execute them.
+
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.ps1   text eol=crlf
+
+# The cc script has no extension — pin explicitly.
+core/cc text eol=lf
+
+# Python files
+*.py    text eol=lf
+
+# Dockerfile / yaml / json / toml
+Dockerfile text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.json     text eol=lf
+*.toml     text eol=lf
+*.nix      text eol=lf
+
+# Markdown — keep platform-native
+*.md    text
+
+# Binary files (none yet, but pin behavior)
+*.png   binary
+*.jpg   binary
+*.gif   binary
+*.ico   binary
+*.db    binary

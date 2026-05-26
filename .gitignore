@@ -1,0 +1,72 @@
+# MySpace++ — gitignore
+
+# User data — never commit
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.cc/
+.cc-home/
+
+# Cache
+cache/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# venv
+.venv/
+venv/
+env/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts (Phase 1+)
+dist/
+build/
+*.egg-info/
+target/
+result
+result-*
+
+# Studio runtime — generated, not source
+studio/.venv/
+studio/__pycache__/
+studio/media/.cache/
+studio/media/wardrobe_out/
+studio/media/sound/
+studio/media/video/
+studio/saved/
+studio/recipes/*.dag.json
+!studio/recipes/*.example.dag.json
+studio/26.1.1
+
+# nix
+.direnv/
+
+# Docker
+.dockerignore  # we'll commit this when it exists; ignore stray ones
+
+# Test artifacts
+/tmp/myspace-smoke.*
+/tmp/myspace-determinism.*
+
+# Transcripts (live in .cc/transcripts/ — already covered above)
+
+# Secrets (belt and suspenders)
+.env
+.env.*
+*.pem
+*.key
+secrets/

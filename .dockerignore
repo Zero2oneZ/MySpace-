@@ -1,0 +1,42 @@
+# MySpace++ — dockerignore
+# Keep the build context minimal.
+
+.git/
+.github/
+planning/
+docs/
+*.md
+LICENSE
+flake.nix
+flake.lock
+install.sh
+install.ps1
+.gitignore
+.dockerignore
+result
+result-*
+__pycache__/
+*.pyc
+.venv/
+venv/
+.direnv/
+.DS_Store
+*.swp
+
+# User data — must NEVER be baked into the image
+.cc/
+.cc-home/
+*.db
+*.db-journal
+*.db-wal
+cache/
+
+# Studio runtime — keep sources, drop derived/heavy paths
+studio/.venv/
+studio/__pycache__/
+studio/media/.cache/
+studio/media/wardrobe_out/
+studio/media/sound/
+studio/media/video/
+studio/saved/
+studio/26.1.1

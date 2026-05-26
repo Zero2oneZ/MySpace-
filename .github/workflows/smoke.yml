@@ -1,0 +1,86 @@
+# MySpace++ — smoke CI
+# Runs on every push + PR. Validates that the substrate works on a clean
+# Ubuntu runner via two paths:
+#   1. Direct shell — runs core/tests/smoke.sh with the OS-provided deps
+#   2. Nix flake check — builds the wrapped binary + runs smoke through it
+#
+# The two paths give independent verification: shell path catches deps
+# drift on bare-metal installs, nix path catches packaging regressions.
+
+name: smoke
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch to save runner minutes.
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  shell-smoke:
+    name: shell — Ubuntu bare-metal
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bash python3 jq curl sqlite3 coreutils uuid-runtime
+          # Sanity-check that everything cc requires is on PATH
+          for bin in bash python3 jq curl sqlite3 sha256sum awk sed grep mktemp date dirname basename; do
+            command -v "$bin" >/dev/null || { echo "missing: $bin"; exit 1; }
+          done
+
+      - name: Make scripts executable
+        run: |
+          chmod +x core/cc core/tests/*.sh core/setup/setup.sh
+
+      - name: Run smoke.sh
+        run: |
+          ./core/tests/smoke.sh
+
+  nix-smoke:
+    name: nix — flake build + check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          # MySpace++ is proprietary — flake.nix declares license = unfree.
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Magic Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build the package
+        run: |
+          NIXPKGS_ALLOW_UNFREE=1 nix build --impure .#myspace
+
+      - name: Run smoke against nix-built binary
+        run: |
+          ls -la result/bin/
+          CC_BIN="$PWD/result/bin/myspace" ./core/tests/smoke.sh
+
+      - name: Run flake check
+        run: |
+          NIXPKGS_ALLOW_UNFREE=1 nix flake check --impure --show-trace

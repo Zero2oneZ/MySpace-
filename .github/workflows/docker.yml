@@ -1,0 +1,105 @@
+# MySpace++ — docker image CI
+# Builds the Dockerfile on every push, runs the smoke suite inside the
+# built image, and reports the image size. Does NOT push to any registry
+# (publishing is opt-in via a separate workflow that we'll add at launch).
+
+name: docker
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  build-and-smoke:
+    name: build + in-container smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: myspace-pp:ci
+          load: true
+          # No registry push from this workflow.
+          push: false
+          # Inline cache keeps subsequent CI runs fast.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Report image size
+        run: |
+          docker images myspace-pp:ci --format 'image: {{.Repository}}:{{.Tag}}  size: {{.Size}}'
+          size_bytes="$(docker inspect myspace-pp:ci --format='{{.Size}}')"
+          size_mb=$(( size_bytes / 1024 / 1024 ))
+          echo "image size: ${size_mb} MB" >> "$GITHUB_STEP_SUMMARY"
+          # Soft budget per PLAN.md Phase 2: under 200 MB without ollama.
+          # Warn if over budget but don't fail — base-image drift can push it.
+          if [ "$size_mb" -gt 250 ]; then
+            echo "::warning ::image is ${size_mb} MB (Phase 2 budget: <200 MB)"
+          fi
+
+      - name: Verify -help works
+        run: |
+          docker run --rm myspace-pp:ci -help | head -5
+
+      - name: Run smoke.sh inside the image
+        run: |
+          # Mount a temp dir for CC_HOME so the test isn't writing to the
+          # image's /data volume (which would persist across runs).
+          tmp="$(mktemp -d)"
+          # Override the entrypoint so we can run smoke.sh directly.
+          docker run --rm \
+            -v "$tmp:/cc-home" \
+            -e CC_HOME=/cc-home \
+            -e CC_CACHE=/cc-home/cache \
+            -e CC_GLOBAL_DB=/cc-home/cc.db \
+            --entrypoint /opt/myspace-pp/tests/smoke.sh \
+            myspace-pp:ci
+          rm -rf "$tmp"
+
+      - name: Test docker compose stack syntax
+        run: |
+          # docker compose config validates the YAML and resolves variables
+          # without actually starting any services.
+          docker compose -f docker-compose.yml config > /dev/null
+          echo "compose config: valid"
+
+  hadolint:
+    name: hadolint — Dockerfile lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          # DL3008 = pin apt-get package versions. We deliberately don't
+          # pin because the bookworm-slim base tag already pins the
+          # archive snapshot; per-package pins would create maintenance
+          # churn for no real reproducibility gain.
+          ignore: DL3008
+          failure-threshold: warning

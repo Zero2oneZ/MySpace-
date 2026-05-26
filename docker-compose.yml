@@ -1,0 +1,153 @@
+# MySpace++ — full stack: myspace substrate + ollama local-model server
+#
+# Usage:
+#   docker compose up -d                                  # bring everything up
+#   docker compose exec myspace cc -help                  # run any cc subcommand
+#   docker compose exec myspace cc tiny "hello"           # deterministic tiny call
+#   docker compose down                                   # stop, keep volumes
+#   docker compose down -v                                # stop + wipe DB/cache/models
+#
+# The model is pulled once by the `ollama-pull` one-shot service. After
+# that completes, the `myspace` service starts and idles, ready for exec.
+#
+# Override the bundled model:
+#   MYSPACE_TINY_MODEL=qwen2.5-coder:7b docker compose up -d
+
+services:
+
+  # ----------------------------------------------------------------------
+  # ollama — local-model HTTP server
+  # ----------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: myspace-ollama
+    restart: unless-stopped
+    ports:
+      # Exposed on host so you can talk to ollama directly if you want.
+      # Comment out to keep it network-internal only.
+      - "11434:11434"
+    volumes:
+      # Models persist across `compose down`s; only `down -v` wipes them.
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # ----------------------------------------------------------------------
+  # ollama-pull — one-shot: pulls the default tiny model after ollama is
+  # healthy. Exits when done. `compose up` waits for service_completed_successfully
+  # before starting myspace.
+  # ----------------------------------------------------------------------
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: myspace-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      # Point this client at the ollama service container, not localhost.
+      OLLAMA_HOST: "ollama:11434"
+      MYSPACE_TINY_MODEL: "${MYSPACE_TINY_MODEL:-qwen2.5-coder:1.5b}"
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Pulling model: $${MYSPACE_TINY_MODEL}"
+        ollama pull "$${MYSPACE_TINY_MODEL}"
+        echo "Pulled. Exiting."
+    restart: "no"
+
+  # ----------------------------------------------------------------------
+  # myspace — the substrate container. Idles by default; `compose exec`
+  # is how the user runs subcommands.
+  # ----------------------------------------------------------------------
+  myspace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myspace-pp:local
+    container_name: myspace
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    volumes:
+      # Persistent CC_HOME: cc.db, per-project local.dbs go here.
+      - cc-home:/data
+      # Mount the current dir as the user's workspace. Override via
+      # MYSPACE_WORKSPACE env var if you want a different project root.
+      - "${MYSPACE_WORKSPACE:-./}:/workspace"
+    environment:
+      CC_HOME: "/data"
+      CC_CACHE: "/data/cache"
+      CC_GLOBAL_DB: "/data/cc.db"
+      CC_OLLAMA_URL: "http://ollama:11434"
+      CC_TINY_MODEL: "${MYSPACE_TINY_MODEL:-qwen2.5-coder:1.5b}"
+      CC_AUTO_SCOPE: "1"
+    # Override the Dockerfile ENTRYPOINT/CMD — we want the container to
+    # idle so `compose exec` works for any subcommand. `sleep infinity`
+    # is signal-safe (responds to SIGTERM cleanly during `compose down`).
+    entrypoint: []
+    command: ["sleep", "infinity"]
+    tty: true
+    stdin_open: true
+
+  # ----------------------------------------------------------------------
+  # studio — Streamlit apps (DAG canvas + Wardrobe + YouTube cutter).
+  # Heavier image (opencv + rembg + ffmpeg); separate so friends who only
+  # want the core substrate don't pay for it. Opt in with:
+  #   docker compose --profile studio up -d
+  # Three services share one image, each launches its own Streamlit. Each
+  # is independent — you can bring up just `studio-wardrobe` for example.
+  # ----------------------------------------------------------------------
+  studio-wardrobe:
+    profiles: ["studio", "wardrobe"]
+    build:
+      context: .
+      dockerfile: studio.Dockerfile
+    image: myspace-pp-studio:local
+    container_name: myspace-studio-wardrobe
+    command: ["wardrobe"]
+    ports:
+      - "8510:8510"   # http://localhost:8510
+    volumes:
+      - studio-media:/opt/studio/media
+    restart: unless-stopped
+
+  studio-dag:
+    profiles: ["studio"]
+    image: myspace-pp-studio:local
+    container_name: myspace-studio-dag
+    command: ["studio"]
+    depends_on: [studio-wardrobe]   # build dep — same image
+    ports:
+      - "8501:8501"   # http://localhost:8501
+    volumes:
+      - studio-media:/opt/studio/media
+    restart: unless-stopped
+
+  studio-yt:
+    profiles: ["studio", "yt"]
+    image: myspace-pp-studio:local
+    container_name: myspace-studio-yt
+    command: ["yt"]
+    depends_on: [studio-wardrobe]   # build dep
+    ports:
+      - "8511:8511"   # http://localhost:8511
+    volumes:
+      - studio-media:/opt/studio/media
+    restart: unless-stopped
+
+volumes:
+  ollama-models:
+    name: myspace-ollama-models
+  cc-home:
+    name: myspace-cc-home
+  studio-media:
+    name: myspace-studio-media

@@ -1,0 +1,2271 @@
+#!/usr/bin/env bash
+# cc — model-controlled bash + python automation with split global/local DBs
+# WARNING: this shadows /run/current-system/sw/bin/cc (system C compiler).
+#          `make`, `cmake`, build systems calling `cc` directly will hit this
+#          script instead. Rename if that bites you.
+#
+# DB scoping:
+#   ~/.cc/cc.db                       GLOBAL  — projects, todos, queue, log
+#   <project>/.cc/local.db            LOCAL   — meta, entrypoints, runs, agents
+# Resolution: walk up from cwd; the first ancestor with .cc/local.db wins.
+# `cc -setup` creates one in cwd. With no local DB, only global ops work.
+#
+# Subcommands:
+#   cc tui                              launch the curses dashboard (color, tabs,
+#                                       assign-to-project, view transcripts/agents)
+#   cc -setup [instruction...]          discover venv/repo/entries, init local.db,
+#                                       maintain CLAUDE.md context import
+#   cc -context                         dump everything cc knows about cwd
+#   cc scope                            one-line scope summary
+#   cc -agents                          list active+recent cc instances
+#   cc -runs [-n N]                     recent runs in this project (local)
+#
+#   cc py <script> [args...]            run via local venv; diagnose on failure
+#   cc bash <script-or-name> [args...]  run a local .sh or registered script
+#
+#   cc claude <instruction...>          one-shot Claude with full cc context
+#   cc claude -i [instruction...]       interactive Claude primed with cc state
+#   cc claude -plan <instruction...>    Claude decomposes into todos (vs local model)
+#   cc claude -last                     show last Claude response saved in runs
+#   cc claude-import                    import all ~/.claude sessions for this cwd
+#   cc chats                            list captured Claude chats (this project)
+#   cc chat-show <id>                   render a captured chat readably
+#
+#   cc tiny [-debug|-summarize] [prompt...]   call the small local model (default
+#                                             qwen3.5:0.8b, deterministic). Use this
+#                                             to offload classification, parsing,
+#                                             summarization, debug from Claude.
+#
+#   cc -chain '<spec>'                        structured multi-step chain over the
+#                                             local model. Grammar:
+#                                               {"prompt"}       leaf step
+#                                               { EXPR }         group, inherits ctx
+#                                               cc { EXPR }      isolated group
+#                                             Operators between terms:
+#                                               |  pipe (prev output → context)
+#                                               +  parallel batch (concurrent)
+#                                               -  sequential, context reset
+#                                             Use --parse / --dry to introspect.
+#                                             Example:
+#                                               cc -chain '{{"draft a haiku"} | {"translate to French"}}'
+#                                             Each run is persisted to local.db:
+#   cc -chain-last                            full dump of the most recent chain run
+#   cc -chain-show <id>                       dump chain run #id with per-step I/O
+#   cc -chain-list [-n N]                     list recent chain runs (id, status, ms)
+#
+#   cc -cards                                 list per-opcode capability cards (global)
+#   cc -card-show <opcode>                    full JSON card for an opcode
+#   cc -card-delete <opcode>                  remove a card
+#   cc -author-cards <opcode>                 draft a card via tiny-model chain
+#   cc -author-cards --all                    draft cards for every opcode in JSONL
+#   cc -author-cards --missing                only opcodes that don't have a card yet
+#
+#   cc -gui-cards                             list per-opcode GUI widget specs (global)
+#   cc -gui-show <opcode>                     full JSON widget spec for an opcode
+#   cc -gui-delete <opcode>                   remove a gui card
+#   cc -author-gui-cards <opcode>             draft widget spec (uses capability card if present)
+#   cc -author-gui-cards --all                draft for every opcode with a capability card
+#   cc -author-gui-cards --baseline-only OP   skip tiny model, use modality defaults
+#
+#   cc -templates                             list Claude-authored workflow templates
+#   cc -template-show <name>                  full JSON for a template
+#   cc -template-delete <name>                remove a template
+#   cc -authorize-templates <opcode>          DRY mode: print the Claude prompt only
+#   cc -authorize-templates <opcode> --execute    actually call Claude (~$0.02)
+#   cc -authorize-templates --all --execute   author for every opcode w/ both cards
+#   cc -authorize-templates --missing --execute  only opcodes without a template yet
+#
+#   cc -jobs [-n N]                           list workflow jobs (local, per-project)
+#   cc -job-show <id>                         full state dump for a job + its steps
+#   cc -job-last                              most recent job
+#                                             (executor `cc -job` is W4 work, not yet built)
+#
+#   cc -dag-bootstrap                         scan source data → populate global DAG cache
+#   cc -dag-status                            counts: nodes / edges / chains / queue / hot
+#   cc -dag-node <node_id>                    inspect a node + outgoing edges
+#   cc -dag-chain <chain_id>                  inspect a cached chain (increments hit count)
+#   cc -dag-build [--loop] [--sleep N]        process build-queue tasks (one or loop)
+#   cc -dag-enqueue <kind> <target_id>        enqueue a rebuild task
+#   cc -dag-successors <opcode> [top]         zero-compute: top successors from cache
+#   cc -dag-chains-from <opcode> [top]        zero-compute: chains starting w/ opcode
+#   cc -dag-chains <src_mod> <dst_mod> [top]  zero-compute: chains by modality pair
+#   cc -dag-invalidate <opcode>               mark all related cache rows stale
+#   cc -template-walk <name>                  dry-run: walk through a template
+#                                             step-by-step, predict GUI elements
+#                                             per step, validate binds, preview
+#                                             next-step UI (no models called)
+#
+#   cc phase start <name>                     open a new orchestration phase
+#   cc phase step [-model <m>|-tiny|-claude] <prompt>
+#                                             run one step against active phase.
+#                                             Parent ('tween level') reconstructs
+#                                             context from prior steps in the db;
+#                                             child sees only what parent provides
+#                                             and MUST end its reply with 'DONE'.
+#   cc phase log                              show steps of active phase
+#   cc phase show <id>                        full dump of any phase
+#   cc phase list                             list all phases (this project)
+#   cc phase end [-summary <text>]            close the active phase
+#
+#   cc -set-project <name>              global: set/switch active project
+#   cc -list-projects                   global: list all
+#   cc -add-bash <name> [desc...]       model-author + register a bash script
+#   cc -list-bash                       list registered scripts (global)
+#   cc -plan [-model <m>] <instr...>    decompose instruction into todos
+#   cc -todos                           todos for active project (global)
+#   cc -done <id>                       mark todo complete
+#   cc -edit-todo <id> <text...>        edit todo text only
+#   cc -current                         show pinned current task
+#   cc -current-set <todo-id>           pin current task
+#   cc -current-clear                   unpin
+#   cc -queue                           list queued cmds
+#   cc -run <queue-id>                  execute queued cmd
+#   cc -log [-n N]                      recent directory-log (global)
+#
+#   cc -clear-cache                     drop the deterministic prompt cache
+#   cc -help                            this help
+#   cc <freeform...>                    no flag = quick action; model proposes
+#                                       a bash cmd, you confirm, it runs, logged.
+
+set -uo pipefail
+
+# ---- install-root discovery ---------------------------------------------
+# CC_HOME is where user DATA lives (cc.db, local.db, cache, scripts) — it's
+# user-configurable and defaults to ~/.cc/.
+# CC_INSTALL_ROOT is where the CODE lives (this script + lib/* + setup/*).
+# The two are separate so a repo checkout doesn't pollute user data and a
+# user-data dir doesn't need to bundle copies of the lib.
+#
+# Discovery order for CC_INSTALL_ROOT:
+#   1. explicit env var
+#   2. script-dir co-located with lib/db.py  (repo: core/cc + core/lib/)
+#   3. script-dir/../lib/db.py               (bin/myspace + lib/db.py install)
+#   4. fall back to $CC_HOME (legacy ~/.cc/ install)
+_cc_script_path="$(readlink -f "$0" 2>/dev/null || \
+  python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0" 2>/dev/null || \
+  echo "$0")"
+_cc_script_dir="$(cd "$(dirname "$_cc_script_path")" && pwd)"
+
+CC_HOME="${CC_HOME:-$HOME/.cc}"
+if [ -z "${CC_INSTALL_ROOT:-}" ]; then
+  if [ -f "$_cc_script_dir/lib/db.py" ]; then
+    CC_INSTALL_ROOT="$_cc_script_dir"
+  elif [ -f "$_cc_script_dir/../lib/db.py" ]; then
+    CC_INSTALL_ROOT="$(cd "$_cc_script_dir/.." && pwd)"
+  else
+    CC_INSTALL_ROOT="$CC_HOME"
+  fi
+fi
+
+CC_GLOBAL_DB="${CC_GLOBAL_DB:-$CC_HOME/cc.db}"
+CC_LIB="$CC_INSTALL_ROOT/lib/db.py"
+CC_SCRIPTS="$CC_HOME/scripts"
+CC_CACHE="$CC_HOME/cache"
+CC_STUDIO_HOME="${CC_STUDIO_HOME:-$HOME/myspace-studio}"
+CC_MODEL="${CC_MODEL:-qwen3-coder-next:latest}"
+CC_TINY_MODEL="${CC_TINY_MODEL:-qwen2.5-coder:1.5b}"
+CC_OLLAMA_URL="${CC_OLLAMA_URL:-http://localhost:11434}"
+CC_DETERMINISTIC="${CC_DETERMINISTIC:-1}"
+CC_MODEL_TIMEOUT="${CC_MODEL_TIMEOUT:-120}"
+CC_KEEP_ALIVE="${CC_KEEP_ALIVE:-30s}"
+CC_AUTO_SCOPE="${CC_AUTO_SCOPE:-1}"  # prepend scope header to every model prompt
+
+mkdir -p "$CC_HOME" "$CC_SCRIPTS" "$CC_CACHE" 2>/dev/null || {
+  printf '\033[31mcc: cannot create %s — check permissions\033[0m\n' "$CC_HOME" >&2
+  exit 1
+}
+
+dim()    { printf '\033[2m%s\033[0m' "$*"; }
+red()    { printf '\033[31m%s\033[0m' "$*"; }
+green()  { printf '\033[32m%s\033[0m' "$*"; }
+yellow() { printf '\033[33m%s\033[0m' "$*"; }
+cyan()   { printf '\033[36m%s\033[0m' "$*"; }
+
+# --- robustness: preflight, temp cleanup, signal handling ----------------
+# Fail fast with a clear message if a required binary is missing. Better
+# than 50 lines down getting "command not found: jq" in the middle of a run.
+_cc_require_bin() {
+  local missing=() b
+  for b in "$@"; do
+    command -v "$b" >/dev/null 2>&1 || missing+=("$b")
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    printf '\033[31mcc: missing required binaries: %s\033[0m\n' "${missing[*]}" >&2
+    printf 'install them and retry. (PATH=%s)\n' "$PATH" >&2
+    exit 127
+  fi
+}
+_cc_require_bin python3 curl jq sha256sum awk sed grep mktemp date dirname basename
+
+if [ ! -f "$CC_LIB" ]; then
+  printf '\033[31mcc: missing helper %s — reinstall cc\033[0m\n' "$CC_LIB" >&2
+  exit 1
+fi
+
+# Centralized temp-file tracker. Anything created via _cc_tmp gets removed
+# on EXIT/INT/TERM, even if the script is killed mid-run.
+CC_TMP_FILES=()
+_cc_tmp() {
+  local f
+  f="$(mktemp "${TMPDIR:-/tmp}/cc.XXXXXX")" || {
+    printf '\033[31mcc: mktemp failed\033[0m\n' >&2
+    return 1
+  }
+  CC_TMP_FILES+=("$f")
+  printf '%s' "$f"
+}
+_cc_cleanup() {
+  local f
+  # `${arr[@]:+...}` is the set-u-safe way to test for non-empty arrays;
+  # `${#arr[@]:-0}` is not valid bash syntax.
+  if [ -n "${CC_TMP_FILES[*]:+x}" ]; then
+    for f in "${CC_TMP_FILES[@]}"; do
+      [ -n "${f:-}" ] && rm -f "$f" 2>/dev/null || true
+    done
+    CC_TMP_FILES=()
+  fi
+  # Idempotent agent release — guarded against double-fire (explicit call
+  # followed by EXIT trap).
+  if [ -z "${CC_AGENT_RELEASED:-}" ] && [ -n "${CC_AGENT_UUID:-}" ] \
+       && [ -n "${CC_LOCAL_DB:-}" ]; then
+    CC_AGENT_RELEASED=1
+    CC_DB="$CC_LOCAL_DB" python3 "$CC_LIB" agent-release "$CC_AGENT_UUID" \
+      >/dev/null 2>&1 || true
+  fi
+}
+trap _cc_cleanup EXIT
+# On INT/TERM: clean up, then re-raise with the conventional signal exit code
+# so callers can distinguish "user cancelled" from "command failed".
+trap '_cc_cleanup; trap - INT;  exit 130' INT
+trap '_cc_cleanup; trap - TERM; exit 143' TERM
+
+# DB helpers — each call targets a specific DB by exporting CC_DB.
+G() { CC_DB="$CC_GLOBAL_DB" python3 "$CC_LIB" "$@"; }
+L() { CC_DB="$CC_LOCAL_DB" python3 "$CC_LIB" "$@"; }
+
+# initialize global DB once per invocation
+G init
+
+# Walk up from $PWD looking for .cc/local.db. Guards against $PWD being
+# unset (rare) or pointing at a deleted directory (happens when a parent
+# shell rm'd the cwd out from under us).
+find_local_db() {
+  local dir="${PWD:-}"
+  [ -z "$dir" ] && return 1
+  [ ! -d "$dir" ] && return 1
+  while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+    if [ -f "$dir/.cc/local.db" ]; then
+      echo "$dir/.cc/local.db"
+      return 0
+    fi
+    local parent
+    parent="$(dirname "$dir")"
+    # dirname of "/" is "/" — guard against infinite loop.
+    [ "$parent" = "$dir" ] && break
+    dir="$parent"
+  done
+  return 1
+}
+
+CC_LOCAL_DB="$(find_local_db || true)"
+CC_LOCAL_ROOT=""
+if [ -n "$CC_LOCAL_DB" ]; then
+  CC_LOCAL_ROOT="$(dirname "$(dirname "$CC_LOCAL_DB")")"
+fi
+
+# Resolve project name from local meta, falling back to global active project.
+resolve_project() {
+  local local_proj=""
+  if [ -n "$CC_LOCAL_DB" ]; then
+    local_proj="$(L meta-get project)"
+  fi
+  local global_proj
+  global_proj="$(G active)"
+  if [ -n "$local_proj" ]; then echo "$local_proj"; return; fi
+  echo "$global_proj"
+}
+
+scope_log() {
+  local global_proj local_proj
+  global_proj="$(G active)"
+  local_proj=""
+  if [ -n "$CC_LOCAL_DB" ]; then
+    local_proj="$(L meta-get project 2>/dev/null || true)"
+  fi
+  {
+    dim "[cc"
+    dim " | global: "
+    if [ -n "$global_proj" ]; then green "$global_proj"; else red "(none)"; fi
+    dim " | local: "
+    if [ -n "$local_proj" ]; then
+      if [ "$local_proj" = "$global_proj" ]; then
+        green "$local_proj"
+      else
+        red "$local_proj"
+        dim " (mismatch — fix with: cc -set-project $local_proj)"
+      fi
+    else
+      red "(unscoped)"
+    fi
+    dim " | cwd: "
+    yellow "$(pwd)"
+    dim " | model: "
+    yellow "$CC_MODEL"
+    dim " | agent: "
+    cyan "${CC_AGENT_UUID:0:8}"
+    dim "]"
+    echo
+  } >&2
+}
+
+# ---- agent lifecycle ----------------------------------------------------
+mkdir -p "$CC_CACHE"
+# Prefer the kernel's UUID source — no fork+python startup cost, and still
+# works if python3 is somehow broken mid-script. Fall back through python,
+# then a pid+epoch+random composite so the script never aborts here.
+if [ -r /proc/sys/kernel/random/uuid ]; then
+  CC_AGENT_UUID="$(< /proc/sys/kernel/random/uuid)"
+elif command -v uuidgen >/dev/null 2>&1; then
+  CC_AGENT_UUID="$(uuidgen)"
+else
+  CC_AGENT_UUID="$(python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null)" \
+    || CC_AGENT_UUID="fallback-$$-$(date +%s)-${RANDOM:-0}${RANDOM:-0}"
+fi
+export CC_AGENT_UUID
+
+# Export scope env vars so any child process (claude, scripts, etc.) inherits.
+export CC_SCOPE_CWD="$PWD"
+export CC_SCOPE_LOCAL_ROOT="${CC_LOCAL_ROOT:-}"
+export CC_SCOPE_LOCAL_DB="${CC_LOCAL_DB:-}"
+export CC_SCOPE_GLOBAL_PROJECT="$(CC_DB="$CC_GLOBAL_DB" python3 "$CC_LIB" active 2>/dev/null || true)"
+if [ -n "$CC_LOCAL_DB" ]; then
+  export CC_SCOPE_LOCAL_PROJECT="$(CC_DB="$CC_LOCAL_DB" python3 "$CC_LIB" meta-get project 2>/dev/null || true)"
+else
+  export CC_SCOPE_LOCAL_PROJECT=""
+fi
+
+agent_claim() {
+  if [ -n "$CC_LOCAL_DB" ]; then
+    L agent-claim "$CC_AGENT_UUID" "$$" "$(pwd)" "$*"
+  fi
+}
+agent_update() {
+  if [ -n "$CC_LOCAL_DB" ]; then
+    L agent-update "$CC_AGENT_UUID" "$*" >/dev/null 2>&1 || true
+  fi
+}
+agent_release() {
+  # Idempotent — same guard as _cc_cleanup uses.
+  if [ -n "${CC_AGENT_RELEASED:-}" ]; then return 0; fi
+  if [ -n "$CC_LOCAL_DB" ]; then
+    CC_AGENT_RELEASED=1
+    L agent-release "$CC_AGENT_UUID" >/dev/null 2>&1 || true
+  fi
+}
+# EXIT/INT/TERM traps already installed at top via _cc_cleanup (which calls
+# agent-release directly). Calling agent_release explicitly before `exec`
+# is what lets tui/studio release cleanly.
+
+# ---- deterministic model call -------------------------------------------
+# Uses ollama HTTP API with temperature=0, seed=42 by default. Caches by
+# sha256(model + prompt + options). Always:
+#   - hard-bounds with curl --max-time $CC_MODEL_TIMEOUT (no infinite hangs)
+#   - sets keep_alive so models unload promptly (no orphaned 99%-CPU runners)
+#   - appends a "DONE" directive — models MUST end with that token, so the
+#     orchestrator can tell completion from truncation/abort.
+# Returns:
+#   0  - response received with DONE; printed (DONE stripped)
+#   1  - transport/timeout/empty failure
+#   2  - response received but DONE missing — partial. Still printed, cached
+#        with a .partial sibling marker; callers may retry or escalate.
+scope_header_text() {
+  # IMPORTANT: this text becomes part of the prompt AND part of the cache
+  # key. Every field here must be deterministic across invocations with
+  # the same scope, otherwise caching is broken. Specifically, NEVER add
+  # per-invocation values like agent_uuid, pid, or timestamps — they have
+  # no semantic value to the model and they destroy cache hit rate.
+  local global_proj local_proj
+  global_proj="$(G active 2>/dev/null)"
+  local_proj=""
+  if [ -n "$CC_LOCAL_DB" ]; then
+    local_proj="$(L meta-get project 2>/dev/null || true)"
+  fi
+  cat <<EOF
+[Scope from cc — you are constrained to this context]
+- project (global): ${global_proj:-(none)}
+- project (local):  ${local_proj:-(unscoped)}
+- cwd:              $(pwd)
+- local_root:       ${CC_LOCAL_ROOT:-(none)}
+Only operate within local_root unless explicitly asked otherwise.
+EOF
+}
+
+model_call() {
+  local model="$1" raw_prompt="$2"
+  local opts='{"temperature":0,"seed":42}'
+  if [ "$CC_DETERMINISTIC" = "0" ]; then opts='{}'; fi
+
+  local scope_block=""
+  if [ "$CC_AUTO_SCOPE" = "1" ]; then
+    scope_block="$(scope_header_text)
+
+"
+  fi
+
+  local prompt="${scope_block}${raw_prompt}
+
+When finished, end your response with the literal token: DONE"
+
+  local key cache_path partial_marker
+  key="$(printf '%s\0%s\0%s' "$model" "$opts" "$prompt" | sha256sum | awk '{print $1}')"
+  cache_path="$CC_CACHE/$key.txt"
+  partial_marker="$CC_CACHE/$key.partial"
+
+  if [ "$CC_DETERMINISTIC" = "1" ] && [ -s "$cache_path" ]; then
+    cat "$cache_path"
+    [ -f "$partial_marker" ] && return 2 || return 0
+  fi
+
+  local body
+  body="$(jq -n --arg m "$model" --arg p "$prompt" --argjson o "$opts" --arg ka "$CC_KEEP_ALIVE" \
+    '{model:$m, prompt:$p, stream:false, options:$o, keep_alive:$ka}')"
+
+  local resp
+  resp="$(curl -sS --max-time "$CC_MODEL_TIMEOUT" "$CC_OLLAMA_URL/api/generate" -d "$body")" || {
+    red "ollama call failed or timed out after ${CC_MODEL_TIMEOUT}s" >&2; echo >&2
+    return 1
+  }
+  local text
+  text="$(printf '%s' "$resp" | jq -r '.response // empty')"
+  if [ -z "$text" ]; then
+    red "empty response from $model" >&2; echo >&2
+    printf '%s' "$resp" | jq -r '.error // empty' >&2 || true
+    return 1
+  fi
+
+  # Accept DONE as the final token; strip it. Done in Python — bash regex
+  # `\b` is unreliable across grep/sed versions for trailing matches.
+  local has_done=0
+  local stripped done_flag_file
+  done_flag_file="$(_cc_tmp)" || return 1
+  stripped="$(python3 -c '
+import re, sys
+t = sys.stdin.read()
+m = re.search(r"(^|\s)DONE\s*$", t)
+sys.stderr.write("1" if m else "0")
+sys.stdout.write(re.sub(r"\s*\bDONE\s*$", "", t))
+' <<<"$text" 2>"$done_flag_file")"
+  has_done="$(cat "$done_flag_file" 2>/dev/null || echo 0)"
+  rm -f "$done_flag_file"
+  text="$stripped"
+
+  printf '%s' "$text" > "$cache_path"
+  if [ "$has_done" = "0" ]; then
+    : > "$partial_marker"
+    yellow "WARNING: model did not signal DONE — response treated as partial" >&2; echo >&2
+    printf '%s' "$text"
+    return 2
+  fi
+  rm -f "$partial_marker" 2>/dev/null || true
+  printf '%s' "$text"
+}
+
+require_local() {
+  if [ -z "$CC_LOCAL_DB" ]; then
+    red "no local cc context — run 'cc -setup' in this folder first" >&2; echo >&2
+    exit 1
+  fi
+}
+
+require_project_global() {
+  local p; p="$(G active)"
+  if [ -z "$p" ]; then
+    red "no active global project — run 'cc -set-project <name>'" >&2; echo >&2
+    exit 1
+  fi
+  printf '%s' "$p"
+}
+
+usage() {
+  # Print the entire top-of-file comment block. Stops at the first
+  # non-comment line, so adding subcommands above doesn't need
+  # touching this sed range.
+  awk '/^[^#]/ && NR>1 {exit} NR>1 {print}' "$0"
+}
+
+# ---- discovery helpers ---------------------------------------------------
+
+discover_venv() {
+  for v in .venv venv env .env; do
+    if [ -x "$v/bin/python" ]; then echo "$(pwd)/$v"; return; fi
+  done
+  echo ""
+}
+
+discover_repo() {
+  if [ -d .git ] || git rev-parse --git-dir >/dev/null 2>&1; then
+    git config --get remote.origin.url 2>/dev/null || echo ""
+  fi
+}
+
+discover_entrypoints() {
+  # top-level .py and .sh files (depth 1) + anything in a bin/ or scripts/ subdir at depth 2
+  find . -maxdepth 1 -type f \( -name "*.py" -o -name "*.sh" \) 2>/dev/null
+  find ./bin ./scripts -maxdepth 1 -type f \( -name "*.py" -o -name "*.sh" \) 2>/dev/null
+}
+
+# ---- subcommands ---------------------------------------------------------
+
+cmd_setup() {
+  local instruction="$*"
+
+  local root="$(pwd)"
+  local lroot="$root/.cc"
+  mkdir -p "$lroot"
+  CC_LOCAL_DB="$lroot/local.db"
+  L init
+
+  local proj_name
+  proj_name="$(basename "$root")"
+
+  # detect venv, repo
+  local venv repo
+  venv="$(discover_venv)"
+  repo="$(discover_repo)"
+
+  L meta-set project "$proj_name"
+  L meta-set root "$root"
+  L meta-set venv "$venv"
+  L meta-set repo "$repo"
+  L meta-set created_at "$(date -Iseconds)"
+
+  # register project globally with its path
+  G set-project "$proj_name" >/dev/null
+  G set-project-path "$proj_name" "$root" >/dev/null
+
+  # discover entrypoints
+  L entry-clear >/dev/null
+  local count=0
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    local kind="bash"
+    case "$f" in *.py) kind="python" ;; *.sh) kind="bash" ;; esac
+    local name; name="$(basename "$f")"
+    L entry-add "$name" "$f" "$kind" >/dev/null
+    count=$((count+1))
+  done < <(discover_entrypoints | sort -u)
+
+  G log-action "$proj_name" "$root" "setup" "venv=$venv repo=$repo entries=$count"
+
+  # Auto-maintain a CLAUDE.context.md inside .cc/ and import it from
+  # <project>/CLAUDE.md so ANY claude invocation in this dir inherits cc scope.
+  local ctx_path="$lroot/CLAUDE.context.md"
+  local active_global; active_global="$(G active 2>/dev/null)"
+  cat > "$ctx_path" <<EOF
+# cc scope — auto-generated, do not edit by hand
+
+You are operating inside the cc terminal manager. The state below is the source
+of truth for your scope:
+
+- project (global): ${active_global:-(none)}
+- project (local):  $proj_name
+- local_root:       $root
+- venv:             ${venv:-(none)}
+- repo:             ${repo:-(none)}
+
+Constraints:
+- Modifications scoped to $root and below unless the user explicitly opts out.
+- The cc db at .cc/local.db tracks runs, entrypoints, agents.
+- Before doing classification / extraction / summarization / debug, try
+  \`cc tiny <prompt>\` first — it's free and deterministic.
+
+For the full live state run: \`cc -context\`.
+EOF
+
+  local claude_md="$root/CLAUDE.md"
+  local import_line='@.cc/CLAUDE.context.md'
+  if [ ! -f "$claude_md" ]; then
+    printf '%s\n\n# Project notes\n' "$import_line" > "$claude_md"
+    yellow "created $claude_md with cc context import" >&2; echo >&2
+  elif ! grep -Fq "$import_line" "$claude_md"; then
+    # Prepend the import line.
+    local tmp; tmp="$(mktemp)"
+    printf '%s\n\n' "$import_line" > "$tmp"
+    cat "$claude_md" >> "$tmp"
+    mv "$tmp" "$claude_md"
+    yellow "added cc context import to $claude_md" >&2; echo >&2
+  fi
+
+  green "set up project '$proj_name' at $root" >&2; echo >&2
+  echo "  venv:    ${venv:-(none)}"
+  echo "  repo:    ${repo:-(none)}"
+  echo "  entries: $count"
+  echo "  CLAUDE.md context: $ctx_path"
+
+  if [ -n "$instruction" ]; then
+    yellow "recording setup instruction as a todo …" >&2; echo >&2
+    G add-todo "$proj_name" "[setup] $instruction" >/dev/null
+    echo "  todo added: [setup] $instruction"
+  fi
+}
+
+cmd_scope() {
+  local global_proj="$CC_SCOPE_GLOBAL_PROJECT"
+  local local_proj="$CC_SCOPE_LOCAL_PROJECT"
+  [ -z "$global_proj" ] && global_proj="(none)"
+  [ -z "$local_proj" ] && local_proj="(unscoped)"
+  cat <<EOF
+project (global): $global_proj
+project (local):  $local_proj
+cwd:              $PWD
+local_root:       ${CC_SCOPE_LOCAL_ROOT:-(none)}
+local_db:         ${CC_SCOPE_LOCAL_DB:-(none)}
+model:            $CC_MODEL
+tiny:             $CC_TINY_MODEL
+agent_uuid:       $CC_AGENT_UUID
+auto_scope:       $CC_AUTO_SCOPE  (set CC_AUTO_SCOPE=0 to disable prompt scope header)
+EOF
+}
+
+cmd_context() {
+  local proj; proj="$(resolve_project)"
+  echo "=== cc context ==="
+  echo "cwd:          $(pwd)"
+  echo "global_proj:  $(G active)"
+  echo "local_root:   ${CC_LOCAL_ROOT:-(none)}"
+  echo "local_db:     ${CC_LOCAL_DB:-(none)}"
+  echo "model:        $CC_MODEL"
+  echo "agent_uuid:   $CC_AGENT_UUID"
+  echo
+  if [ -n "$CC_LOCAL_DB" ]; then
+    echo "--- local meta ---"
+    L meta-list
+    echo
+    echo "--- entrypoints ---"
+    L entry-list
+    echo
+    echo "--- recent runs ---"
+    L run-list 5
+    echo
+  fi
+  echo "--- todos (global, active project) ---"
+  G list-todos
+  echo
+  echo "--- recent global log ---"
+  G show-log 10
+}
+
+cmd_agents() {
+  require_local
+  L agent-list
+}
+
+cmd_runs() {
+  require_local
+  local n=20
+  if [ "${1:-}" = "-n" ]; then shift; n="${1:-20}"; fi
+  L run-list "$n"
+}
+
+cmd_py() {
+  require_local
+  agent_update "py $*"
+  local script="${1:-}"
+  [ -z "$script" ] && { red "usage: cc py <script> [args...]" >&2; exit 1; }
+  shift || true
+
+  local venv
+  venv="$(L meta-get venv)"
+  local py
+  if [ -n "$venv" ] && [ -x "$venv/bin/python" ]; then
+    py="$venv/bin/python"
+  else
+    py="$(command -v python3 || command -v python)"
+  fi
+  yellow "running: $py $script $*" >&2; echo >&2
+
+  local tmp_stdout tmp_stderr
+  tmp_stdout="$(_cc_tmp)" || exit 1
+  tmp_stderr="$(_cc_tmp)" || exit 1
+  local rc=0
+  "$py" "$script" "$@" >"$tmp_stdout" 2>"$tmp_stderr" || rc=$?
+
+  cat "$tmp_stdout"
+  cat "$tmp_stderr" >&2
+
+  local stdout_tail stderr_tail
+  stdout_tail="$(tail -c 4000 "$tmp_stdout")"
+  stderr_tail="$(tail -c 4000 "$tmp_stderr")"
+  L run-add "py" "$py $script $*" "$rc" "$stdout_tail" "$stderr_tail" "$CC_AGENT_UUID"
+
+  local proj; proj="$(resolve_project)"
+  G log-action "$proj" "$(pwd)" "py" "rc=$rc $script $*"
+
+  if [ "$rc" -ne 0 ]; then
+    echo >&2
+    red "exit $rc — invoking diagnose with $CC_MODEL …" >&2; echo >&2
+    agent_update "py-diagnose"
+
+    local pip_list git_log
+    pip_list="$("$py" -m pip list --format=freeze 2>/dev/null | head -30 || true)"
+    git_log="$(git -C "$CC_LOCAL_ROOT" log --oneline -5 2>/dev/null || true)"
+    local repo; repo="$(L meta-get repo)"
+
+    local prompt
+    prompt="A python script exited with rc=$rc. Diagnose succinctly and propose a fix.
+
+Script: $script $*
+Python: $py
+Repo:   $repo
+Recent commits:
+$git_log
+
+Top installed packages:
+$pip_list
+
+stderr (last 4KB):
+$stderr_tail
+
+stdout (last 4KB):
+$stdout_tail
+
+Output rules:
+- 2-4 sentences of diagnosis, then a fenced bash block with one command to try.
+- If the fix is editing a file, output a bash heredoc that performs the edit, not prose."
+
+    model_call "$CC_MODEL" "$prompt" >&2
+    echo >&2
+  fi
+  rm -f "$tmp_stdout" "$tmp_stderr"
+  exit "$rc"
+}
+
+cmd_tiny() {
+  local model="$CC_TINY_MODEL"
+  local mode="prompt"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -debug)     mode="debug";     shift ;;
+      -summarize) mode="summarize"; shift ;;
+      -model)     shift; model="${1:-$CC_TINY_MODEL}"; shift ;;
+      *) break ;;
+    esac
+  done
+  local input="$*"
+  if [ -z "$input" ] && [ ! -t 0 ]; then
+    input="$(cat)"
+  fi
+  if [ -z "$input" ]; then
+    red "usage: cc tiny [-debug|-summarize] <prompt...>" >&2; echo >&2
+    exit 1
+  fi
+  local prompt
+  case "$mode" in
+    prompt)    prompt="$input" ;;
+    debug)     prompt="Given the following command and its stderr/output, propose a minimal fix.
+Be terse: one paragraph of diagnosis + one fenced bash block with a single command.
+
+$input" ;;
+    summarize) prompt="Summarize the following in 1-3 sentences. Be terse, no preamble.
+
+$input" ;;
+  esac
+  model_call "$model" "$prompt"
+  echo
+}
+
+cmd_chain() {
+  # cc -chain '<spec>'  — structured multi-step orchestration over local
+  # models. Grammar in $CC_INSTALL_ROOT/lib/chain.py:
+  #   STEP    {"prompt text"}
+  #   GROUP   { EXPR }           inherits context from outside
+  #   CCGROUP cc { EXPR }        isolated — does NOT inherit context
+  #   OPS     |  pipe (prev → context)
+  #           +  parallel (concurrent batch)
+  #           -  sequential, context reset
+  agent_update "chain"
+  if [ "$#" -eq 0 ]; then
+    red "usage: cc -chain '<spec>'" >&2; echo >&2
+    cat >&2 <<'EOF'
+
+Grammar:
+  STEP     {"prompt text"}                       leaf — single model call
+  GROUP    { EXPR }                              nested expr, inherits context
+  CCGROUP  cc { EXPR }                           nested expr, isolated scope
+  Operators between terms:
+    |    pipe — previous output is prepended as context
+    +    parallel — adjacent + terms run concurrently
+    -    sequential — runs after previous, no context
+
+Examples:
+  cc -chain '{"summarize this text in one sentence"}'
+  cc -chain '{{"draft a haiku"} | {"translate that to French"}}'
+  cc -chain '{{"list 3 fruits"} + {"list 3 colors"} + {"list 3 animals"}}'
+  cc -chain '{{"give me a 100-word product blurb"} | cc {{"critique that blurb"} | {"rewrite it to address the critique"}}}'
+
+Flags:
+  --parse <spec>   print AST as JSON, do not call any models
+  --dry <spec>     print execution plan, do not call any models
+EOF
+    exit 1
+  fi
+  local chain_lib="$CC_INSTALL_ROOT/lib/chain.py"
+  if [ ! -f "$chain_lib" ]; then
+    red "chain.py not found at $chain_lib" >&2; echo >&2
+    exit 1
+  fi
+  # Export CC_BIN so chain.py knows which binary to shell out to. Prefer
+  # the wrapped install path (CC_INSTALL_ROOT/cc) so the child run picks
+  # up the same scope/cache root we do.
+  local cc_self="$CC_INSTALL_ROOT/cc"
+  [ -x "$cc_self" ] || cc_self="$(command -v cc 2>/dev/null || command -v myspace || echo cc)"
+  # Pass through "$@" intact so --parse/--dry flags reach argparse.
+  CC_BIN="$cc_self" python3 "$chain_lib" "$@"
+}
+
+cmd_chain_last() {
+  require_local
+  L chain-run-last
+}
+
+cmd_chain_show() {
+  require_local
+  local id="${1:-}"
+  [ -z "$id" ] && { red "usage: cc -chain-show <id>" >&2; exit 1; }
+  L chain-run-show "$id"
+}
+
+cmd_chain_list() {
+  require_local
+  local n=20
+  if [ "${1:-}" = "-n" ]; then shift; n="${1:-20}"; fi
+  L chain-run-list "$n"
+}
+
+# ---- capability cards & workflow templates --------------------------------
+# Global tables — these don't require local scope.
+
+cmd_cards() {
+  G card-list
+}
+
+cmd_card_show() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -card-show <opcode>" >&2; exit 1; }
+  G card-get "$op"
+}
+
+cmd_card_delete() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -card-delete <opcode>" >&2; exit 1; }
+  G card-delete "$op"
+  green "deleted card: $op" >&2; echo >&2
+}
+
+cmd_author_cards() {
+  # Pass-through to author_cards.py with CC_GLOBAL_DB exported so the
+  # cards land in the global DB (cross-project shared knowledge).
+  local script="$CC_INSTALL_ROOT/lib/author_cards.py"
+  if [ ! -f "$script" ]; then
+    red "author_cards.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  agent_update "author-cards $*"
+  # Use THIS script's actual path for CC_BIN — works in both repo layout
+  # (core/cc) and legacy install (~/.local/bin/cc + ~/.cc/lib/).
+  # CC_AUTO_SCOPE=0 suppresses the scope-banner the model otherwise echoes
+  # into failure_modes (the tiny model was treating cc's scope rules as
+  # part of the prompt context and hallucinating about local_root).
+  CC_BIN="$_cc_script_path" \
+  CC_DB="$CC_GLOBAL_DB" \
+  CC_AUTO_SCOPE=0 \
+    python3 "$script" "$@"
+}
+
+# ---- GUI cards ------------------------------------------------------------
+
+cmd_gui_cards() {
+  G gui-list
+}
+
+cmd_gui_show() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -gui-show <opcode>" >&2; exit 1; }
+  G gui-get "$op"
+}
+
+cmd_gui_delete() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -gui-delete <opcode>" >&2; exit 1; }
+  G gui-delete "$op"
+  green "deleted gui card: $op" >&2; echo >&2
+}
+
+cmd_author_gui_cards() {
+  local script="$CC_INSTALL_ROOT/lib/author_gui.py"
+  if [ ! -f "$script" ]; then
+    red "author_gui.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  agent_update "author-gui-cards $*"
+  CC_BIN="$_cc_script_path" \
+  CC_DB="$CC_GLOBAL_DB" \
+  CC_AUTO_SCOPE=0 \
+    python3 "$script" "$@"
+}
+
+cmd_authorize_templates() {
+  # Claude-authored workflow templates. DEFAULTS TO --dry (no API call,
+  # no cost) — the user must pass --execute to actually spend tokens.
+  # Reads capability_card + gui_card + path_builder paths for an opcode,
+  # asks Claude to compose a workflow_templates row.
+  local script="$CC_INSTALL_ROOT/lib/author_templates.py"
+  if [ ! -f "$script" ]; then
+    red "author_templates.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  agent_update "authorize-templates $*"
+  CC_BIN="$_cc_script_path" \
+  CC_DB="$CC_GLOBAL_DB" \
+  CC_AUTO_SCOPE=0 \
+    python3 "$script" "$@"
+}
+
+# ---- workflow jobs (W4 — browse only; executor not yet built) -----------
+
+cmd_jobs() {
+  # Jobs live in the LOCAL DB (per-project). Globally browse via L.
+  require_local
+  local n=20
+  if [ "${1:-}" = "-n" ]; then shift; n="${1:-20}"; fi
+  L job-list "$n"
+}
+
+cmd_job_show() {
+  require_local
+  local id="${1:-}"
+  [ -z "$id" ] && { red "usage: cc -job-show <id>" >&2; exit 1; }
+  L job-show "$id"
+}
+
+cmd_job_last() {
+  require_local
+  L job-last
+}
+
+# ---- DAG cache (global, hash-addressed) -----------------------------------
+
+cmd_dag_bootstrap() {
+  local script="$CC_INSTALL_ROOT/lib/dag_builder.py"
+  if [ ! -f "$script" ]; then
+    red "dag_builder.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  agent_update "dag-bootstrap"
+  CC_DB="$CC_GLOBAL_DB" python3 "$script" bootstrap
+}
+
+cmd_dag_status() {
+  G dag-status
+}
+
+cmd_dag_node() {
+  local id="${1:-}"
+  [ -z "$id" ] && { red "usage: cc -dag-node <node_id>" >&2; exit 1; }
+  G dag-node-get "$id"
+}
+
+cmd_dag_chain() {
+  local id="${1:-}"
+  [ -z "$id" ] && { red "usage: cc -dag-chain <chain_id>" >&2; exit 1; }
+  G dag-chain-hit "$id" >/dev/null
+  G dag-chain-get "$id"
+}
+
+cmd_dag_build() {
+  local script="$CC_INSTALL_ROOT/lib/dag_builder.py"
+  if [ ! -f "$script" ]; then
+    red "dag_builder.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  agent_update "dag-build $*"
+  CC_DB="$CC_GLOBAL_DB" python3 "$script" work "$@"
+}
+
+cmd_dag_enqueue() {
+  local script="$CC_INSTALL_ROOT/lib/dag_builder.py"
+  if [ ! -f "$script" ]; then
+    red "dag_builder.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  CC_DB="$CC_GLOBAL_DB" python3 "$script" enqueue "$@"
+}
+
+# ---- DAG runtime lookups (zero-compute) -------------------------------
+
+cmd_dag_successors() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -dag-successors <opcode> [top]" >&2; exit 1; }
+  shift
+  G dag-successors "$op" "${1:-5}"
+}
+
+cmd_dag_chains_from() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -dag-chains-from <opcode> [top]" >&2; exit 1; }
+  shift
+  G dag-chains-from "$op" "${1:-10}"
+}
+
+cmd_dag_chains_pair() {
+  local s="${1:-}" d="${2:-}"
+  [ -z "$s" ] || [ -z "$d" ] && {
+    red "usage: cc -dag-chains <src_mod> <dst_mod> [top]" >&2; exit 1; }
+  shift 2 || true
+  G dag-chains-pair "$s" "$d" "${1:-10}"
+}
+
+cmd_dag_invalidate() {
+  local op="${1:-}"
+  [ -z "$op" ] && { red "usage: cc -dag-invalidate <opcode>" >&2; exit 1; }
+  local script="$CC_INSTALL_ROOT/lib/dag_builder.py"
+  if [ ! -f "$script" ]; then
+    red "dag_builder.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  CC_DB="$CC_GLOBAL_DB" python3 "$script" invalidate "$op"
+}
+
+# ─── Studio (DAG canvas + Wardrobe + YouTube cutter) ─────────────────────────
+# The studio is a sibling tree to core/ at the repo root, OR ships into
+# $HOME/.cc/studio on installed systems. Resolve both.
+_resolve_studio_dir() {
+  if [ -n "${MYSPACE_STUDIO_DIR:-}" ] && [ -d "$MYSPACE_STUDIO_DIR" ]; then
+    echo "$MYSPACE_STUDIO_DIR"; return 0
+  fi
+  for candidate in \
+    "$CC_INSTALL_ROOT/../studio" \
+    "$CC_INSTALL_ROOT/studio" \
+    "$CC_HOME/studio" \
+    "/data/Projects/MySpace++/studio" ; do
+    if [ -d "$candidate" ] && [ -f "$candidate/app.py" ]; then
+      (cd "$candidate" && pwd); return 0
+    fi
+  done
+  return 1
+}
+
+cmd_dag_studio() {
+  # Launch the DAG canvas Streamlit app (port 8501+).
+  # Distinct from `cc studio` (positional) which launches the CC admin dashboard.
+  local dir
+  if ! dir="$(_resolve_studio_dir)"; then
+    red "studio/ not found. Looked under \$MYSPACE_STUDIO_DIR, \$CC_INSTALL_ROOT/../studio, \$CC_HOME/studio." >&2
+    exit 1
+  fi
+  exec "$dir/run.sh" "$@"
+}
+
+cmd_wardrobe() {
+  # Launch the Wardrobe Studio Streamlit app (port 8510+).
+  local dir
+  if ! dir="$(_resolve_studio_dir)"; then
+    red "studio/ not found. Looked under \$MYSPACE_STUDIO_DIR, \$CC_INSTALL_ROOT/../studio, \$CC_HOME/studio." >&2
+    exit 1
+  fi
+  exec "$dir/run-wardrobe.sh" "$@"
+}
+
+cmd_yt_cut() {
+  # Launch the YouTube time-slider cutter (port 8511+).
+  local dir
+  if ! dir="$(_resolve_studio_dir)"; then
+    red "studio/ not found." >&2; exit 1
+  fi
+  exec "$dir/run_yt_cutter.sh" "$@"
+}
+
+cmd_template_walk() {
+  # Dry-run walk of a workflow template — shows per-step GUI prediction,
+  # bind validation, HITL gates, branch logic. NO model calls, NO cost.
+  local name="${1:-}"
+  local script="$CC_INSTALL_ROOT/lib/template_walker.py"
+  if [ ! -f "$script" ]; then
+    red "template_walker.py not found at $script" >&2; echo >&2
+    exit 1
+  fi
+  if [ -z "$name" ]; then
+    CC_DB="$CC_GLOBAL_DB" python3 "$script"
+    return
+  fi
+  CC_DB="$CC_GLOBAL_DB" python3 "$script" "$name"
+}
+
+cmd_templates() {
+  G template-list
+}
+
+cmd_template_show() {
+  local name="${1:-}"
+  [ -z "$name" ] && { red "usage: cc -template-show <name>" >&2; exit 1; }
+  G template-show "$name"
+}
+
+cmd_template_delete() {
+  local name="${1:-}"
+  [ -z "$name" ] && { red "usage: cc -template-delete <name>" >&2; exit 1; }
+  G template-delete "$name"
+  green "deleted template: $name" >&2; echo >&2
+}
+
+cmd_claude_import() {
+  require_local
+  local proj; proj="$(resolve_project)"
+  # encode cwd: every / -> -
+  local encoded; encoded="${PWD//\//-}"
+  local src_dir="$HOME/.claude/projects/$encoded"
+  if [ ! -d "$src_dir" ]; then
+    yellow "no Claude sessions at $src_dir" >&2; echo >&2
+    return 0
+  fi
+
+  local imported=0 skipped=0 errors=0
+  # Scope nullglob to this loop only — restore prior state afterwards so
+  # nothing else in the script trips over a sticky shell option.
+  local _prev_nullglob=0
+  shopt -q nullglob && _prev_nullglob=1
+  shopt -s nullglob
+  for jsonl in "$src_dir"/*.jsonl; do
+    [ -f "$jsonl" ] || continue
+    local session_id content_hash
+    session_id="$(basename "$jsonl" .jsonl)"
+    content_hash="$(sha256sum "$jsonl" | awk '{print $1}')"
+
+    if [ -n "$(G chat-exists-by-hash "$content_hash")" ]; then
+      skipped=$((skipped+1))
+      continue
+    fi
+
+    # Parse jsonl metadata via jq — robust to empty/malformed lines.
+    local started finished branch forked msg_count
+    started="$(head -1 "$jsonl" | jq -r '.timestamp // ""' 2>/dev/null)"
+    finished="$(tail -1 "$jsonl" | jq -r '.timestamp // ""' 2>/dev/null)"
+    branch="$(head -1 "$jsonl" | jq -r '.gitBranch // ""' 2>/dev/null)"
+    forked="$(head -1 "$jsonl" | jq -r '.forkedFrom // ""' 2>/dev/null)"
+    msg_count="$(grep -c '"type":"user"\|"type":"assistant"' "$jsonl" || echo 0)"
+
+    local new_id
+    new_id="$(G chat-add "$proj" "$PWD" "$session_id" "import" \
+              "" "$started" "$finished" "$msg_count" "$jsonl" \
+              "$branch" "$forked" "$content_hash")"
+    if [ -n "$new_id" ]; then
+      imported=$((imported+1))
+      echo "  + #$new_id  $session_id  msgs=$msg_count  ($started)"
+    else
+      errors=$((errors+1))
+    fi
+  done
+  [ "$_prev_nullglob" = "0" ] && shopt -u nullglob
+  green "imported $imported, skipped $skipped, errors $errors" >&2; echo >&2
+}
+
+# --- agent helpers --------------------------------------------------------
+
+# Render an agent's prompt template against a vars-json. Echo the rendered
+# prompt on stdout, along with the resolved model on stderr (one line "MODEL=…").
+agent_render() {
+  local agent_name="$1" vars_json="$2"
+  CC_DB="$CC_GLOBAL_DB" python3 - "$agent_name" "$vars_json" <<'PY'
+import os, sys, sqlite3, json, re
+from pathlib import Path
+db = Path(os.environ['CC_DB'])
+agent_name = sys.argv[1]
+vars_obj = json.loads(sys.argv[2]) if sys.argv[2] else {}
+c = sqlite3.connect(str(db))
+r = c.execute(
+    "SELECT model, prompt_template FROM agent_defs WHERE name=?",
+    (agent_name,),
+).fetchone()
+if not r:
+    sys.exit(f"no agent: {agent_name}")
+model, tmpl = r
+for k, v in vars_obj.items():
+    tmpl = re.sub(r'\$\{' + re.escape(k) + r'\}', str(v), tmpl)
+    tmpl = re.sub(r'\$' + re.escape(k) + r'(?!\w)', str(v), tmpl)
+sys.stderr.write(f"MODEL={model}\n")
+sys.stdout.write(tmpl)
+PY
+}
+
+# Build a JSON object from -var key=value pairs the user passed in.
+vars_to_json() {
+  python3 -c '
+import sys, json
+out = {}
+for a in sys.argv[1:]:
+    if "=" in a:
+        k, v = a.split("=", 1)
+        out[k] = v
+print(json.dumps(out))
+' "$@"
+}
+
+# Merge new key/value into existing vars-json.
+vars_merge() {
+  local vars_json="$1" key="$2" value="$3"
+  python3 -c '
+import sys, json
+vj, k, v = sys.argv[1], sys.argv[2], sys.argv[3]
+obj = json.loads(vj) if vj else {}
+obj[k] = v
+print(json.dumps(obj))
+' "$vars_json" "$key" "$value"
+}
+
+cmd_agent() {
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    define)
+      local name="${1:-}"; shift || true
+      local model="$CC_TINY_MODEL"
+      local desc=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -model) shift; model="${1:-$CC_TINY_MODEL}"; shift ;;
+          --)     shift; desc="$*"; break ;;
+          *)      desc="$*"; break ;;
+        esac
+      done
+      [ -z "$name" ] && { red "usage: cc agent define <name> [-model <m>] [-- <description>] <stdin: prompt template>" >&2; exit 1; }
+      local tmpl; tmpl="$(cat)"
+      [ -z "$tmpl" ] && { red "no prompt template on stdin" >&2; exit 1; }
+      G agent-def "$name" "$model" "$tmpl" "$desc"
+      green "agent '$name' defined (model=$model)" >&2; echo >&2
+      ;;
+    list)   G agent-def-list ;;
+    show)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc agent show <name>" >&2; exit 1; }
+      G agent-def-get "$name"
+      ;;
+    delete)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc agent delete <name>" >&2; exit 1; }
+      G agent-def-delete "$name"
+      green "agent '$name' deleted" >&2; echo >&2
+      ;;
+    run)
+      local name="${1:-}"; shift || true
+      [ -z "$name" ] && { red "usage: cc agent run <name> [-var k=v ...]" >&2; exit 1; }
+      local -a kvargs=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -var) shift; kvargs+=("$1"); shift ;;
+          *) break ;;
+        esac
+      done
+      local vars_json; vars_json="$(vars_to_json "${kvargs[@]}")"
+      local rendered model model_flag
+      model_flag="$(_cc_tmp)" || exit 1
+      rendered="$(agent_render "$name" "$vars_json" 2>"$model_flag")"
+      model="$(awk -F= '/^MODEL=/{print $2}' "$model_flag")"
+      rm -f "$model_flag"
+      [ -z "$model" ] && { red "no model resolved for agent $name" >&2; exit 1; }
+      agent_update "agent run: $name"
+      model_call "$model" "$rendered"
+      local rc=$?
+      echo
+      exit "$rc"
+      ;;
+    "")    red "usage: cc agent <define|list|show|delete|run>" >&2; echo >&2; exit 1 ;;
+    *)     red "unknown agent subcommand: $sub" >&2; echo >&2; exit 1 ;;
+  esac
+}
+
+cmd_swarm() {
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    define)
+      local name="${1:-}"; shift || true
+      local loop_until="" max_iters=10
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -loop-until) shift; loop_until="${1:-}"; shift ;;
+          -max-iters)  shift; max_iters="${1:-10}"; shift ;;
+          --)          shift; break ;;
+          *)           break ;;
+        esac
+      done
+      local desc="$*"
+      [ -z "$name" ] && { red "usage: cc swarm define <name> [-loop-until TOK] [-max-iters N] [-- <desc>] <stdin: steps JSON>" >&2; exit 1; }
+      local steps_json; steps_json="$(cat)"
+      [ -z "$steps_json" ] && { red "no steps JSON on stdin" >&2; exit 1; }
+      printf '%s' "$steps_json" | jq . >/dev/null 2>&1 || { red "invalid steps JSON" >&2; exit 1; }
+      G swarm-def "$name" "$desc" "$steps_json" "$loop_until" "$max_iters"
+      green "swarm '$name' defined (max_iters=$max_iters loop_until='${loop_until}')" >&2; echo >&2
+      ;;
+    list)  G swarm-def-list ;;
+    show)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc swarm show <name>" >&2; exit 1; }
+      G swarm-def-get "$name" | jq .
+      ;;
+    last) G swarm-run-last ;;
+    show-run)
+      local rid="${1:-}"
+      [ -z "$rid" ] && { red "usage: cc swarm show-run <id>" >&2; exit 1; }
+      G swarm-run-show "$rid"
+      ;;
+    run)
+      local name="${1:-}"; shift || true
+      [ -z "$name" ] && { red "usage: cc swarm run <name> [-var k=v ...]" >&2; exit 1; }
+      local -a kvargs=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -var) shift; kvargs+=("$1"); shift ;;
+          *) break ;;
+        esac
+      done
+      local vars_json; vars_json="$(vars_to_json "${kvargs[@]}")"
+
+      # fetch swarm def as JSON
+      local raw; raw="$(G swarm-def-get "$name")" || exit 1
+      local desc steps_json loop_until max_iters
+      desc="$(printf '%s' "$raw" | jq -r '.description')"
+      steps_json="$(printf '%s' "$raw" | jq -c '.steps')"
+      loop_until="$(printf '%s' "$raw" | jq -r '.loop_until')"
+      max_iters="$(printf '%s' "$raw" | jq -r '.max_iters')"
+
+      yellow "swarm: $name  ($desc)  loop_until='$loop_until' max_iters=$max_iters" >&2; echo >&2
+
+      local run_id
+      run_id="$(G swarm-run-start "$name" "$vars_json" "$CC_AGENT_UUID")"
+      agent_update "swarm $name run #$run_id"
+
+      local iter=0 status="done"
+      while [ "$iter" -lt "$max_iters" ]; do
+        iter=$((iter+1))
+        yellow "--- iteration $iter ---" >&2; echo >&2
+        local n_steps
+        n_steps="$(printf '%s' "$steps_json" | jq 'length')"
+        local last_output=""
+        for i in $(seq 0 $((n_steps-1))); do
+          local step agent_name binds out_key
+          step="$(printf '%s' "$steps_json" | jq -c ".[$i]")"
+          agent_name="$(printf '%s' "$step" | jq -r '.agent')"
+          binds="$(printf '%s' "$step" | jq -c '.binds // {}')"
+          out_key="$(printf '%s' "$step" | jq -r ".out // \"step_${i}_out\"")"
+
+          # Resolve binds: a binding value starting with '$X' is replaced by vars[X].
+          local resolved_binds
+          resolved_binds="$(python3 -c '
+import json, sys
+binds = json.loads(sys.argv[1])
+vars_ = json.loads(sys.argv[2])
+out = {}
+for k, v in binds.items():
+    if isinstance(v, str) and v.startswith("$"):
+        out[k] = vars_.get(v[1:], "")
+    else:
+        out[k] = v
+print(json.dumps(out))
+' "$binds" "$vars_json")"
+
+          local rendered model rc model_flag
+          model_flag="$(_cc_tmp)" || { status="failed"; break 2; }
+          rendered="$(agent_render "$agent_name" "$resolved_binds" 2>"$model_flag")"
+          model="$(awk -F= '/^MODEL=/{print $2}' "$model_flag")"
+          rm -f "$model_flag"
+          [ -z "$model" ] && { red "step $i: no model for agent $agent_name" >&2; status="failed"; break 2; }
+          cyan "  [iter $iter step $i] $agent_name (model=$model)" >&2; echo >&2
+
+          local output
+          output="$(model_call "$model" "$rendered")"; rc=$?
+          local done_seen=0
+          if [ "$rc" -eq 0 ]; then done_seen=1; fi
+          [ "$rc" -eq 2 ] && rc=0
+
+          # echo a short preview
+          echo "    -> $(printf '%s' "$output" | head -c 200)"
+
+          G swarm-run-step-add "$run_id" "$iter" "$i" "$agent_name" \
+            "$resolved_binds" "$output" "$done_seen"
+
+          # update vars_json with this step's output
+          vars_json="$(vars_merge "$vars_json" "$out_key" "$output")"
+          last_output="$output"
+        done
+
+        if [ -z "$loop_until" ]; then
+          # no loop sentinel set — run exactly one iteration
+          break
+        fi
+        if printf '%s' "$last_output" | grep -Fq "$loop_until"; then
+          green "loop_until sentinel '$loop_until' seen — stopping" >&2; echo >&2
+          break
+        fi
+      done
+
+      G swarm-run-end "$run_id" "$status" "$iter"
+      green "swarm run #$run_id complete (status=$status iterations=$iter)" >&2; echo >&2
+      echo "run_id=$run_id"
+      ;;
+    "")   red "usage: cc swarm <define|list|show|run|last|show-run>" >&2; echo >&2; exit 1 ;;
+    *)    red "unknown swarm subcommand: $sub" >&2; echo >&2; exit 1 ;;
+  esac
+}
+
+cmd_tool() {
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    define)
+      # cc tool define <name> -in '<json>' -out '<json>' -kind bash|python|streamlit -exec '<cmd or import>' [-tags "a,b"] [-- desc]
+      local name="${1:-}"; shift || true
+      local input_schema='{}' output_schema='{}' kind="bash" exec="" tags="" desc=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -in)    shift; input_schema="${1:-}"; [ -z "$input_schema" ] && input_schema='{}'; shift ;;
+          -out)   shift; output_schema="${1:-}"; [ -z "$output_schema" ] && output_schema='{}'; shift ;;
+          -kind)  shift; kind="${1:-bash}"; shift ;;
+          -exec)  shift; exec="${1:-}"; shift ;;
+          -tags)  shift; tags="${1:-}"; shift ;;
+          --)     shift; desc="$*"; break ;;
+          *)      desc="$*"; break ;;
+        esac
+      done
+      [ -z "$name" ] && { red "usage: cc tool define <name> -in <json> -out <json> -kind <bash|python|streamlit> -exec <...> [-tags ...] [-- desc]" >&2; exit 1; }
+      [ -z "$exec" ] && { red "missing -exec" >&2; exit 1; }
+      G tool-def "$name" "$desc" "$input_schema" "$output_schema" "$kind" "$exec" "$tags"
+      green "tool '$name' defined ($kind)" >&2; echo >&2
+      ;;
+    list) G tool-list ;;
+    show)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc tool show <name>" >&2; exit 1; }
+      G tool-get "$name" | jq .
+      ;;
+    delete)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc tool delete <name>" >&2; exit 1; }
+      G tool-delete "$name"
+      green "tool '$name' deleted" >&2; echo >&2
+      ;;
+    run)
+      local name="${1:-}"; shift || true
+      [ -z "$name" ] && { red "usage: cc tool run <name> [-var k=v ...]" >&2; exit 1; }
+      local -a kvargs=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -var) shift; kvargs+=("$1"); shift ;;
+          *) break ;;
+        esac
+      done
+      local vars_json; vars_json="$(vars_to_json "${kvargs[@]}")"
+      local def_json; def_json="$(G tool-get "$name")"
+      local kind exec_template
+      kind="$(printf '%s' "$def_json" | jq -r '.executor_kind')"
+      exec_template="$(printf '%s' "$def_json" | jq -r '.executor')"
+      if [ "$kind" != "bash" ]; then
+        red "cc tool run only supports kind=bash from the CLI (kind=$kind). Use cc studio for streamlit/python tools." >&2; echo >&2
+        exit 1
+      fi
+      # Substitute $var in the exec template
+      local rendered
+      rendered="$(python3 -c "
+import sys, json, re, os
+t = os.environ['T']
+v = json.loads(os.environ['V'])
+for k, val in v.items():
+    t = re.sub(r'\\\$\\{' + re.escape(k) + r'\\}', str(val), t)
+    t = re.sub(r'\\\$' + re.escape(k) + r'(?!\\w)', str(val), t)
+print(t)
+" T="$exec_template" V="$vars_json")"
+      yellow "tool: $name" >&2; echo >&2
+      yellow "exec: $rendered" >&2; echo >&2
+      agent_update "tool $name"
+      bash -c "$rendered"
+      ;;
+    "") red "usage: cc tool <define|list|show|delete|run>" >&2; echo >&2; exit 1 ;;
+    *)  red "unknown tool subcommand: $sub" >&2; echo >&2; exit 1 ;;
+  esac
+}
+
+cmd_workflow() {
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    define)
+      # cc workflow define <name> [-- desc]   (reads steps JSON from stdin)
+      local name="${1:-}"; shift || true
+      local desc=""
+      if [ "${1:-}" = "--" ]; then shift; desc="$*"; fi
+      [ -z "$name" ] && { red "usage: cc workflow define <name> [-- desc] <stdin: steps JSON>" >&2; exit 1; }
+      local steps; steps="$(cat)"
+      printf '%s' "$steps" | jq . >/dev/null 2>&1 || { red "invalid steps JSON" >&2; exit 1; }
+      G workflow-def "$name" "$desc" "$steps"
+      green "workflow '$name' defined" >&2; echo >&2
+      ;;
+    list) G workflow-list ;;
+    show)
+      local name="${1:-}"
+      [ -z "$name" ] && { red "usage: cc workflow show <name>" >&2; exit 1; }
+      G workflow-get "$name" | jq .
+      ;;
+    search)
+      local q="$*"
+      G workflow-search "$q" | jq -r '.[] | "\(.score)\t\(.use_count)\t\(.name)\t\(.description)"' | head -20
+      ;;
+    run)
+      local name="${1:-}"; shift || true
+      [ -z "$name" ] && { red "usage: cc workflow run <name> [-var k=v ...]" >&2; exit 1; }
+      local -a kvargs=()
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -var) shift; kvargs+=("$1"); shift ;;
+          *) break ;;
+        esac
+      done
+      local vars_json; vars_json="$(vars_to_json "${kvargs[@]}")"
+      local raw; raw="$(G workflow-get "$name")"
+      local steps_json; steps_json="$(printf '%s' "$raw" | jq -c '.steps')"
+      G workflow-used "$name" >/dev/null
+      yellow "workflow: $name" >&2; echo >&2
+
+      local n_steps; n_steps="$(printf '%s' "$steps_json" | jq 'length')"
+      for i in $(seq 0 $((n_steps-1))); do
+        local step tool_name binds out_key
+        step="$(printf '%s' "$steps_json" | jq -c ".[$i]")"
+        tool_name="$(printf '%s' "$step" | jq -r '.tool')"
+        binds="$(printf '%s' "$step" | jq -c '.binds // {}')"
+        out_key="$(printf '%s' "$step" | jq -r ".out // \"step_${i}_out\"")"
+
+        # Resolve $var references in binds against accumulated vars_json
+        local resolved
+        resolved="$(python3 -c "
+import json, os, sys, re
+binds = json.loads(os.environ['B'])
+vars_ = json.loads(os.environ['V'])
+out = {}
+for k, val in binds.items():
+    if isinstance(val, str) and val.startswith('\$'):
+        out[k] = vars_.get(val[1:], '')
+    else:
+        out[k] = val
+print(json.dumps(out))
+" B="$binds" V="$vars_json")"
+
+        cyan "  [step $i] tool=$tool_name binds=$resolved" >&2; echo >&2
+
+        # Get the tool's exec
+        local def_json; def_json="$(G tool-get "$tool_name")"
+        local kind; kind="$(printf '%s' "$def_json" | jq -r '.executor_kind')"
+        if [ "$kind" != "bash" ]; then
+          yellow "skipping non-bash tool '$tool_name' (kind=$kind) — use cc studio" >&2; echo >&2
+          continue
+        fi
+        local exec_template; exec_template="$(printf '%s' "$def_json" | jq -r '.executor')"
+        local rendered
+        rendered="$(python3 -c "
+import sys, json, re, os
+t = os.environ['T']
+v = json.loads(os.environ['V'])
+for k, val in v.items():
+    t = re.sub(r'\\\$\\{' + re.escape(k) + r'\\}', str(val), t)
+    t = re.sub(r'\\\$' + re.escape(k) + r'(?!\\w)', str(val), t)
+print(t)
+" T="$exec_template" V="$resolved")"
+
+        local output
+        output="$(bash -c "$rendered" 2>&1)"
+        echo "    -> $(printf '%s' "$output" | head -c 200)"
+        vars_json="$(vars_merge "$vars_json" "$out_key" "$output")"
+      done
+      green "workflow '$name' done" >&2; echo >&2
+      ;;
+    "") red "usage: cc workflow <define|list|show|search|run>" >&2; echo >&2; exit 1 ;;
+    *)  red "unknown workflow subcommand: $sub" >&2; echo >&2; exit 1 ;;
+  esac
+}
+
+cmd_studio() {
+  # Studio runs against CC_STUDIO_HOME, NOT whatever cwd you launched from.
+  # Make sure the workspace exists.
+  mkdir -p "$CC_STUDIO_HOME/projects" \
+           "$CC_STUDIO_HOME/models" \
+           "$CC_STUDIO_HOME/datasets" \
+           "$CC_STUDIO_HOME/workflows"
+
+  # Find streamlit: prefer the studio's own venv, then any project venv on PATH,
+  # then global.
+  local st_bin=""
+  if [ -x "$CC_STUDIO_HOME/.venv/bin/streamlit" ]; then
+    st_bin="$CC_STUDIO_HOME/.venv/bin/streamlit"
+  elif [ -n "${CC_LOCAL_ROOT:-}" ] && [ -x "$CC_LOCAL_ROOT/.venv/bin/streamlit" ]; then
+    st_bin="$CC_LOCAL_ROOT/.venv/bin/streamlit"
+  elif command -v streamlit >/dev/null 2>&1; then
+    st_bin="$(command -v streamlit)"
+  else
+    red "streamlit not found. Run: $CC_INSTALL_ROOT/setup/setup.sh  (creates a studio venv)" >&2
+    echo >&2; exit 1
+  fi
+  yellow "launching cc studio via $st_bin" >&2
+  yellow "CC_STUDIO_HOME=$CC_STUDIO_HOME" >&2; echo >&2
+
+  # Studio is HOME by default — strip cwd-derived scope env so the dashboard
+  # doesn't auto-scope into whatever folder you invoked cc from.
+  export CC_STUDIO_HOME
+  unset CC_SCOPE_GLOBAL_PROJECT CC_SCOPE_LOCAL_PROJECT \
+        CC_SCOPE_LOCAL_ROOT CC_SCOPE_LOCAL_DB
+
+  # exec replaces this shell — the EXIT trap won't fire, so release the
+  # agent slot and clean up tracked tmpfiles explicitly.
+  agent_release
+  _cc_cleanup
+  exec "$st_bin" run "$CC_INSTALL_ROOT/lib/studio.py" "$@"
+}
+
+cmd_phase() {
+  local sub="${1:-}"; shift || true
+  local proj; proj="$(resolve_project)"
+  case "$sub" in
+    start)
+      local name="$*"
+      [ -z "$name" ] && { red "usage: cc phase start <name>" >&2; exit 1; }
+      [ -z "$proj" ] && { red "no project — run 'cc -setup' or '-set-project' first" >&2; exit 1; }
+      local pid
+      pid="$(G phase-start "$proj" "$name")"
+      green "phase #$pid started: $name" >&2; echo >&2
+      ;;
+    step)
+      local target="ollama" model="$CC_MODEL"
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -model)   shift; model="${1:-$CC_MODEL}"; shift ;;
+          -tiny)    target="ollama"; model="$CC_TINY_MODEL"; shift ;;
+          -claude)  target="claude"; shift ;;
+          *) break ;;
+        esac
+      done
+      local step_prompt="$*"
+      [ -z "$step_prompt" ] && { red "usage: cc phase step [-model <m>|-tiny|-claude] <prompt>" >&2; exit 1; }
+      local active; active="$(G phase-active "$proj")"
+      [ -z "$active" ] && { red "no active phase — run 'cc phase start <name>'" >&2; exit 1; }
+      local phase_id="${active%%	*}"
+      local phase_name="${active##*	}"
+      agent_update "phase #$phase_id step ($target $model)"
+
+      # Build prompt with context pulled from db (the tween-level holds context).
+      local ctx
+      ctx="$(G phase-context "$phase_id" 8)"
+      local full_prompt
+      if [ -n "$ctx" ]; then
+        full_prompt="$ctx
+
+# Next step
+$step_prompt"
+      else
+        full_prompt="$step_prompt"
+      fi
+
+      yellow "phase #$phase_id ($phase_name) — step via $target:$model" >&2; echo >&2
+      local response done_seen=0 rc=0
+      if [ "$target" = "claude" ]; then
+        if ! command -v claude >/dev/null 2>&1; then
+          red "claude not on PATH" >&2; echo >&2; exit 1
+        fi
+        local sys_directive
+        sys_directive="$(claude_system_directive)
+You are step inside cc phase #$phase_id. When you finish, end your response with the literal line: DONE"
+        response="$(claude -p --append-system-prompt "$sys_directive" "$full_prompt" 2>&1)" || rc=$?
+        if printf '%s' "$response" | tail -n 8 | grep -Eq '^[[:space:]]*DONE[[:space:]]*$'; then
+          done_seen=1
+          response="$(printf '%s' "$response" | sed -E '/^[[:space:]]*DONE[[:space:]]*$/d')"
+        else
+          yellow "WARNING: claude did not signal DONE for this step" >&2; echo >&2
+        fi
+      else
+        # model_call enforces DONE itself
+        response="$(model_call "$model" "$full_prompt")"; rc=$?
+        if [ "$rc" -eq 0 ]; then done_seen=1; else done_seen=0; fi
+        # rc=2 means partial; we still record but flag
+        [ "$rc" -eq 2 ] && rc=0
+      fi
+
+      local idx
+      idx="$(G phase-step-add "$phase_id" "$target:$model" "$step_prompt" "$response" "$done_seen" "$CC_AGENT_UUID")"
+      printf '%s\n' "$response"
+      echo >&2
+      if [ "$done_seen" = "1" ]; then
+        green "step $idx recorded (DONE)" >&2
+      else
+        yellow "step $idx recorded (PARTIAL — no DONE)" >&2
+      fi
+      echo >&2
+      exit "$rc"
+      ;;
+    log)
+      local active; active="$(G phase-active "$proj")"
+      [ -z "$active" ] && { yellow "no active phase" >&2; echo >&2; exit 0; }
+      G phase-show "${active%%	*}"
+      ;;
+    show)
+      local id="${1:-}"
+      [ -z "$id" ] && { red "usage: cc phase show <id>" >&2; exit 1; }
+      G phase-show "$id"
+      ;;
+    list)
+      G phase-list "$proj"
+      ;;
+    end)
+      local summary=""
+      if [ "${1:-}" = "-summary" ]; then shift; summary="$*"; fi
+      local active; active="$(G phase-active "$proj")"
+      [ -z "$active" ] && { yellow "no active phase to end" >&2; echo >&2; exit 0; }
+      local phase_id="${active%%	*}"
+      G phase-end "$phase_id" "$summary"
+      green "phase #$phase_id closed" >&2; echo >&2
+      ;;
+    "")
+      red "usage: cc phase <start|step|log|show|list|end> …" >&2; echo >&2; exit 1 ;;
+    *)
+      red "unknown phase subcommand: $sub" >&2; echo >&2; exit 1 ;;
+  esac
+}
+
+cmd_chats() {
+  G chat-list "$(resolve_project)" 50
+}
+
+cmd_chat_show() {
+  local cid="${1:-}"
+  [ -z "$cid" ] && { red "usage: cc chat-show <id>" >&2; exit 1; }
+  G chat-show "$cid"
+}
+
+build_claude_preamble() {
+  # Rich, markdown-formatted context dump that Claude can parse + act on.
+  local proj; proj="$(resolve_project)"
+  cat <<EOF
+# cc context for project: $proj
+
+You are being invoked by \`cc\` (a terminal manager that tracks projects, scripts,
+todos, runs, and active agents). The state below is the source of truth; honor it.
+
+- cwd:        $(pwd)
+- local_root: ${CC_LOCAL_ROOT:-(none)}
+- repo:       $(L meta-get repo 2>/dev/null)
+- venv:       $(L meta-get venv 2>/dev/null)
+- agent:      $CC_AGENT_UUID
+
+## Entrypoints (this project)
+$(L entry-list 2>/dev/null || echo "(none)")
+
+## Pending todos (global, active project)
+$(G list-todos 2>/dev/null | grep '^\[ \]' || echo "(none)")
+
+## Recent runs (this project)
+$(L run-list 5 2>/dev/null || echo "(none)")
+
+## Registered bash scripts (global)
+$(G list-scripts 2>/dev/null || echo "(none)")
+
+## Recent global directory log
+$(G show-log 8 2>/dev/null || echo "(none)")
+
+## Available local helper
+\`cc tiny <prompt>\` — calls a small deterministic local model ($CC_TINY_MODEL).
+- Free (no API tokens). Cached. Same input → same output.
+- Use it BEFORE doing these yourself: classification, structured extraction,
+  short summarization, regex/grammar checks, traceback diagnosis, JSON parsing.
+- Variants: \`cc tiny -debug "<cmd>\n<stderr>"\`, \`cc tiny -summarize "<text>"\`.
+EOF
+}
+
+# Hard directive appended to Claude's system prompt so it actually uses cc tiny.
+claude_system_directive() {
+cat <<'EOF'
+You are operating inside the cc terminal manager. Before performing any of the
+following tasks yourself, you MUST first try the local helper `cc tiny`:
+  - classifying / labelling text
+  - parsing or extracting structured data
+  - summarizing long output
+  - diagnosing a failed command (use `cc tiny -debug "<cmd>\n<stderr>"`)
+  - generating tiny boilerplate (regex, small JSON, short bash one-liners)
+
+Only fall back to your own capabilities if `cc tiny` returns empty, errors, or
+produces a clearly wrong answer. Run `cc tiny` via your Bash tool. Save your
+deeper reasoning for tasks the small model can't handle.
+EOF
+}
+
+cmd_claude() {
+  require_local
+  agent_update "claude $*"
+  if ! command -v claude >/dev/null 2>&1; then
+    red "claude CLI not found on PATH" >&2; echo >&2; exit 1
+  fi
+
+  local mode="print"
+  case "${1:-}" in
+    -i|--interactive) mode="interactive"; shift ;;
+    -last)            mode="last";        shift ;;
+    -plan)            mode="plan";        shift ;;
+  esac
+  local instruction="$*"
+  local proj; proj="$(resolve_project)"
+
+  if [ "$mode" = "last" ]; then
+    python3 - "$CC_LOCAL_DB" <<'PY'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+r = c.execute(
+  "SELECT id, command, rc, stdout_tail, started_at FROM runs "
+  "WHERE kind LIKE 'claude%' ORDER BY id DESC LIMIT 1"
+).fetchone()
+if not r:
+  print("(no claude runs yet)")
+else:
+  rid, cmd, rc, out, started = r
+  print(f"#{rid}  {started}  rc={rc}  {cmd}")
+  print("---")
+  print(out or "")
+PY
+    return
+  fi
+
+  if [ -z "$instruction" ] && [ "$mode" != "interactive" ]; then
+    red "usage: cc claude [-plan|-i] <instruction...>" >&2; echo >&2; exit 1
+  fi
+
+  local preamble
+  preamble="$(build_claude_preamble)"
+
+  local trans_dir="$CC_LOCAL_ROOT/.cc/transcripts"
+  mkdir -p "$trans_dir"
+  local ts; ts="$(date +%Y%m%d-%H%M%S)"
+  local trans_file="$trans_dir/${ts}-${CC_AGENT_UUID:0:8}.md"
+
+  case "$mode" in
+    print)
+      local prompt="$preamble
+
+## Request from user
+$instruction
+
+(Respond as Claude Code: use Read/Edit/Write/Bash tools as needed. Keep the
+response focused on the request. Avoid chatty preamble. When done, summarize
+in 1-3 lines.)"
+
+      yellow "claude (one-shot) →" >&2; echo >&2
+      local out rc=0
+      local sys_directive; sys_directive="$(claude_system_directive)"
+      out="$(claude -p --append-system-prompt "$sys_directive" "$prompt" 2>&1)" || rc=$?
+      printf '%s\n' "$out"
+
+      {
+        echo "# cc claude transcript"
+        echo "agent: $CC_AGENT_UUID"
+        echo "rc:    $rc"
+        echo "when:  $ts"
+        echo
+        echo "## prompt"
+        echo
+        printf '%s\n' "$prompt"
+        echo
+        echo "## response"
+        echo
+        printf '%s\n' "$out"
+      } > "$trans_file"
+
+      L run-add "claude" "claude -p ($instruction)" "$rc" \
+        "$(printf '%s' "$out" | tail -c 4000)" "transcript=$trans_file" "$CC_AGENT_UUID"
+      G log-action "$proj" "$(pwd)" "claude" "rc=$rc -- $instruction (transcript=$trans_file)"
+
+      # Register the transcript as a chat row.
+      local trans_hash
+      trans_hash="$(sha256sum "$trans_file" | awk '{print $1}')"
+      G chat-add "$proj" "$PWD" "cc-claude-$(date +%s)" "cc-claude-p" \
+        "$CC_AGENT_UUID" "$ts" "$ts" 2 "$trans_file" "" "" "$trans_hash" >/dev/null
+      exit "$rc"
+      ;;
+
+    interactive)
+      local ctx_file="$CC_LOCAL_ROOT/.cc/CC_CONTEXT.md"
+      printf '%s\n' "$preamble" > "$ctx_file"
+      yellow "wrote $ctx_file (Claude can Read it for cc state)" >&2; echo >&2
+      L run-add "claude-interactive-start" "claude -i" "0" "ctx=$ctx_file" "" "$CC_AGENT_UUID"
+      G log-action "$proj" "$(pwd)" "claude-interactive-start" "ctx=$ctx_file"
+      local rc=0
+      if [ -n "$instruction" ]; then
+        claude "$preamble
+
+## Initial request
+$instruction" || rc=$?
+      else
+        claude || rc=$?
+      fi
+      L run-add "claude-interactive-end" "claude -i" "$rc" "" "" "$CC_AGENT_UUID"
+      G log-action "$proj" "$(pwd)" "claude-interactive-end" "rc=$rc"
+      exit "$rc"
+      ;;
+
+    plan)
+      local prompt="$preamble
+
+## Planning request
+
+Decompose the following instruction into concrete, actionable todos for project '$proj'.
+
+Output format — EXACTLY:
+
+1. <todo text>
+2. <todo text>
+...
+
+No prose before or after. No markdown. No empty lines. Each todo must be
+specific enough to execute.
+
+Instruction:
+$instruction"
+
+      yellow "claude (planning) →" >&2; echo >&2
+      local raw rc=0
+      local sys_directive; sys_directive="$(claude_system_directive)"
+      raw="$(claude -p --append-system-prompt "$sys_directive" "$prompt" 2>&1)" || rc=$?
+      local added=0
+      while IFS= read -r line; do
+        # Only accept "N. ..." lines — filters out chatter, stderr logs, etc.
+        [[ "$line" =~ ^[[:space:]]*[0-9]+\.[[:space:]]+ ]] || continue
+        local task
+        task="$(printf '%s' "$line" | sed -E 's/^[[:space:]]*[0-9]+\.[[:space:]]+//' | sed -E 's/[[:space:]]+$//')"
+        [ -z "$task" ] && continue
+        G add-todo "$proj" "$task" >/dev/null
+        added=$((added+1))
+        echo "  + $task"
+      done <<< "$raw"
+
+      {
+        echo "# cc claude -plan transcript"
+        echo "agent: $CC_AGENT_UUID"
+        echo "rc:    $rc  (added $added todos)"
+        echo
+        echo "## raw response"
+        echo
+        printf '%s\n' "$raw"
+      } > "$trans_file"
+
+      L run-add "claude-plan" "claude -p (plan: $instruction)" "$rc" \
+        "$(printf '%s' "$raw" | tail -c 4000)" "added=$added transcript=$trans_file" "$CC_AGENT_UUID"
+      G log-action "$proj" "$(pwd)" "claude-plan" "added $added todos -- $instruction"
+      green "added $added todo(s) to $proj" >&2; echo >&2
+      ;;
+  esac
+}
+
+cmd_bash() {
+  require_local
+  agent_update "bash $*"
+  local target="${1:-}"
+  [ -z "$target" ] && { red "usage: cc bash <script-or-name> [args...]" >&2; exit 1; }
+  shift || true
+
+  # If it's a path that exists, run it. Otherwise look up in registered scripts.
+  local script
+  if [ -f "$target" ]; then
+    script="$target"
+  else
+    script="$(G list-scripts | awk -v n="$target" '$2==n {print $3; exit}')"
+    if [ -z "$script" ]; then
+      red "no script found: $target" >&2; echo >&2
+      exit 1
+    fi
+  fi
+
+  yellow "running: bash $script $*" >&2; echo >&2
+  local tmp_stdout tmp_stderr rc=0
+  tmp_stdout="$(_cc_tmp)" || exit 1
+  tmp_stderr="$(_cc_tmp)" || exit 1
+  bash "$script" "$@" >"$tmp_stdout" 2>"$tmp_stderr" || rc=$?
+  cat "$tmp_stdout"
+  cat "$tmp_stderr" >&2
+  L run-add "bash" "bash $script $*" "$rc" \
+    "$(tail -c 4000 "$tmp_stdout")" "$(tail -c 4000 "$tmp_stderr")" "$CC_AGENT_UUID"
+  local proj; proj="$(resolve_project)"
+  G log-action "$proj" "$(pwd)" "bash" "rc=$rc $script $*"
+  rm -f "$tmp_stdout" "$tmp_stderr"
+  exit "$rc"
+}
+
+# ---- existing global subcommands (kept) ----------------------------------
+
+cmd_set_project() {
+  local name="${1:-}"
+  [ -z "$name" ] && { red "usage: cc -set-project <name>" >&2; exit 1; }
+  G set-project "$name"
+  G log-action "$name" "$(pwd)" "set-project" "switched to $name"
+  echo "active global project: $(green "$name")"
+}
+
+cmd_list_projects() { G list-projects; }
+
+cmd_add_bash() {
+  local name="${1:-}"; shift || true
+  local desc="${*:-}"
+  [ -z "$name" ] && { red "usage: cc -add-bash <name> [description...]" >&2; exit 1; }
+  local project; project="$(require_project_global)"
+
+  local out_dir="$CC_SCRIPTS/$project"
+  mkdir -p "$out_dir"
+  local out_path="$out_dir/$name.sh"
+  if [ -e "$out_path" ]; then
+    red "script already exists: $out_path" >&2; echo >&2; exit 1
+  fi
+
+  agent_update "add-bash $name"
+  local prompt
+  prompt="You are generating a single self-contained bash script.
+
+Project: $project
+Script name: $name
+Description: ${desc:-(none provided)}
+
+Rules:
+- Output ONLY the bash script body. No prose, no markdown fences.
+- Start with: #!/usr/bin/env bash
+- Use set -euo pipefail.
+- Keep operations scoped to the caller's cwd and below unless the description
+  explicitly requires otherwise.
+- Prefer clarity over cleverness."
+
+  yellow "drafting $name.sh with $CC_MODEL …" >&2; echo >&2
+  local body
+  body="$(model_call "$CC_MODEL" "$prompt")"
+  if [ -z "$body" ]; then
+    red "model returned nothing" >&2; echo >&2; exit 1
+  fi
+  printf '%s\n' "$body" > "$out_path"
+  chmod +x "$out_path"
+  G add-script "$project" "$name" "$out_path" "$desc"
+  G log-action "$project" "$(pwd)" "add-bash" "$name -> $out_path"
+  green "wrote $out_path" >&2; echo >&2
+  echo "$out_path"
+}
+
+cmd_list_bash() { G list-scripts; }
+
+cmd_plan() {
+  local model="$CC_MODEL"
+  if [ "${1:-}" = "-model" ]; then
+    shift; model="${1:-}"; shift || true
+  fi
+  local instruction="$*"
+  [ -z "$instruction" ] && { red "usage: cc -plan [-model <m>] <instruction...>" >&2; exit 1; }
+  local project; project="$(require_project_global)"
+
+  agent_update "plan"
+  local prompt
+  prompt="Decompose the following instruction into a numbered list of concrete,
+actionable todos for project '$project'. One todo per line, format exactly:
+
+1. <todo text>
+2. <todo text>
+...
+
+No prose before or after. No markdown. No empty lines.
+
+Instruction:
+$instruction"
+
+  yellow "planning with $model …" >&2; echo >&2
+  local raw
+  raw="$(model_call "$model" "$prompt")"
+  if [ -z "$raw" ]; then
+    red "model returned nothing" >&2; echo >&2; exit 1
+  fi
+
+  local added=0
+  while IFS= read -r line; do
+    [[ "$line" =~ ^[[:space:]]*[0-9]+\.[[:space:]]+ ]] || continue
+    local task
+    task="$(printf '%s' "$line" | sed -E 's/^[[:space:]]*[0-9]+\.[[:space:]]+//' | sed -E 's/[[:space:]]+$//')"
+    [ -z "$task" ] && continue
+    G add-todo "$project" "$task" >/dev/null
+    added=$((added+1))
+    echo "  + $task"
+  done <<< "$raw"
+
+  G log-action "$project" "$(pwd)" "plan" "added $added todos from: $instruction"
+  green "added $added todo(s) to project $project" >&2; echo >&2
+}
+
+cmd_todos()         { G list-todos; }
+cmd_done()          { G done "$1"; }
+cmd_edit_todo()     { local id="$1"; shift; G edit-todo "$id" "$@"; }
+cmd_current()       { G current-show; }
+cmd_current_set()   { local p; p="$(require_project_global)"; G current-set "$p" "$1"; }
+cmd_current_clear() { G current-clear; }
+cmd_queue()         { G queue-list; }
+
+cmd_run() {
+  local qid="${1:-}"
+  [ -z "$qid" ] && { red "usage: cc -run <queue-id>" >&2; exit 1; }
+  local project; project="$(G active)"
+  local cmdline
+  cmdline="$(G queue-pop "$qid")" || exit 1
+  yellow "queue #$qid running: $cmdline" >&2; echo >&2
+  agent_update "run-queue $qid"
+  local rc=0
+  bash -c "$cmdline" || rc=$?
+  G queue-done "$qid"
+  G log-action "$project" "$(pwd)" "run-queue" "qid=$qid rc=$rc -- $cmdline"
+  exit "$rc"
+}
+
+cmd_log() {
+  local n=20
+  if [ "${1:-}" = "-n" ]; then shift; n="${1:-20}"; fi
+  G show-log "$n"
+}
+
+cmd_clear_cache() {
+  rm -rf "$CC_CACHE"
+  mkdir -p "$CC_CACHE"
+  green "cleared $CC_CACHE" >&2; echo >&2
+}
+
+cmd_freeform() {
+  local instruction="$*"
+  [ -z "$instruction" ] && { usage >&2; exit 1; }
+  agent_update "freeform: $instruction"
+  local project; project="$(resolve_project)"
+  local proj_for_log="${project:-(none)}"
+
+  local prompt
+  prompt="Propose a SINGLE bash command (no explanation) that accomplishes
+the user's request, scoped strictly to the current working directory and below.
+
+Working directory: $(pwd)
+Project: $proj_for_log
+
+Output rules:
+- Exactly one line.
+- No markdown, no prose, no fences, no quotes around the whole command.
+- Must be safe to execute with: bash -c '<your output>'.
+- Prefer read-only / dry-run forms if the request is ambiguous.
+
+Request:
+$instruction"
+
+  yellow "asking $CC_MODEL …" >&2; echo >&2
+  local cmdline
+  cmdline="$(model_call "$CC_MODEL" "$prompt" | sed -E 's/^[[:space:]]*```[a-z]*//; s/```[[:space:]]*$//' | grep -v '^[[:space:]]*$' | head -n 1)"
+  if [ -z "$cmdline" ]; then
+    red "model returned nothing" >&2; echo >&2; exit 1
+  fi
+
+  echo >&2
+  yellow "proposed:" >&2; echo " $cmdline" >&2
+  if [ ! -r /dev/tty ]; then
+    red "no tty available — refusing to auto-run model-proposed command" >&2; echo >&2
+    yellow "to run anyway: bash -c '$cmdline'" >&2; echo >&2
+    G log-action "$proj_for_log" "$(pwd)" "freeform-no-tty" "$cmdline"
+    exit 1
+  fi
+  printf '%s' "execute? [y/N] " >&2
+  read -r ans </dev/tty || ans=""
+  case "$ans" in
+    y|Y|yes|YES)
+      local rc=0
+      bash -c "$cmdline" || rc=$?
+      G log-action "$proj_for_log" "$(pwd)" "freeform" "rc=$rc -- $cmdline"
+      exit "$rc"
+      ;;
+    *)
+      G log-action "$proj_for_log" "$(pwd)" "freeform-skipped" "$cmdline"
+      yellow "skipped" >&2; echo >&2
+      exit 0
+      ;;
+  esac
+}
+
+# ---- dispatch ------------------------------------------------------------
+
+scope_log
+
+if [ $# -eq 0 ]; then usage; exit 0; fi
+
+# Claim an agent slot up-front so every cc invocation is visible to peers.
+# Per-subcommand handlers may refine the action via agent_update.
+agent_claim "$*"
+
+case "$1" in
+  -help|--help|-h)        shift; usage ;;
+  -setup)                 shift; cmd_setup "$@" ;;
+  -context)               shift; cmd_context ;;
+  -scope|scope)           shift; cmd_scope ;;
+  tui)                    shift; agent_release; _cc_cleanup; exec python3 "$CC_INSTALL_ROOT/lib/tui.py" ;;
+  -agents)                shift; cmd_agents ;;
+  -runs)                  shift; cmd_runs "$@" ;;
+  py)                     shift; cmd_py "$@" ;;
+  bash)                   shift; cmd_bash "$@" ;;
+  claude)                 shift; cmd_claude "$@" ;;
+  claude-import)          shift; cmd_claude_import "$@" ;;
+  chats)                  shift; cmd_chats ;;
+  chat-show)              shift; cmd_chat_show "$@" ;;
+  tiny)                   shift; cmd_tiny "$@" ;;
+  -chain)                 shift; cmd_chain "$@" ;;
+  -chain-last)            shift; cmd_chain_last ;;
+  -chain-show)            shift; cmd_chain_show "$@" ;;
+  -chain-list)            shift; cmd_chain_list "$@" ;;
+  -cards)                 shift; cmd_cards ;;
+  -card-show)             shift; cmd_card_show "$@" ;;
+  -card-delete)           shift; cmd_card_delete "$@" ;;
+  -author-cards)          shift; cmd_author_cards "$@" ;;
+  -gui-cards)             shift; cmd_gui_cards ;;
+  -gui-show)              shift; cmd_gui_show "$@" ;;
+  -gui-delete)            shift; cmd_gui_delete "$@" ;;
+  -author-gui-cards)      shift; cmd_author_gui_cards "$@" ;;
+  -templates)             shift; cmd_templates ;;
+  -template-show)         shift; cmd_template_show "$@" ;;
+  -template-delete)       shift; cmd_template_delete "$@" ;;
+  -authorize-templates)   shift; cmd_authorize_templates "$@" ;;
+  -jobs)                  shift; cmd_jobs "$@" ;;
+  -job-show)              shift; cmd_job_show "$@" ;;
+  -job-last)              shift; cmd_job_last ;;
+  -dag-bootstrap)         shift; cmd_dag_bootstrap ;;
+  -dag-status)            shift; cmd_dag_status ;;
+  -dag-node)              shift; cmd_dag_node "$@" ;;
+  -dag-chain)             shift; cmd_dag_chain "$@" ;;
+  -dag-build)             shift; cmd_dag_build "$@" ;;
+  -dag-enqueue)           shift; cmd_dag_enqueue "$@" ;;
+  -dag-successors)        shift; cmd_dag_successors "$@" ;;
+  -dag-chains-from)       shift; cmd_dag_chains_from "$@" ;;
+  -dag-chains)            shift; cmd_dag_chains_pair "$@" ;;
+  -dag-invalidate)        shift; cmd_dag_invalidate "$@" ;;
+  -template-walk)         shift; cmd_template_walk "$@" ;;
+  phase)                  shift; cmd_phase "$@" ;;
+  agent)                  shift; cmd_agent "$@" ;;
+  swarm)                  shift; cmd_swarm "$@" ;;
+  tool)                   shift; cmd_tool "$@" ;;
+  workflow)               shift; cmd_workflow "$@" ;;
+  studio)                 shift; cmd_studio "$@" ;;
+  -set-project)           shift; cmd_set_project "$@" ;;
+  -list-projects)         shift; cmd_list_projects ;;
+  -add-bash)              shift; cmd_add_bash "$@" ;;
+  -list-bash)             shift; cmd_list_bash ;;
+  -plan)                  shift; cmd_plan "$@" ;;
+  -todos)                 shift; cmd_todos ;;
+  -done)                  shift; cmd_done "$@" ;;
+  -edit-todo)             shift; cmd_edit_todo "$@" ;;
+  -current)               shift; cmd_current ;;
+  -current-set)           shift; cmd_current_set "$@" ;;
+  -current-clear)         shift; cmd_current_clear ;;
+  -queue)                 shift; cmd_queue ;;
+  -run)                   shift; cmd_run "$@" ;;
+  -log)                   shift; cmd_log "$@" ;;
+  -clear-cache)           shift; cmd_clear_cache ;;
+  -studio|-dag-studio)    shift; cmd_dag_studio "$@" ;;
+  -wardrobe)              shift; cmd_wardrobe "$@" ;;
+  -yt-cut)                shift; cmd_yt_cut "$@" ;;
+  -*)                     red "unknown flag: $1" >&2; echo >&2; usage >&2; exit 1 ;;
+  *)                      cmd_freeform "$@" ;;
+esac
