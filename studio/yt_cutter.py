@@ -25,15 +25,21 @@ import streamlit as st
 
 PROJECT_DIR = Path(__file__).resolve().parent
 MEDIA_DIR = PROJECT_DIR / "media"
-VIDEO_DIR = MEDIA_DIR / "video"
-SOUND_DIR = MEDIA_DIR / "sound"
-CACHE_DIR = MEDIA_DIR / ".cache"
-for d in (VIDEO_DIR, SOUND_DIR, CACHE_DIR):
+# Align with the canonical media taxonomy (capital M / capitalized stems).
+VIDEO_DIR  = MEDIA_DIR / "Media" / "Video"
+SOUND_DIR  = MEDIA_DIR / "Media" / "Sounds"
+VOCALS_DIR = SOUND_DIR / "Vocals"
+MUSIC_DIR  = SOUND_DIR / "Music"
+NOISE_DIR  = SOUND_DIR / "Noise"
+CACHE_DIR  = MEDIA_DIR / ".cache"
+for d in (VIDEO_DIR, SOUND_DIR, VOCALS_DIR, MUSIC_DIR, NOISE_DIR, CACHE_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # Ensure the studio dir is on the path so `auth.gate` resolves whether the
 # script is launched from /opt/studio (container) or studio/ (repo).
 sys.path.insert(0, str(PROJECT_DIR))
+# Also expose media/.tools/ for the separate.py + sidecar.py utilities.
+sys.path.insert(0, str(MEDIA_DIR / ".tools"))
 
 
 def _find_ffmpeg() -> str:
@@ -441,10 +447,27 @@ if cut_btn:
         with st.spinner(f"Cutting video → {video_out.name}"):
             cut_video(info.path, start, end, video_out, reencode)
         msgs = [f"Saved video → `{video_out}` ({video_out.stat().st_size/1e6:.1f} MB)"]
+        # Write sidecar for the cut video.
+        try:
+            import sidecar
+            sidecar.write(video_out,
+                sha=sidecar.content_sha(video_out),
+                source_url=url, source_kind="youtube",
+                category="Media/Video",
+                label=out_stem, description=f"YouTube cut [{start:.2f}-{end:.2f}]",
+                tags=["youtube", "cut"],
+            )
+        except Exception:
+            pass
         if save_audio:
             with st.spinner(f"Extracting audio → {audio_out.name}"):
                 cut_audio(info.path, start, end, audio_out)
             msgs.append(f"Saved audio → `{audio_out}` ({audio_out.stat().st_size/1e6:.1f} MB)")
+            # Stash the audio path so the separation block below can find it.
+            st.session_state["yt_last_audio"] = str(audio_out)
+            st.session_state["yt_last_video"] = str(video_out)
+            st.session_state["yt_last_url"]   = url
+            st.session_state["yt_last_stem"]  = video_out.stem
         st.success("  \n".join(msgs))
         with open(video_out, "rb") as fh:
             st.download_button(
@@ -461,3 +484,63 @@ if cut_btn:
                 )
     except Exception as e:
         st.error(str(e))
+
+# ─── Confirm + separate: split vocals / music / noise ────────────────────────
+last_audio = st.session_state.get("yt_last_audio")
+if last_audio and Path(last_audio).exists():
+    st.markdown("---")
+    st.subheader("Confirm + separate vocals / music / noise")
+    st.caption(
+        "Pick the cut above. On confirm we run the audio through a stem "
+        "separator (demucs if installed, else an ffmpeg karaoke fallback). "
+        "Each stem lands in `studio/media/Media/Sounds/{Vocals,Music,Noise}/` "
+        "with a sidecar JSON linking it back to the source."
+    )
+    if st.button("✅  Confirm + separate", type="primary"):
+        try:
+            import separate as sep
+            import sidecar
+            audio_path = Path(last_audio)
+            stem = st.session_state.get("yt_last_stem", audio_path.stem)
+            url  = st.session_state.get("yt_last_url", "")
+            tmp_out = CACHE_DIR / f"_separate_{stem}"
+            tmp_out.mkdir(parents=True, exist_ok=True)
+            with st.spinner("Separating stems (this can take a minute)…"):
+                stems = sep.separate(audio_path, tmp_out)
+            # Move each stem into its taxonomy dir + write sidecar.
+            placed = {}
+            for kind, src_str in stems.items():
+                if kind == "backend" or not src_str:
+                    continue
+                src = Path(src_str)
+                if not src.exists():
+                    continue
+                dest_dir = {
+                    "vocals": VOCALS_DIR,
+                    "music":  MUSIC_DIR,
+                    "noise":  NOISE_DIR,
+                }.get(kind)
+                if dest_dir is None:
+                    continue
+                dest = dest_dir / f"{stem}_{kind}.wav"
+                src.replace(dest)
+                placed[kind] = str(dest)
+                try:
+                    sidecar.write(dest,
+                        sha=sidecar.content_sha(dest),
+                        source_url=url, source_kind="youtube-separated",
+                        category=f"Media/Sounds/{kind.capitalize()}",
+                        label=f"{stem} — {kind}",
+                        description=f"Separated from YouTube cut {stem} via {stems.get('backend','?')}",
+                        tags=["youtube", "separated", kind],
+                        uses=["sample"],
+                    )
+                except Exception:
+                    pass
+            backend = stems.get("backend", "?")
+            st.success(
+                "Separated via " + backend + ":  \n"
+                + "  \n".join(f"- **{k}** → `{v}`" for k, v in placed.items())
+            )
+        except Exception as e:
+            st.error(f"Separation failed: {e}")

@@ -1171,6 +1171,119 @@ cmd_auth_ssh() {
   exec "$dir/auth/ssh_friend_setup.sh" "$@"
 }
 
+# ─── Media intake (classify + bg-remove + auto-organize) ────────────────────
+cmd_intake() {
+  # Classify + place a file under studio/media/<category>. Pass-through to
+  # process.py. Usage:
+  #   cc -intake <file>              — classify (just prints dest dir)
+  #   cc -intake -mv <file>          — classify + move into the dest dir
+  #   cc -intake -bgremove <file>    — strip bg, write *_nobg.png
+  #   cc -intake -mask <file>        — write binary mask
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  local tool="$dir/media/.tools/process.py"
+  [ -f "$tool" ] || { red "process.py not found at $tool" >&2; exit 1; }
+
+  local mode="classify"
+  case "${1:-}" in
+    -mv)        mode="mv";       shift ;;
+    -bgremove)  mode="bgremove"; shift ;;
+    -mask)      mode="mask";     shift ;;
+  esac
+  local file="${1:-}"
+  [ -z "$file" ] && { red "usage: cc -intake [-mv|-bgremove|-mask] <file>" >&2; exit 2; }
+
+  if [ "$mode" = "mv" ]; then
+    local dest
+    dest="$(python3 "$tool" classify "$file")"
+    local target_dir="$dir/media/$dest"
+    mkdir -p "$target_dir"
+    local base; base="$(basename "$file")"
+    mv -n "$file" "$target_dir/$base"
+    yellow "→ $target_dir/$base" >&2
+  elif [ "$mode" = "bgremove" ]; then
+    local out="${file%.*}_nobg.png"
+    python3 "$tool" bgremove "$file" "$out"
+    yellow "→ $out" >&2
+  elif [ "$mode" = "mask" ]; then
+    local out="${file%.*}_mask.png"
+    python3 "$tool" mask "$file" "$out"
+    yellow "→ $out" >&2
+  else
+    python3 "$tool" classify "$file"
+  fi
+}
+
+cmd_fetch_url() {
+  # Pass-through to fetch-url.sh — download, classify, bg-remove.
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  local sh="$dir/media/.tools/fetch-url.sh"
+  [ -f "$sh" ] || { red "fetch-url.sh not found at $sh" >&2; exit 1; }
+  exec "$sh" "$@"
+}
+
+# ─── Salted API-key distribution (claude_guest / pinterest / client) ────────
+cmd_keys_distribute() {
+  local user="${1:-}" kind="${2:-claude}"
+  if [ -z "$user" ]; then
+    red "usage: cc -keys-distribute <user> [claude|pinterest|client]" >&2
+    exit 2
+  fi
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  # Cap claude tokens via the proxy module helper.
+  if [ "$kind" = "claude" ]; then
+    PYTHONPATH="$dir" python3 -c "
+import sys
+try:
+    from proxy.claude_proxy import assert_distribute_within_cap
+    assert_distribute_within_cap('$user')
+except RuntimeError as e:
+    print(str(e), file=sys.stderr); sys.exit(3)
+except ImportError:
+    pass  # fastapi not installed — distribute anyway, cap check is best-effort
+" || exit $?
+  fi
+  PYTHONPATH="$dir" python3 -m auth.keys distribute "$user" "$kind"
+  yellow "→ share this token with $user ONCE. It cannot be recovered." >&2
+}
+
+cmd_keys_list() {
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  PYTHONPATH="$dir" python3 -m auth.keys list "$@"
+}
+
+cmd_keys_status() {
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  PYTHONPATH="$dir" python3 -m auth.keys status
+}
+
+cmd_keys_revoke() {
+  local tid="${1:-}"
+  [ -z "$tid" ] && { red "usage: cc -keys-revoke <token-id>" >&2; exit 2; }
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  PYTHONPATH="$dir" python3 -m auth.keys revoke "$tid"
+}
+
+cmd_keys_verify() {
+  local tok="${1:-}"
+  [ -z "$tok" ] && { red "usage: cc -keys-verify <token>" >&2; exit 2; }
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  PYTHONPATH="$dir" python3 -m auth.keys verify "$tok"
+}
+
+cmd_proxy_start() {
+  # Launch the Claude guest-pass proxy on port 8520 (overridable via PORT).
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  local port="${PORT:-8520}"
+  if [ ! -x "$dir/.venv/bin/uvicorn" ]; then
+    yellow "Studio venv missing uvicorn — bootstrapping…" >&2
+    [ -d "$dir/.venv" ] || python3 -m venv "$dir/.venv"
+    "$dir/.venv/bin/pip" install --disable-pip-version-check -r "$dir/proxy/requirements.txt" >&2
+  fi
+  yellow "Claude guest-pass proxy → http://0.0.0.0:$port" >&2
+  cd "$dir" && exec "$dir/.venv/bin/uvicorn" \
+    proxy.claude_proxy:app --host 0.0.0.0 --port "$port"
+}
+
 cmd_template_walk() {
   # Dry-run walk of a workflow template — shows per-step GUI prediction,
   # bind validation, HITL gates, branch logic. NO model calls, NO cost.
@@ -2358,6 +2471,14 @@ case "$1" in
   -auth-grant)            shift; cmd_auth_grant "$@" ;;
   -auth-status)           shift; cmd_auth_status ;;
   -auth-ssh)              shift; cmd_auth_ssh "$@" ;;
+  -intake)                shift; cmd_intake "$@" ;;
+  -fetch-url)             shift; cmd_fetch_url "$@" ;;
+  -keys-distribute)       shift; cmd_keys_distribute "$@" ;;
+  -keys-list)             shift; cmd_keys_list "$@" ;;
+  -keys-status)           shift; cmd_keys_status ;;
+  -keys-revoke)           shift; cmd_keys_revoke "$@" ;;
+  -keys-verify)           shift; cmd_keys_verify "$@" ;;
+  -proxy-start)           shift; cmd_proxy_start "$@" ;;
   -*)                     red "unknown flag: $1" >&2; echo >&2; usage >&2; exit 1 ;;
   *)                      cmd_freeform "$@" ;;
 esac

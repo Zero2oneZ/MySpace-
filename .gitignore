@@ -45,16 +45,37 @@ studio/.venv/
 studio/__pycache__/
 studio/media/.cache/
 studio/media/wardrobe_out/
-studio/media/sound/
-studio/media/video/
 studio/saved/
 studio/recipes/*.dag.json
 !studio/recipes/*.example.dag.json
 studio/26.1.1
 
+# Studio media content — per-host assets; bulk content is downloaded /
+# scraped via studio/media/.tools/fetch-url.sh and shouldn't ship in git.
+# Ignore everything under studio/media/ EXCEPT the intake tooling, the
+# README, and empty-dir .gitkeep markers (whitelisted below).
+studio/media/**
+!studio/media/.tools/
+!studio/media/.tools/*.py
+!studio/media/.tools/*.sh
+!studio/media/.tools/README.md
+!studio/media/README.md
+!studio/media/**/.gitkeep
+# Hidden runtime dirs at the media root — never tracked
+studio/media/.logs/
+studio/media/.staging/
+studio/media/.tools/__pycache__/
+studio/media/.tools/.logs/
+studio/media/.tools/.staging/
+
 # Auth state — per-host, never committed
 studio/auth/permissions.jsonl
 studio/auth/permissions.jsonl.tmp
+studio/auth/.master_secret
+studio/auth/keys.sqlite
+studio/auth/keys.sqlite-journal
+studio/auth/keys.sqlite-wal
+studio/auth/keys.sqlite-shm
 
 # Datasets that landed in the tree (large, possibly third-party assets).
 # If you want a dataset committed, add an explicit allow-list line below.

@@ -44,3 +44,8 @@ studio/26.1.1
 # Auth state — must NEVER be baked into the image
 studio/auth/permissions.jsonl
 studio/auth/permissions.jsonl.tmp
+studio/auth/.master_secret
+studio/auth/keys.sqlite
+studio/auth/keys.sqlite-journal
+studio/auth/keys.sqlite-wal
+studio/auth/keys.sqlite-shm
