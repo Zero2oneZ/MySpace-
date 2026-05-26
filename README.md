@@ -175,6 +175,34 @@ Studio docs:
 - `studio/docs/DAG-GUI.md` — chain enumeration + UX spec
 - `studio/docs/DAG-FLOW.md` — deterministic deck-predictor flows
 
+### Share GPU access with friends (SSH + IP-bind auth)
+
+The studio supports a friend-scoped access model: SSH port-forward grants
+on the network layer + a per-user IP-binding gate on the app layer. See
+`studio/auth/README.md` for the full threat model. TL;DR:
+
+```bash
+# Tom's side — onboard a friend whose pubkey he received
+cc -auth-ssh add Jamie ~/Downloads/jamie.pub
+cc -auth-ssh share Jamie     # prints the SSH command Jamie should run
+
+# Optional: add a new friend not in the default seed list
+cc -auth-grant Mike
+
+# Audit
+cc -auth-list                # rows + IP-binding state
+cc -auth-status              # one-line counts
+
+# Revoke
+cc -auth-revoke Jamie
+cc -auth-ssh revoke Jamie
+```
+
+Default whitelist: `localhost`, `Jamie`, `Bronco`, `Pete`, `Ashley`, plus a
+`friends@Tmail.com` solo email row. Same password (`"passwd"`) for all
+four named friends; the strong factor is **SSH key + sticky IP binding**,
+not the password.
+
 ---
 
 ## Documentation

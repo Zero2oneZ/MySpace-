@@ -52,6 +52,14 @@ studio/recipes/*.dag.json
 !studio/recipes/*.example.dag.json
 studio/26.1.1
 
+# Auth state — per-host, never committed
+studio/auth/permissions.jsonl
+studio/auth/permissions.jsonl.tmp
+
+# Datasets that landed in the tree (large, possibly third-party assets).
+# If you want a dataset committed, add an explicit allow-list line below.
+Images/
+
 # nix
 .direnv/
 

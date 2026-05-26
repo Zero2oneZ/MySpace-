@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""seed_permissions.py — populate permissions.jsonl from the friend list.
+
+Idempotent: if a row already exists for a user (matched by `user`), its
+runtime fields (ip_bound, bind_hash, first_seen, last_seen) are preserved
+so re-running this does NOT kick anyone out. Only schema + passwd_hash are
+refreshed.
+
+Usage:
+    python seed_permissions.py             # default friend list
+    python seed_permissions.py --reset USR # wipe one user's IP binding
+    python seed_permissions.py --list      # print current state
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+PERMISSIONS_PATH = HERE / "permissions.jsonl"
+
+# ----------------------------------------------------------------------------
+# Seed list. Tom-defined. To add a friend, append a row here and re-run.
+# Password is plaintext at seed-time and hashed before being written.
+# ----------------------------------------------------------------------------
+SEED: list[dict] = [
+    # localhost — host machine itself; no passwd, IP must be loopback.
+    {"user": "localhost", "permission": True, "passwd": None,
+     "email": None, "solo": False, "loopback_only": True},
+
+    # Whitelisted friends — same passwd, free GPU access, IP-bound on first login.
+    {"user": "Jamie",  "permission": True, "passwd": "passwd",
+     "email": "friends@Tmail.com", "solo": False, "loopback_only": False},
+    {"user": "Bronco", "permission": True, "passwd": "passwd",
+     "email": "friends@Tmail.com", "solo": False, "loopback_only": False},
+    {"user": "Pete",   "permission": True, "passwd": "passwd",
+     "email": "friends@Tmail.com", "solo": False, "loopback_only": False},
+    {"user": "Ashley", "permission": True, "passwd": "passwd",
+     "email": "friends@Tmail.com", "solo": False, "loopback_only": False},
+
+    # Solo-by-email fallback: NULL user/passwd/permission keys; the only
+    # match is by email == friends@Tmail.com. Used by features that allow
+    # a one-off email-only entry path.
+    {"user": None, "permission": True, "passwd": None,
+     "email": "friends@Tmail.com", "solo": True, "loopback_only": False},
+]
+
+
+def sha256(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def passwd_hash(plain: str | None) -> str | None:
+    """SHA-256 of plaintext password. None passwords stay None (no passwd needed)."""
+    if plain is None:
+        return None
+    return sha256(plain)
+
+
+def load_existing() -> list[dict]:
+    """Read existing permissions.jsonl. Returns [] if missing."""
+    if not PERMISSIONS_PATH.exists():
+        return []
+    rows = []
+    with PERMISSIONS_PATH.open() as f:
+        for ln in f:
+            ln = ln.strip()
+            if not ln or ln.startswith("#"):
+                continue
+            try:
+                rows.append(json.loads(ln))
+            except json.JSONDecodeError as e:
+                print(f"warn: bad row, skipping: {ln[:60]}… ({e})", file=sys.stderr)
+    return rows
+
+
+def _key(row: dict) -> tuple:
+    """Identity key for matching seed rows to existing rows."""
+    return (row.get("user"), row.get("email") if row.get("solo") else None)
+
+
+def merge(seed: list[dict], existing: list[dict]) -> list[dict]:
+    """Refresh seed schema + passwd_hash; preserve binding state from existing.
+    Rows in `existing` that aren't in the seed list ARE retained (so friends
+    added later via `cc -auth-grant` survive re-seeding)."""
+    by_key = { _key(r): r for r in existing }
+    seed_keys = { _key(s) for s in seed }
+    out: list[dict] = []
+    for s in seed:
+        row = {
+            "user":           s["user"],
+            "permission":     bool(s["permission"]),
+            "passwd_hash":    passwd_hash(s.get("passwd")),
+            "email":          s.get("email"),
+            "solo":           bool(s.get("solo", False)),
+            "loopback_only":  bool(s.get("loopback_only", False)),
+            # Runtime fields — preserved if seen before, else null.
+            "ip_bound":   None,
+            "bind_hash":  None,
+            "first_seen": None,
+            "last_seen":  None,
+        }
+        prev = by_key.get(_key(s))
+        if prev:
+            for k in ("ip_bound", "bind_hash", "first_seen", "last_seen"):
+                if prev.get(k):
+                    row[k] = prev[k]
+        out.append(row)
+    # Append non-seed rows from existing (granted friends) at the end,
+    # preserving their full state including bindings + passwd_hash.
+    for r in existing:
+        if _key(r) not in seed_keys:
+            out.append(r)
+    return out
+
+
+def write(rows: list[dict]) -> None:
+    PERMISSIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = PERMISSIONS_PATH.with_suffix(".jsonl.tmp")
+    with tmp.open("w") as f:
+        f.write("# MySpace++ studio permissions — generated by seed_permissions.py.\n")
+        f.write("# Do not edit by hand; use seed_permissions.py or `cc -auth-grant`.\n")
+        for r in rows:
+            f.write(json.dumps(r, sort_keys=True) + "\n")
+    os.replace(tmp, PERMISSIONS_PATH)
+    # Lock down — file contains hashed creds + bound IPs.
+    try:
+        os.chmod(PERMISSIONS_PATH, 0o600)
+    except OSError:
+        pass
+
+
+def reset(user: str) -> bool:
+    """Clear ip_bound + bind_hash + first_seen for one user so they log in fresh."""
+    rows = load_existing()
+    changed = False
+    for r in rows:
+        if r.get("user") == user:
+            for k in ("ip_bound", "bind_hash", "first_seen", "last_seen"):
+                if r.get(k):
+                    r[k] = None
+                    changed = True
+    if changed:
+        write(rows)
+    return changed
+
+
+def pretty_print(rows: list[dict]) -> None:
+    """Operator-friendly redacted listing."""
+    print(f"{'user':<14} {'perm':<5} {'pwd':<5} {'bound IP':<18} {'solo':<5} {'first seen':<22}")
+    print("-" * 76)
+    for r in rows:
+        u = r.get("user") or "(solo)"
+        perm = "Y" if r.get("permission") else "N"
+        pwd = "Y" if r.get("passwd_hash") else "-"
+        ip = r.get("ip_bound") or "(unbound)"
+        solo = "Y" if r.get("solo") else "-"
+        first = r.get("first_seen") or "-"
+        print(f"{u:<14} {perm:<5} {pwd:<5} {ip:<18} {solo:<5} {first:<22}")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="seed_permissions.py")
+    ap.add_argument("--reset", metavar="USER",
+                    help="clear IP binding for a single user")
+    ap.add_argument("--list", action="store_true",
+                    help="print current permissions table")
+    args = ap.parse_args()
+
+    if args.list:
+        pretty_print(load_existing())
+        return 0
+
+    if args.reset:
+        ok = reset(args.reset)
+        print(("reset " if ok else "no change for ") + args.reset)
+        return 0
+
+    existing = load_existing()
+    merged = merge(SEED, existing)
+    write(merged)
+    print(f"wrote {PERMISSIONS_PATH} ({len(merged)} rows, "
+          f"{sum(1 for r in merged if r.get('ip_bound'))} bound)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

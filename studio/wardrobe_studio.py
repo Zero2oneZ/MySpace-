@@ -253,8 +253,21 @@ def pixal3d_launch_hint() -> str:
 # ----------------------------------------------------------------------------
 
 st.set_page_config(page_title="Wardrobe Studio", page_icon="🧥", layout="wide")
+
+# ---- friend-scoped auth gate (must come before any other UI) ---------------
+sys.path.insert(0, str(HERE))
+try:
+    from auth.gate import require_login
+    _auth = require_login()
+except Exception as _e:
+    st.error(f"Auth gate failed to load: {_e}")
+    st.stop()
+
 st.title("🧥 Wardrobe Studio")
-st.caption("Cutout → Try-On → Mockup → 3D, all in one place.")
+st.caption(
+    f"Cutout → Try-On → Mockup → 3D, all in one place.  "
+    f"Signed in as **{_auth.user or '(solo)'}** from {_auth.ip}."
+)
 
 REMBG_OK = _try("rembg") is not None
 KOLORS_OK = _kolors_env_ready()

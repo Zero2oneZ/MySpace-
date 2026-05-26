@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,10 @@ SOUND_DIR = MEDIA_DIR / "sound"
 CACHE_DIR = MEDIA_DIR / ".cache"
 for d in (VIDEO_DIR, SOUND_DIR, CACHE_DIR):
     d.mkdir(parents=True, exist_ok=True)
+
+# Ensure the studio dir is on the path so `auth.gate` resolves whether the
+# script is launched from /opt/studio (container) or studio/ (repo).
+sys.path.insert(0, str(PROJECT_DIR))
 
 
 def _find_ffmpeg() -> str:
@@ -264,11 +269,21 @@ def cut_audio(src: Path, start: float, end: float, out_path: Path) -> None:
 # ─── UI ────────────────────────────────────────────────────────────────────
 
 st.set_page_config(page_title="YouTube Cutter", page_icon="🎬", layout="wide")
+
+# ─── friend-scoped auth gate (must come before any other UI) ────────────────
+try:
+    from auth.gate import require_login
+    _auth = require_login()
+except Exception as _e:
+    st.error(f"Auth gate failed to load: {_e}")
+    st.stop()
+
 st.title("🎬 YouTube Cutter — waveform edit")
 st.caption(
     f"Video → `{VIDEO_DIR.relative_to(PROJECT_DIR)}` · "
     f"Audio → `{SOUND_DIR.relative_to(PROJECT_DIR)}` · "
-    f"cache `{CACHE_DIR.relative_to(PROJECT_DIR)}`"
+    f"cache `{CACHE_DIR.relative_to(PROJECT_DIR)}` · "
+    f"signed in as **{_auth.user or '(solo)'}** from {_auth.ip}"
 )
 
 with st.sidebar:

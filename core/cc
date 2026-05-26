@@ -1085,6 +1085,92 @@ cmd_yt_cut() {
   exec "$dir/run_yt_cutter.sh" "$@"
 }
 
+# ─── Studio auth (friend-scoped access control) ─────────────────────────────
+cmd_auth_seed() {
+  # Generate / refresh permissions.jsonl from the friend list seed.
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  python3 "$dir/auth/seed_permissions.py" "$@"
+}
+
+cmd_auth_list() {
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  python3 "$dir/auth/seed_permissions.py" --list
+}
+
+cmd_auth_revoke() {
+  local who="${1:-}"
+  [ -z "$who" ] && { red "usage: cc -auth-revoke <user>" >&2; exit 2; }
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  python3 "$dir/auth/seed_permissions.py" --reset "$who"
+  yellow "Also revoke SSH:  $dir/auth/ssh_friend_setup.sh revoke $who" >&2
+}
+
+cmd_auth_grant() {
+  # Add a new friend interactively. Appends a seed-style row + re-runs seed.
+  local who="${1:-}"
+  local pw="${2:-passwd}"
+  local em="${3:-friends@Tmail.com}"
+  if [ -z "$who" ]; then
+    red "usage: cc -auth-grant <user> [passwd] [email]" >&2
+    yellow "       defaults: passwd=passwd, email=friends@Tmail.com" >&2
+    exit 2
+  fi
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  python3 - <<PY
+import json, hashlib, os, sys
+from pathlib import Path
+here = Path("$dir/auth")
+sys.path.insert(0, str(here))
+import seed_permissions as sp
+existing = sp.load_existing()
+# Has this user already?
+for r in existing:
+    if r.get("user") == "$who":
+        print("$who already in permissions store — no-op.")
+        sys.exit(0)
+new = {"user": "$who", "permission": True,
+       "passwd_hash": sp.passwd_hash("$pw"),
+       "email": "$em", "solo": False, "loopback_only": False,
+       "ip_bound": None, "bind_hash": None,
+       "first_seen": None, "last_seen": None}
+existing.append(new)
+sp.write(existing)
+print(f"granted: $who (passwd hashed, email=$em, IP unbound)")
+PY
+  echo
+  yellow "Friend's SSH key still needs to be added separately:"
+  yellow "  $dir/auth/ssh_friend_setup.sh add $who /path/to/their.pub"
+}
+
+cmd_auth_status() {
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  python3 - <<PY
+import json, sys
+from pathlib import Path
+p = Path("$dir/auth/permissions.jsonl")
+if not p.exists():
+    print("(no permissions.jsonl yet — run: cc -auth-seed)")
+    sys.exit(0)
+rows = []
+for ln in p.read_text().splitlines():
+    ln = ln.strip()
+    if not ln or ln.startswith("#"): continue
+    try: rows.append(json.loads(ln))
+    except Exception: pass
+total = len(rows)
+bound = sum(1 for r in rows if r.get("ip_bound"))
+solo = sum(1 for r in rows if r.get("solo"))
+loop = sum(1 for r in rows if r.get("loopback_only"))
+print(f"rows: {total}  bound: {bound}  unbound: {total - bound}  solo: {solo}  loopback-only: {loop}")
+PY
+}
+
+cmd_auth_ssh() {
+  # Pass-through to ssh_friend_setup.sh.
+  local dir; if ! dir="$(_resolve_studio_dir)"; then red "studio/ not found." >&2; exit 1; fi
+  exec "$dir/auth/ssh_friend_setup.sh" "$@"
+}
+
 cmd_template_walk() {
   # Dry-run walk of a workflow template — shows per-step GUI prediction,
   # bind validation, HITL gates, branch logic. NO model calls, NO cost.
@@ -2266,6 +2352,12 @@ case "$1" in
   -studio|-dag-studio)    shift; cmd_dag_studio "$@" ;;
   -wardrobe)              shift; cmd_wardrobe "$@" ;;
   -yt-cut)                shift; cmd_yt_cut "$@" ;;
+  -auth-seed)             shift; cmd_auth_seed "$@" ;;
+  -auth-list)             shift; cmd_auth_list ;;
+  -auth-revoke)           shift; cmd_auth_revoke "$@" ;;
+  -auth-grant)            shift; cmd_auth_grant "$@" ;;
+  -auth-status)           shift; cmd_auth_status ;;
+  -auth-ssh)              shift; cmd_auth_ssh "$@" ;;
   -*)                     red "unknown flag: $1" >&2; echo >&2; usage >&2; exit 1 ;;
   *)                      cmd_freeform "$@" ;;
 esac

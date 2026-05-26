@@ -40,3 +40,7 @@ studio/media/sound/
 studio/media/video/
 studio/saved/
 studio/26.1.1
+
+# Auth state — must NEVER be baked into the image
+studio/auth/permissions.jsonl
+studio/auth/permissions.jsonl.tmp

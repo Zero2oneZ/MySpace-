@@ -14,11 +14,16 @@ Launch:
 """
 from __future__ import annotations
 import json
+import sys
 import time
 import uuid
 from pathlib import Path
 
 import streamlit as st
+
+# Ensure the studio dir is on the path so `auth.gate` resolves whether the
+# script is launched from /opt/studio (container) or studio/ (repo).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from nodes import (
     NODES_BY_ID, nodes_by_kind, nodes_accepting, nodes_producing,
@@ -45,6 +50,14 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ─── friend-scoped auth gate (must come before any other UI) ────────────────
+try:
+    from auth.gate import require_login
+    _auth = require_login()
+except Exception as _e:
+    st.error(f"Auth gate failed to load: {_e}")
+    st.stop()
 
 st.markdown(
     """

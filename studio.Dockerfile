@@ -30,7 +30,8 @@ WORKDIR /opt/studio
 COPY studio/requirements.txt /opt/studio/requirements.txt
 RUN pip install -r /opt/studio/requirements.txt
 
-# Copy studio sources. .dockerignore excludes .venv, media caches, etc.
+# Copy studio sources. .dockerignore excludes .venv, media caches, AND
+# studio/auth/permissions.jsonl (per-host state — auto-seeded on first launch).
 COPY studio/ /opt/studio/
 
 # Streamlit ports: 8501 (DAG canvas), 8510 (wardrobe), 8511 (yt-cutter).
