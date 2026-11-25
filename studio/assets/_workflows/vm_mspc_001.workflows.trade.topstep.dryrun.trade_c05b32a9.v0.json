@@ -1,0 +1,87 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "topstep.dryrun.trade_c05b32a9",
+  "category": "trade",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: topstep dry-run trade execution with safety gate",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_topstep_dry_run",
+      "agent": "topstep_dry_run",
+      "kernel_ref": "card:topstep_dry_run",
+      "engine": "card",
+      "in": [
+        "STR",
+        "JSON",
+        "BOOL"
+      ],
+      "out": "JSON",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:idle.walk.twist_481cb60a"
+      ]
+    },
+    {
+      "id": "p01_topstep",
+      "agent": "topstep",
+      "kernel_ref": "connector:topstep",
+      "engine": "topstep",
+      "in": [
+        "ANY"
+      ],
+      "out": "LABEL",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_topstep_dry_run",
+      "source": "pass:p00_topstep_dry_run",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_topstep",
+      "source": "pass:p01_topstep",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:topstep_dry_run",
+    "connector:topstep"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:39:02Z"
+  }
+}

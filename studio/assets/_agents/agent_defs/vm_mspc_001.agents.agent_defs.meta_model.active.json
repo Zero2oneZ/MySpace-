@@ -1,0 +1,99 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "meta_model",
+  "state": "active",
+  "version": "v0",
+  "role": "ARCHITECTURAL_INVARIANT · META_MODEL_ANCHOR",
+  "tier": "L0",
+  "module_path": "(see canonical sources)",
+  "summary": "Anchors the four permanent architectural invariants Tom flagged as 'always remember': (1) .bb is the universal compile target, (2) XML structure IS tensor information, (3) morph layers are the universal blend vocabulary, (4) polymorphism via kimi-MoE + crystal-chain retrieval. This card is not code — it's an architectural memo that the ops_dag references.",
+  "engine_pattern": "anchor/memo — not executable; pointed at by other ops",
+  "invariants": {
+    "1_bb_universal_compile_target": {
+      "principle": "Every computation that CAN be a .bb SHOULD be a .bb",
+      "canonical_spec": "/data/Projects/gently/BB.md",
+      "live_crates": [
+        "/data/Projects/gently/crates/bb-emit",
+        "/data/Projects/gently/crates/bb-emit-s2static",
+        "/data/Projects/gently/crates/bb-loop",
+        "/data/Projects/gently/crates/bb-runtime-adapter",
+        "/data/Projects/gently/crates/gently-bb-struct"
+      ],
+      "stack_machine": "7 frozen symbols (f ~ d l s a m) + 2 value types (Num f64, Hash [u8;32])",
+      "wire_formats": ["gui.bb (136-byte fixed-width)", "program.bb (text or binary + seed.json)"],
+      "determinism_axiom": "same .bb + same seed.json = same crystal hash, always",
+      "ops_that_realize_this": ["op_bb_emit_godot", "op_meta_model_bb_compile"]
+    },
+    "2_xml_as_tensor_information": {
+      "principle": "XML/SVG nodes carry vector-shaped data; XML nodes act as MoE gating layers",
+      "mechanics": [
+        "<path d='...'> = polyline tensor",
+        "transform='matrix(...)' = affine map",
+        "data-* attrs = embedding coordinates",
+        "BLAKE3 hex of layer styles = cryptographic seal",
+        "Chromium SVG filters = hardware GPU compositor runtime"
+      ],
+      "engine_pattern": "parser_cursor (XMLParser-shaped) walks JSONL the same way Godot XMLParser walks XML",
+      "applies_to_chains": [
+        "inference_master_chain.jsonl",
+        "user_graph.jsonl",
+        "scan_chain.jsonl",
+        "comfy_dag.jsonl",
+        "model_index.jsonl",
+        "datasets_index.jsonl",
+        "ops_dag.jsonl",
+        "(future) zpin SVG identity files"
+      ],
+      "ops_that_realize_this": ["op_parser_cursor", "op_xml_vector_inference", "op_zpin_identity"]
+    },
+    "3_morph_layer_vocabulary": {
+      "principle": "Photoshop/Hypershade layer-style vocabulary is the universal interlingua across surfaces",
+      "canonical_layers": ["alpha", "normal", "depth", "albedo", "opacity", "ao", "gradient", "metallic", "roughness", "emission"],
+      "canonical_blend_modes": ["base", "multiply", "screen", "overlay", "additive", "normal_map", "depth_uniform", "alpha", "opacity", "gradient_h", "gradient_v", "color_dodge", "soft_light", "hard_light"],
+      "appears_in": [
+        "Godot shader uniforms (u_albedo, u_normal, ...)",
+        "Blender Principled BSDF input sockets",
+        "SpriteForge composition layers",
+        "ComfyUI image-mix nodes",
+        "workflow_card.layer_stack[]"
+      ],
+      "ops_that_realize_this": ["op_workflow_generator", "op_morph_layer_polymorphism"]
+    },
+    "4_kimi_moe_polymorphism": {
+      "principle": "Stack our crystal-chain MoE on top of kimi's internal MoE — polymorphism through retrieval, not training",
+      "models": ["kimi-k2.6:cloud", "kimi-k2-thinking:cloud"],
+      "mechanism": "Same input → different specialist behavior depending on (vector, wave, time) coordinate from the crystal chain",
+      "why_no_training_cost": "Smartness grows from the retrieval index size, not from weight updates. kimi provides specialists; our MoE picks which fires.",
+      "ops_that_realize_this": ["op_moe_router", "op_kimi_moe_routing", "op_cross_modal_chat"]
+    }
+  },
+  "exports": [],
+  "substrate": "none (architectural memo)",
+  "routing_connections": {
+    "inbound_callers": [
+      "Every workflow_card emit step (must check invariant 3)",
+      "Every chain JSONL writer (must check invariant 2)",
+      "Every MoE retrieval (must check invariant 4)",
+      "Every artifact publish (must check invariant 1 — eventual .bb target)"
+    ],
+    "outbound_calls": [],
+    "substrate_reads": [
+      "/data/Projects/gently/BB.md (canonical .bb spec)",
+      "/home/tom/.claude/projects/-data-Projects-MySpace--/memory/architectural_invariants.md (saved memory)"
+    ],
+    "substrate_writes": []
+  },
+  "guarantees": [
+    "These invariants override task-specific architecture decisions",
+    "When a future op contradicts an invariant, the invariant wins",
+    "Memory + agent_def + ops_dag placeholders all reference the same canonical text",
+    "Updates to invariants happen in ONE place (memory file) and propagate via agent_def regeneration"
+  ],
+  "saved_to_memory": "/home/tom/.claude/projects/-data-Projects-MySpace--/memory/architectural_invariants.md",
+  "chain_runs": ["moe_chain_router_v0"]
+}

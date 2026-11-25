@@ -1,0 +1,25 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "colorrect",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "ColorRect",
+  "godot_inherits": "Control < CanvasItem < Node",
+  "summary": "Flat-color rectangle Control. Use for solid-color backgrounds, dividers, debug overlays, hit-test regions, dim_pack color swatches. Lighter than Panel (no theme stylebox draw) — pure single-color fill. Set color directly; modulate stacks on top for tint effects. Perfect target for the dim_pack rgba 5-frames mapping — set color to Color(manifest.dim.rgba) and the rect literally renders that frame's tint as a fullscreen wash.",
+  "exports": [
+    { "name": "color", "type": "Color", "default": "Color(1, 1, 1, 1)" }
+  ],
+  "signals": [],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "color" },
+    { "layer": "tint", "godot_property": "modulate" },
+    { "layer": "opacity", "godot_property": "color.a" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": true,
+  "dim_pack_tint_property": "color",
+  "example_tscn_snippet": "[node name=\"MyRect\" type=\"ColorRect\" parent=\".\"]\noffset_right = 320.0\noffset_bottom = 64.0\ncolor = Color(0.1, 0.1, 0.15, 0.85)\n",
+  "phase": "Atomic UI element"
+}

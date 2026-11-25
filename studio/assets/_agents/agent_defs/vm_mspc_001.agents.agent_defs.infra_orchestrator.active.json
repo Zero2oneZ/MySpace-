@@ -1,0 +1,23 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "infra_orchestrator",
+  "state": "active",
+  "version": "v0",
+  "role": "PLATFORM · INFRASTRUCTURE",
+  "tier": "L0",
+  "responsibilities": [
+    "MCP server lifecycle",
+    "GPU job scheduling",
+    "Multi-device routing",
+    "VM graph walking",
+    "Chain crystallization"
+  ],
+  "models": ["codie-v4-predict", "kimi-k2-6"],
+  "permissions": ["read_all", "schedule_jobs", "route_traffic"],
+  "chain_runs": ["run_20_avatar_pipeline"]
+}

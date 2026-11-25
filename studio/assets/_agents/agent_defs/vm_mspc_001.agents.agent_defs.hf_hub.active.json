@@ -1,0 +1,79 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "hf_hub",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · HUGGINGFACE_HUB + 19_INFERENCE_PROVIDERS",
+  "tier": "L0",
+  "module_path": "core/lib/hf_hub.py",
+
+  "summary": "Single connector exposing the full Hugging Face surface to the chain. Three capabilities in one module: (1) Hub search / model_card / list_datasets — browse the ~1M+ models and ~200k datasets without downloading anything. (2) Unified inference() that routes through HF's OpenAI-compatible router across 19 cloud providers, falling back across the priority list on error. (3) stream_dataset() — pull rows from a HF dataset via the datasets-server API, no full parquet download. Every inference call crystals into the chain so MoE retrieval can find prior similar HF calls without re-spending tokens.",
+
+  "engine_pattern": "stdlib-only urllib HTTPS client. No huggingface_hub Python dep required. Token resolved from HF_TOKEN env → HUGGINGFACE_TOKEN env → ~/.cache/huggingface/token → .env in priority order. Every inference call gets a deterministic crystal computed over (provider, model, prompt, output, max_tokens, temperature) and appended to studio/hf_hub/log.jsonl. Fallback router walks INFERENCE_PROVIDERS in order on error.",
+
+  "providers": {
+    "count": 19,
+    "ordered_by_priority": [
+      "groq", "cerebras", "fireworks-ai", "together", "novita",
+      "deepinfra", "fal-ai", "hyperbolic", "sambanova", "nscale",
+      "featherless-ai", "scaleway", "replicate", "cohere", "zai-org",
+      "public-ai", "ovhcloud", "wavespeed", "hf-inference"
+    ],
+    "rationale": "groq + cerebras lead the ordering — fastest tokens/sec for most models. hf-inference last as canonical fallback. Card-level overrides via try_providers param.",
+    "unified_endpoint": "https://router.huggingface.co/v1/chat/completions",
+    "openai_compatible": true,
+    "note": "Same prompt → same OpenAI-shaped payload → 19 different gateways. The chain doesn't have to know which one served the call; the InferenceResult.provider field records it for replay."
+  },
+
+  "capabilities": {
+    "search_models":  "browse Hub via /api/models?search=...",
+    "get_model_card": "fetch /api/models/<id> JSON (config, tags, downloads, siblings)",
+    "list_datasets":  "browse Hub via /api/datasets?search=...",
+    "inference":      "POST /v1/chat/completions through router — provider via X-HF-Provider or model-path prefix",
+    "stream_dataset": "GET datasets-server.huggingface.co/rows — paginated rows without parquet download"
+  },
+
+  "exports": [
+    "INFERENCE_PROVIDERS", "search_models", "get_model_card", "list_datasets",
+    "inference", "stream_dataset", "HFModelRef", "InferenceResult"
+  ],
+
+  "substrate": "studio/hf_hub/log.jsonl (per-call entries: ts, provider, model, tokens, latency, crystal, preview)",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio_runtime._dispatch_hf (when card pass.engine='hf' or 'cloud')",
+      "core/cc.sh::cmd_hf_search | cmd_hf_card | cmd_hf_datasets | cmd_hf_infer | cmd_hf_stream | cmd_hf_providers",
+      "task_queue.CLOUD pool (when pool_kind='cloud' and provider_family='hf')",
+      "model_installer (extends search to live cloud, not just local installs)"
+    ],
+    "outbound_calls": [
+      "https://huggingface.co/api/models",
+      "https://huggingface.co/api/datasets",
+      "https://huggingface.co/api/models/<id>",
+      "https://router.huggingface.co/v1/chat/completions",
+      "https://datasets-server.huggingface.co/rows"
+    ],
+    "substrate_reads": "HF_TOKEN from env / ~/.cache/huggingface/token / .env",
+    "substrate_writes": "studio/hf_hub/log.jsonl"
+  },
+
+  "the_unified_surface": "One Python module spans Hugging Face's entire model/dataset hub + 19 inference providers. Workflow cards declare 'engine: hf' + a provider preference; studio_runtime routes through hf_hub.inference() which fans across providers and returns the first success. The chain gains access to thousands of frontier models on tap without paying for ANTHROPIC_API_KEY-level access.",
+
+  "guarantees": [
+    "Crystal-anchored — every inference call has a deterministic BLAKE3 of (provider, model, prompt, output)",
+    "Fallback-resilient — when any provider errors, walks the rest of the 19 in priority order",
+    "Free-tier-aware — most providers offer generous free quotas; the router picks cheapest-fastest available",
+    "stdlib-only — zero new Python deps; ships in the existing substrate",
+    "Cache-compatible — crystals plug into result_cache + MoE retrieval so prior identical calls return without re-spending tokens"
+  ],
+
+  "usage_example": "# Search\\ncc hf-search 'kimi instruct' --limit 5\\n\\n# Inference (fans across providers on fallback)\\ncc hf-infer moonshotai/Kimi-K2-Instruct 'Explain Mixamo rigging in 1 sentence' --provider groq --max-tokens 200\\n\\n# Dataset rows without download\\ncc hf-stream HuggingFaceH4/no_robots --split train --limit 5\\n\\n# In a workflow_card:\\n# { 'engine': 'hf', 'agent': 'hf_inference',\\n#   'params': {'provider': 'groq', 'model': 'moonshotai/Kimi-K2-Instruct',\\n#               'prompt': 'caption this room', 'max_tokens': 256}, 'in': [], 'out': 'caption' }",
+
+  "chain_runs": ["moe_chain_router_v0"]
+}

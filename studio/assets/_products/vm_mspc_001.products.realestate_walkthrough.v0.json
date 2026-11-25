@@ -1,0 +1,26 @@
+{
+  "_schema": "product_card_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "products",
+  "category": "realestate",
+  "name": "realestate_walkthrough",
+  "tagline": "3D real-estate walkthrough with auto-generated realtor↔client chat agent",
+  "value_tier": 10,
+  "ttm_days": 7,
+  "monthly_recurring_usd": [99, 999, 4990],
+  "input_mcps": ["pinterest-mcp", "huggingface-mcp", "blender-mcp",
+                  "discord-mcp", "whatsapp-mcp", "tensorchain-mcp"],
+  "substrate_uses": [
+    "studio_runtime", "spatial_anchor", "light_source", "frame_clock",
+    "svg_vector_embed", "hf_hub", "workflow_generator", "inference_logger"
+  ],
+  "output_surfaces": ["streamlit", "godot_scene", "godot_gd", "godot_cpp",
+                       "blender", "comfyui", "remotion_mp4"],
+  "monetization_channels": ["stripe_subscription_realtor",
+                              "stripe_one_time_walkthrough_999",
+                              "tensorchain_escrow_listing_deposit"],
+  "depends_on_phases": ["phase0_existing"],
+  "status": "ACTIVE",
+  "anchor_workflow": "realestate_walkthrough_full",
+  "_notes": "Product #1 from BUILD_THESE_INNOVATE.md. Substrate runs end-to-end today: realestate_walkthrough_full.v0 card executes 7/10 passes live including HF inference (Kimi-K2 via Groq, ~5s). What ships next: realtor chat agent (1-2 day build) + lead-capture surface + TensorChain escrow contract."
+}

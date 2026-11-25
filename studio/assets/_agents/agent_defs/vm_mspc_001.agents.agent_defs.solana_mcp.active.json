@@ -1,0 +1,141 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "solana_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · SOLANA_ON_CHAIN_RAIL · MUTATING_MEME_COIN",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/solana_mcp.py",
+
+  "summary": "Solana on-chain connector — Token-2022 mints with embedded on-chain SVG metadata that can be RE-WRITTEN via a single Metaplex token-metadata update tx (the 'mutating meme-coin' pattern). Stdlib-only (subprocess + json + base64) shelling out to the `solana`, `spl-token`, and `metaplex` CLI binaries on PATH. Keypair path + RPC URL + network resolved directly from .env via studio/auth/keys.load_env — `KINDS` in keys.py is NOT widened (this is a one-off connector, deliberately scoped narrow; SOLANA_KEYPAIR_PATH lives in .env alongside SOLANA_RPC_URL and SOLANA_NETWORK). Every successful tool call appends one InferenceRecord with model='solana_token_2022', tier='monetization', scope=f'solana_<tool>'. update_token_svg overrides scope='svg_mutation' so the inference DAG walks every re-skin tx. Mainnet writes are hard-gated behind explicit confirm=true — devnet/testnet (default devnet) treat the playground as free-fire. Sensitive params (keypair, raw SVG bytes) are redacted before crystallization — only mint address, signature, amount, and svg_byte_len + sha256-16 are persisted.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring sui_mcp.py shape. SERVICE='solana'. Each tool composes argv for one of three CLIs (`solana`, `spl-token`, `metaplex`), dispatched via subprocess.run(capture_output=True, timeout=60s). Smoke-validates connection via `solana config get` (cheap + offline). Tool dispatch via send(recipient=tool_name, message=json_args). CLI stdout is parsed as JSON when possible; non-JSON spl-token/metaplex output is heuristically scraped for Signature:/Address:/Token: lines. mint_token_2022 is a four-step pipeline (create-token → create-account → mint → metaplex token-metadata create) — failure at any step short-circuits with a structured `_error` plus partial state.",
+
+  "expected_tools": [
+    "query_balance",
+    "query_spl_balance",
+    "mint_token_2022",
+    "update_token_svg",
+    "transfer",
+    "tx_status"
+  ],
+
+  "env_vars": {
+    "SOLANA_NETWORK":                  "devnet | testnet | mainnet-beta (default devnet)",
+    "SOLANA_RPC_URL":                  "RPC endpoint (default https://api.devnet.solana.com)",
+    "SOLANA_KEYPAIR_PATH":             "filesystem path to signing keypair JSON, e.g. ~/.config/solana/id.json (NEVER logged; falls back to default install path if file exists; connect() returns False if absent)",
+    "SOLANA_MUTABLE_METADATA_PROGRAM": "Metaplex Token Metadata program id (default metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s — the canonical mainnet program)",
+    "SOLANA_TOKEN_2022_PROGRAM":       "override for the Token-2022 program id (default TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb — the canonical Token-2022 SPL program)"
+  },
+
+  "kinds_widening_note": "studio/auth/keys.py defines KINDS = ('claude', 'pinterest', 'client', 'sui', 'stripe', 'tensorchain', 'deepseek'). 'solana' is NOT added — this connector reads SOLANA_KEYPAIR_PATH / SOLANA_RPC_URL / SOLANA_NETWORK directly from .env via load_env(). Rationale: salted-token registry is for human-rotatable secrets (API tokens) — a Solana signing keypair is a file path, not a salted token, and lives outside that registry. Documented here per build instruction. If later we need .upstream_key('solana') semantics, widen then.",
+
+  "convenience_wrappers": [
+    "query_balance(addr)",
+    "query_spl_balance(addr, mint)",
+    "mint_token_2022(name, symbol, decimals, initial_supply, svg_string)",
+    "update_token_svg(mint, new_svg_string)   // THE mutating meme-coin tx",
+    "transfer(mint, to, amount)",
+    "tx_status(signature)"
+  ],
+
+  "exports": [
+    "SolanaMCPConnector",
+    "EXPECTED_TOOLS",
+    "DEFAULT_TOKEN_2022_PROGRAM",
+    "DEFAULT_METADATA_PROGRAM",
+    "DEFAULT_RPC_URL"
+  ],
+
+  "substrate": "studio/third_party/solana/ (per-config persistence) + ~/.cc/third_party_logs/solana_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored monetization records, model='solana_token_2022'; scope='svg_mutation' for re-skin txs)",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py /dapp/api/buy?payment_method=solana (future)",
+      "core/cc.sh::cmd_solana_balance / cmd_solana_mint / cmd_solana_mutate (future)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='solana')",
+      "studio passes pipeline: rendered SVG asset → final on-chain anchor via update_token_svg(...)"
+    ],
+    "outbound_calls": [
+      "subprocess: `solana config get` (smoke)",
+      "subprocess: `solana balance <addr> --output json --url <RPC>`",
+      "subprocess: `spl-token balance <mint> --owner <addr> --output json --url <RPC>`",
+      "subprocess: `spl-token create-token --program-id <Token-2022> --decimals <n> --output json`",
+      "subprocess: `spl-token create-account <mint> --output json`",
+      "subprocess: `spl-token mint <mint> <supply> --output json`",
+      "subprocess: `metaplex token-metadata create --mint <mint> --name <name> --symbol <symbol> --uri data:image/svg+xml;base64,<svg> --program <metadata>`",
+      "subprocess: `metaplex token-metadata update --mint <mint> --uri data:image/svg+xml;base64,<new-svg> --program <metadata>`",
+      "subprocess: `spl-token transfer <mint> <amount> <to> --fund-recipient --output json`",
+      "subprocess: `solana confirm <sig> --output json`",
+      "inference_logger.log (every call: model='solana_token_2022', tier='monetization', scope='solana_<tool>' or 'svg_mutation' for update_token_svg)"
+    ],
+    "substrate_reads": "SOLANA_KEYPAIR_PATH / SOLANA_RPC_URL / SOLANA_NETWORK / SOLANA_MUTABLE_METADATA_PROGRAM / SOLANA_TOKEN_2022_PROGRAM via studio/auth/keys.load_env (mirrored .env between MySpace++ and gently)",
+    "substrate_writes": "send_log entries + crystal_chain monetization records (keypair + raw SVG bytes redacted; svg_byte_len + sha256-16 persisted)"
+  },
+
+  "two_chain_bridge": {
+    "complements": "core/lib/third_party/sui_mcp.py — same project, different chain",
+    "shared_pattern": "Both connectors implement a Token-2022-style on-chain metadata flow: an NFT/token whose 'art' (or arbitrary attribute payload) is stored on-chain and is updatable via a single tx. On Sui this is nft_mint with attrs_json under the TROLLN package; on Solana this is mint_token_2022 + update_token_svg with the SVG embedded in the Metaplex --uri.",
+    "differences": {
+      "sui": "Move package + custom nft module; attrs are structured JSON; updates via package-level entry functions; tier='monetization' or 'defi_loop' (lend_*).",
+      "solana": "Token-2022 SPL + Metaplex Token Metadata program; payload is a data: URI carrying the literal SVG bytes (base64-encoded); updates via the canonical Metaplex update tx; no DeFi loop in this connector (yet).",
+      "settlement": "Sui side handles transfer_usdc with --input-coins; Solana side handles transfer of any SPL/Token-2022 mint with --fund-recipient for first-time receivers."
+    },
+    "shared_idioms": [
+      "Mainnet write-gate via explicit confirm=true (Sui: 'mainnet'; Solana: 'mainnet-beta')",
+      "Stdlib-only (subprocess + json) — no chain-specific Python SDK",
+      "Crystal anchor on every send() — both surfaces feed into ~/.cc/inference_master_chain.jsonl with chain-specific model name",
+      "Graceful skip when CLI / keypair / wallet absent — never crashes the caller"
+    ],
+    "dual_chain_flow": "A coin can be born on either chain, and its mutating art can be re-rendered by the same MySpace++ passes pipeline. The render-and-mutate step targets sui_mcp.nft_mint or solana_mcp.update_token_svg depending on which chain the asset's crystal record was anchored to. Both halves emit InferenceRecords into the same crystal chain — the DAG walker can traverse cross-chain provenance."
+  },
+
+  "svg_mutation_pattern": {
+    "what_it_is": "A Token-2022 mint whose on-chain Metaplex metadata --uri is a `data:image/svg+xml;base64,<…>` payload carrying the LITERAL SVG bytes. The coin's 'art' lives on-chain, not on IPFS or an HTTPS server. Re-skinning is a single metaplex token-metadata update tx — no off-chain server, no DNS, no pinning service required.",
+    "why_it_matters": "Decoupling art from storage providers gives the coin a stable identity across any future chain reorg of the metadata service. The art mutates deterministically — every re-skin is a tx signature, every signature is a crystal anchor in the InferenceRecord chain — so the FULL VISUAL HISTORY of the coin is provable, walkable, and cryptographically signed.",
+    "how_to_mint": [
+      "1. Caller invokes mint_token_2022(name, symbol, decimals, initial_supply, svg_string).",
+      "2. _svg_to_data_uri base64-encodes the SVG and prefixes 'data:image/svg+xml;base64,'.",
+      "3. spl-token create-token --program-id <Token-2022> creates the mint; create-account creates the holder ATA; mint deposits the initial supply.",
+      "4. metaplex token-metadata create writes the initial --uri pointing at the inline SVG. Returns mint + tx signatures."
+    ],
+    "how_to_mutate": [
+      "1. Caller invokes update_token_svg(mint, new_svg_string).",
+      "2. _svg_to_data_uri encodes the NEW SVG identically.",
+      "3. metaplex token-metadata update --mint <mint> --uri <new-data-uri> overwrites the on-chain metadata in one tx.",
+      "4. InferenceRecord anchors the mutation with scope='svg_mutation', model='solana_token_2022'; svg_byte_len + sha256-16 persisted so the visual history is walkable without exposing the raw SVG payload."
+    ],
+    "redaction_promise": "The raw SVG bytes are NEVER persisted in the crystal chain (they can be arbitrarily large and may carry user-attributable content). What IS persisted: the SVG byte length, the first 16 hex chars of its sha256, the mint address, and the resulting tx signature. The on-chain SVG itself is the system of record — the crystal chain stores the provenance trail."
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "ok — ast.parse clean (stdlib only: subprocess + json + base64)",
+    "connect": "graceful — when `solana` CLI is absent OR SOLANA_KEYPAIR_PATH unset, connect() returns False; send() then emits SendResult(success=False, error='solana_cli_not_configured', metadata={has_cli, has_keypair, network, rpc_url})",
+    "query_balance_graceful": "ok — calling send('query_balance', ...) without a configured connector returns the structured solana_cli_not_configured error (no crash, no traceback)",
+    "unknown_tool": "ok — returns SendResult(success=False, error='unknown_tool:bogus', metadata.expected_tools=[…])",
+    "mainnet_gate": "ok — when SOLANA_NETWORK='mainnet-beta' and tool in {mint_token_2022, update_token_svg, transfer}, requires confirm=true; otherwise SendResult(success=False, error='mainnet_write_requires_confirm')",
+    "svg_redaction": "ok — _log_chain strips raw svg_string + new_svg_string and persists only `<key>_len` + `<key>_sha256_16` so the InferenceRecord is bounded-size",
+    "two_chain_bridge": "next: wire studio passes pipeline → either sui_mcp.nft_mint or solana_mcp.update_token_svg depending on the asset's crystal-anchored chain provenance"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful tool call has a deterministic InferenceRecord with model='solana_token_2022', tier='monetization', scope='solana_<tool>' (or 'svg_mutation' for update_token_svg)",
+    "Stdlib-only — no `solana-py` / `solders` / `metaplex` Python package required; subprocess + json + base64",
+    "Mainnet-gated writes — when SOLANA_NETWORK='mainnet-beta', mint_token_2022 / update_token_svg / transfer require explicit confirm=true; devnet/testnet are free-fire",
+    "Graceful CLI failures — if `solana` is not on PATH OR SOLANA_KEYPAIR_PATH unset, connect() returns False and send() emits SendResult(success=False, error='solana_cli_not_configured')",
+    "Keypair privacy — SOLANA_KEYPAIR_PATH value is never printed by the CLI surface; only path existence / length reported",
+    "SVG-payload privacy — raw SVG bytes for both mint_token_2022 and update_token_svg are stripped before crystallization; only byte length + sha256-16 persisted",
+    "Multi-step mint atomicity-of-error — mint_token_2022's 4-step pipeline short-circuits on any step failure and returns the partial state (mint, account, signatures) so the caller can resume",
+    "Bridge-aware — complements sui_mcp.py via the two_chain_bridge contract; same project, different settlement layer"
+  ],
+
+  "usage_example": "from core.lib.third_party.solana_mcp import SolanaMCPConnector\\nc = SolanaMCPConnector()\\nc.connect()\\n# initial mint with inline SVG art\\nr = c.send('mint_token_2022', json.dumps({'name':'GENTLY','symbol':'GENT','decimals':6,'initial_supply':1000000,'svg_string':'<svg .../>'}))\\nmint = r.metadata['mint']\\n# THE mutating moment — rewrite the on-chain art\\nr2 = c.send('update_token_svg', json.dumps({'mint':mint,'new_svg_string':'<svg ...new art.../>'}))\\nprint(r2.metadata['signature'], r2.crystal_id)  # scope='svg_mutation'",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "A.4 of mutating-meme-coin extension (companion to sui_mcp A.3)"
+}

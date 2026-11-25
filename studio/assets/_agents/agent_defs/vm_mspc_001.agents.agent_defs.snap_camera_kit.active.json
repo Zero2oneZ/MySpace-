@@ -1,0 +1,91 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "snap_camera_kit",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · SNAP_AR_LENS_SURFACE",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/snap_camera_kit.py",
+
+  "summary": "Snap Camera Kit Lens connector — the AR camera surface. Opens Snapchat's AR Lens via deeplink (snapchat://camera?lens=<id>&hint=<persona>) or wrapped iframe; the user sees their camera + the lens overlay. From our backend we manage: lens metadata, Lens Studio publish bridge (subprocess lenstudio-cli), per-viewer lens routing (one lens variant per identity_resolver persona), and event-pickup when a user records / shares / swipes a snap with the lens applied. Stdlib-only (urllib for HTTPS, subprocess for the optional lenstudio-cli probe). Every record_lens_event crystal-anchors via inference_logger.log with tier='social_event', model='snap_camera_kit', scope='snap_lens_event' — viewer_persona_id is folded into source_file so per-persona engagement is queryable.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp + deepseek_mcp shape exactly. SERVICE='snap_camera_kit'. Tool dispatch via send(recipient=tool_name, message=json_args). connect() does no remote call (deeplink + record_lens_event work without keys); list_lenses + publish_lens degrade gracefully when key/CLI missing — stub return on no API key, 404 'lenstudio_cli_not_found' when binary not on PATH.",
+
+  "expected_tools": [
+    "lens_deeplink_url",
+    "list_lenses",
+    "publish_lens",
+    "record_lens_event",
+    "verify_credentials"
+  ],
+
+  "event_kinds": [
+    "lens_opened",
+    "snap_recorded",
+    "snap_shared",
+    "lens_swiped"
+  ],
+
+  "env_vars": {
+    "SNAP_LENS_GROUP_ID":   "Snap Camera Kit Lens Group ID (required for list_lenses + publish_lens)",
+    "SNAP_LENS_API_KEY":    "Snap Camera Kit API key (Bearer auth for kit.snapchat.com/v1/*)",
+    "LENSSTUDIO_CLI_PATH":  "(optional) absolute path to lenstudio-cli binary; falls back to which('lenstudio-cli')"
+  },
+
+  "lenstudio_cli_install": "Download Lens Studio from https://ar.snap.com/download (macOS/Win desktop). The lenstudio-cli binary is bundled in the app's resources dir; symlink it into PATH or set LENSSTUDIO_CLI_PATH to its absolute path.",
+
+  "convenience_wrappers": [
+    "lens_deeplink_url(lens_id, viewer_persona_id='') — builds snapchat://camera?lens=<id>&hint=<persona>",
+    "list_lenses(group_id) — GET https://kit.snapchat.com/v1/lenses?group_id=<id> (stub when no key)",
+    "publish_lens(lens_json_path, group_id) — subprocess lenstudio-cli publish (404 when CLI not on PATH)",
+    "record_lens_event(lens_id, viewer_id, event_kind, payload) — receipt + crystal anchor",
+    "verify_credentials() — keys-present + CLI-present check, no remote call"
+  ],
+
+  "exports": ["SnapCameraKitConnector", "EXPECTED_TOOLS", "EVENT_KINDS", "SNAP_API_ROOT", "SNAP_DEEPLINK_SCHEME"],
+
+  "substrate": "studio/third_party/snap_camera_kit/ + ~/.cc/third_party_logs/snap_camera_kit_sends.jsonl + ~/.cc/inference_master_chain.jsonl (crystal-anchored social_event records — viewer_persona_id in source_file for per-persona engagement queries)",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py /dapp/api/snap_event (external POST → record_lens_event)",
+      "core/cc.sh::cmd_snap_test / cmd_snap_publish",
+      "studio_runtime._dispatch_cloud (when pass.engine='cloud' and provider='snap_camera_kit')",
+      "identity_resolver (per-persona lens routing → lens_deeplink_url with viewer_persona_id)"
+    ],
+    "outbound_calls": [
+      "https://kit.snapchat.com/v1/lenses?group_id=<id> (list_lenses)",
+      "snapchat://camera?lens=<id>&hint=<persona> (deeplink — client-side launch)",
+      "subprocess lenstudio-cli publish <json> --group <id> (publish_lens)",
+      "inference_logger.log (every record_lens_event: tier='social_event', model='snap_camera_kit', scope='snap_lens_event')"
+    ],
+    "substrate_reads": "SNAP_LENS_GROUP_ID + SNAP_LENS_API_KEY via studio/auth/keys.load_env; LENSSTUDIO_CLI_PATH from env",
+    "substrate_writes": "send_log entries + crystal_chain social_event records (source_file folds lens_id|persona|viewer for queryability)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse": "ok — ast.parse clean",
+    "connect": "ok — connect() returns True without keys (deeplink + record_lens_event work in stub mode)",
+    "lens_deeplink_url": "ok — lens_abc123 + persona_realtor_v1 → snapchat://camera?lens=lens_abc123&hint=persona_realtor_v1",
+    "record_lens_event": "ok — lens_opened event accepted, crystal-anchored, returned crystal=0a82a77aef5933e8..."
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every record_lens_event call has a deterministic InferenceRecord with tier='social_event', model='snap_camera_kit', scope='snap_lens_event'",
+    "Per-persona queryable — viewer_persona_id folded into source_file as 'snap:<lens>|persona:<id>|viewer:<id>' for downstream engagement aggregation",
+    "Stdlib-only — no Snap SDK; urllib for HTTPS, subprocess for lenstudio-cli probe",
+    "Graceful degrade — no SNAP_LENS_API_KEY → list_lenses returns stub; no lenstudio-cli → publish_lens returns SendResult(success=False, error='lenstudio_cli_not_found')",
+    "Deeplink is offline — lens_deeplink_url makes no HTTP call (pure URL construction)",
+    "Event-kind validated — record_lens_event rejects unknown event_kind with 400 + expected list",
+    "Same connector shape as stripe_mcp / deepseek_mcp — uniform third_party pattern"
+  ],
+
+  "usage_example": "import json\\nfrom core.lib.third_party.snap_camera_kit import SnapCameraKitConnector\\nc = SnapCameraKitConnector()\\nc.connect()\\nlink = c.send('lens_deeplink_url', json.dumps({'lens_id':'lens_abc','viewer_persona_id':'persona_realtor_v1'})).message_preview\\nrecv = c.send('record_lens_event', json.dumps({'lens_id':'lens_abc','viewer_id':'viewer_xyz','event_kind':'snap_recorded','payload':{'utm':'fb_post'}}))\\nprint(link, recv.crystal_id[:16])",
+
+  "chain_runs": ["moe_chain_router_v0"]
+}

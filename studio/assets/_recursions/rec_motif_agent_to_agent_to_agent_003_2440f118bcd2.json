@@ -1,0 +1,30 @@
+{
+  "crystal": "2440f118bcd2e778727231eed1d27c4d1dd9fd647d880f3ea1802da71eb96f449503c10eaf877cd67c9626599f53e314116537fc7b4917474708af89694a2cbc",
+  "description": "Pattern 'agent\u2192agent\u2192agent' appears 15 times across ORCHESTRATION",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_agent_to_agent_to_agent_003",
+  "kind": "motif",
+  "name": "motif: agent\u2192agent\u2192agent",
+  "nodes": [
+    "op_chat_gateway",
+    "op_comfy_dag",
+    "op_datasets_index",
+    "op_forward_projector",
+    "op_gpu_scheduler",
+    "op_inference_logger",
+    "op_model_index",
+    "op_model_registry",
+    "op_moe_router",
+    "op_parser_cursor",
+    "op_result_cache",
+    "op_task_queue",
+    "op_token_router",
+    "op_user_graph",
+    "op_workflow_generator"
+  ],
+  "size": 15,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

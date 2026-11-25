@@ -1,0 +1,120 @@
+[gd_scene load_steps=7 format=3 uid="uid://bx9kp4nm2rt8f"]
+
+[ext_resource type="Script" path="res://src/pump_surf_controller.gd" id="1_ctrl"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cyber"]
+sky_top_color = Color(0.02, 0.0, 0.08, 1)
+sky_horizon_color = Color(0.15, 0.0, 0.25, 1)
+ground_bottom_color = Color(0.0, 0.0, 0.03, 1)
+ground_horizon_color = Color(0.05, 0.0, 0.1, 1)
+sun_angle_max = 25.0
+sun_curve = 0.2
+
+[sub_resource type="Sky" id="Sky_cyber"]
+sky_material = SubResource("ProceduralSkyMaterial_cyber")
+
+[sub_resource type="Environment" id="Environment_cyber"]
+background_mode = 2
+sky = SubResource("Sky_cyber")
+ambient_light_source = 2
+ambient_light_color = Color(0.18, 0.12, 0.28, 1)
+ambient_light_energy = 0.55
+reflected_light_source = 1
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.6
+glow_strength = 1.1
+glow_bloom = 0.18
+
+[sub_resource type="LabelSettings" id="LabelSettings_surfstate"]
+font_size = 42
+font_color = Color(1, 0.94, 0.6, 1)
+outline_size = 6
+outline_color = Color(0, 0, 0, 0.85)
+
+[sub_resource type="LabelSettings" id="LabelSettings_hud"]
+font_size = 18
+font_color = Color(0.92, 0.96, 1, 1)
+outline_size = 3
+outline_color = Color(0, 0, 0, 0.85)
+
+; GENERATED · pump_surf_scene v1 — pump.fun live transaction wave visualization
+[node name="PumpSurf" type="Node3D"]
+script = ExtResource("1_ctrl")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 12, 8, 12)
+fov = 60.0
+near = 0.1
+far = 500.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_cyber")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.5, -0.707107, 0.5, 0.5, 0.707107, 0.5, -0.707107, 0, 0.707107, 10, 14, 10)
+light_color = Color(0.92, 0.88, 1, 1)
+light_energy = 0.9
+shadow_enabled = true
+
+[node name="WaveField" type="Node3D" parent="."]
+
+[node name="SurfTargetAnchors" type="Node3D" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="SurfStateLabel" type="Label" parent="HUD"]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 24.0
+offset_right = 260.0
+offset_bottom = 80.0
+horizontal_alignment = 1
+text = "NO_SIGNAL"
+label_settings = SubResource("LabelSettings_surfstate")
+
+[node name="BotDensityBar" type="ProgressBar" parent="HUD"]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 324.0
+offset_bottom = 52.0
+max_value = 100.0
+value = 0.0
+modulate = Color(1, 0.35, 0.35, 1)
+
+[node name="BotDensityLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 56.0
+offset_right = 324.0
+offset_bottom = 84.0
+text = "bot density"
+label_settings = SubResource("LabelSettings_hud")
+
+[node name="HumanInflowBar" type="ProgressBar" parent="HUD"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -324.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 52.0
+max_value = 100.0
+value = 0.0
+modulate = Color(0.3, 1, 0.4, 1)
+
+[node name="HumanInflowLabel" type="Label" parent="HUD"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -324.0
+offset_top = 56.0
+offset_right = -24.0
+offset_bottom = 84.0
+horizontal_alignment = 2
+text = "human inflow"
+label_settings = SubResource("LabelSettings_hud")
+
+[node name="AbortOverlay" type="ColorRect" parent="HUD"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0)
+mouse_filter = 2

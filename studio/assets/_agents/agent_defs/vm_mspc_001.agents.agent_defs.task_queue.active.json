@@ -1,0 +1,61 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "task_queue",
+  "state": "active",
+  "version": "v0",
+  "role": "QUEUE · ASYNC_DISPATCH",
+  "tier": "L0",
+  "module_path": "core/lib/task_queue.py",
+  "summary": "Asyncio-driven 4-pool dispatcher. GPU (VRAM-bounded), Ollama (5 concurrent), Cloud (rate-limited per provider), Deterministic (unbounded, fills gaps). Cache short-circuits dispatch. Crystal-chain log per job. The runtime layer beneath workflow_generator + chat.py + forward_projector.",
+  "engine_pattern": "asyncio.Semaphore (ollama) + token-bucket _RateLimiter (cloud) + gpu_scheduler (vram) + asyncio.Queue (deterministic). Gap-fill loop drains deterministic queue whenever LLM utilization < 0.8.",
+  "pools": {
+    "GPU":           "VRAM-aware via gpu_scheduler — both 3090 Ti devices",
+    "OLLAMA":        "Semaphore (default 5 concurrent) — CC_OLLAMA_POOL env override",
+    "CLOUD":         "Token-bucket per provider — claude=30/min, openai=60/min, gemini=60/min defaults",
+    "DETERMINISTIC": "Unbounded asyncio.Queue — drains when LLM utilization < CC_GAP_FILL_THRESHOLD (default 0.8)"
+  },
+  "env_vars": {
+    "CC_OLLAMA_POOL":        "Max concurrent Ollama subprocesses (default 5)",
+    "CC_OLLAMA_TIMEOUT":     "Per-Ollama-call timeout seconds (default 60)",
+    "CC_CLOUD_RATE_CLAUDE":  "Claude calls/minute (default 30)",
+    "CC_CLOUD_RATE_OPENAI":  "OpenAI calls/minute (default 60)",
+    "CC_CLOUD_RATE_GEMINI":  "Gemini calls/minute (default 60)",
+    "CC_CLOUD_RATE_DEFAULT": "Fallback cloud rate (default 30)",
+    "CC_GAP_FILL_THRESHOLD": "LLM utilization below which deterministic queue drains (default 0.8)"
+  },
+  "exports": ["TaskQueue", "Task", "TaskKind", "TaskResult"],
+  "substrate": "in-memory (state) + result_cache (write-through) + crystal chain (log)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::cmd_full (every chat turn that needs LLM compute)",
+      "core/lib/workflow_generator.py (per-pass dispatch when emitting --target *)",
+      "core/lib/forward_projector.py (posthoc projection jobs)",
+      "core/cc.sh::cmd_queue (CLI submit/status/drain/watch)"
+    ],
+    "outbound_calls": [
+      "gpu_scheduler.try_reserve / release",
+      "subprocess ollama run (asyncio.create_subprocess_exec)",
+      "HTTP via task.params['fn'] (caller-provided async fn — keeps queue cloud-provider agnostic)",
+      "result_cache.get + put",
+      "inference_logger.log (crystal chain append)"
+    ],
+    "substrate_reads": "result_cache + gpu_scheduler state",
+    "substrate_writes": "result_cache + crystal chain"
+  },
+  "gap_fill_principle": "When ollama_inflight / ollama_pool_size < 0.8, drain one DETERMINISTIC task per 200ms tick. Keeps the system saturated: scans, hashes, file walks, ngram indexing, JSONL parses all happen during LLM gaps. Setup IS asset generation.",
+  "guarantees": [
+    "Same input crystal + same model + same params → cache hit, no compute",
+    "Ollama never exceeds CC_OLLAMA_POOL concurrent subprocesses",
+    "Cloud rate-limited per provider (token-bucket, async-safe)",
+    "GPU never overcommitted on VRAM (reservations track in-memory; verify via nvidia-smi)",
+    "Deterministic tasks never block LLM dispatch — they only run during gaps",
+    "Errors never propagate out of submit() — caught + returned as TaskResult.error"
+  ],
+  "usage_example": "from task_queue import TaskQueue, Task, TaskKind\\nq = TaskQueue()\\nawait q.start()\\nr = await q.submit(Task(kind=TaskKind.OLLAMA, agent='qwen2.5-coder:1.5b', prompt='hi'))\\nprint(r.source, r.latency_ms)",
+  "chain_runs": ["moe_chain_router_v0"]
+}

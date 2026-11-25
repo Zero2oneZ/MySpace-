@@ -1,0 +1,142 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "workflows",
+  "category": "surf",
+  "name": "pump_surf_pipeline",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "End-to-end pump.fun behavioral-classifier + surf-executor pipeline. Streams Solana RPC logs (pump_stream_ingest) → extracts per-wallet behavioral features over a sliding window (pump_feature_extractor) → assigns GMM cluster + bot signature (pump_gmm_classifier) → applies the XGB binary gate against the human-inflow tide (pump_xgboost_gate) → routes the surviving GateDecisions through the surf executor (pump_surf_executor, DRY-RUN by default). Every pass anchors a trace_crystal; the final wave_frame_json + decisions feed the Streamlit live panel, the Godot pump_surf.tscn dashboard, and the /dapp/pump_surf route. The bot_density / human_inflow split rides the emission layer as additive sub-layers, mirroring the realestate light_field convention.",
+
+  "inputs": [
+    { "name": "rpc_wss",              "type": "string", "required": false, "default": ""    },
+    { "name": "duration_seconds",     "type": "int",    "required": false, "default": 300   },
+    { "name": "live_trading_confirm", "type": "bool",   "required": false, "default": false }
+  ],
+
+  "outputs": [
+    { "name": "wave_frame_json",  "type": "json"                },
+    { "name": "gate_decisions",   "type": "list[GateDecision]"  },
+    { "name": "surf_orders",      "type": "list[SurfOrder]"     },
+    { "name": "trace_crystal",    "type": "hash"                }
+  ],
+
+  "passes": [
+    {
+      "id": "ingest_stream",
+      "agent": "pump_stream_ingest",
+      "engine": "deterministic",
+      "params": { "duration_seconds": 300, "max_events": 1000 },
+      "in": [],
+      "out": "raw_events_jsonl",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Subscribes to PUMP_RPC_WSS / pump.fun program logs. Writes ~/.cc/pump_stream/<ts>.jsonl. Bounded by duration_seconds OR max_events, whichever first."
+    },
+    {
+      "id": "extract_features",
+      "agent": "pump_feature_extractor",
+      "engine": "deterministic",
+      "params": { "window_seconds": 300, "min_events_per_wallet": 3 },
+      "in": ["raw_events_jsonl"],
+      "out": "features_csv",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Per-wallet sliding window. 10 features: tx_per_block, value_entropy, jito_bundle_ratio, buy_sell_balance, unique_mints_touched, benford_distance, funding_proximity, gas_distortion, tx_per_block_var, session_length_seconds."
+    },
+    {
+      "id": "gmm_classify",
+      "agent": "pump_gmm_classifier",
+      "engine": "deterministic",
+      "params": { "model_path": "studio/assets/_models/pump_gmm.pkl" },
+      "in": ["features_csv"],
+      "out": "gmm_labels_csv",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Per-wallet GMM cluster id + posterior. The bot cluster signature is the highest-density mixture component on the bot manifold."
+    },
+    {
+      "id": "xgb_gate",
+      "agent": "pump_xgboost_gate",
+      "engine": "deterministic",
+      "params": { "model_path": "studio/assets/_models/pump_xgb.json" },
+      "in": ["features_csv", "gmm_labels_csv"],
+      "out": "gate_decisions",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Binary bot/human + human_inflow tide gate. Emits GateDecision{wallet, bot_prob, human_inflow, open}. Three gates must align before the executor flips."
+    },
+    {
+      "id": "surf_decision_loop",
+      "agent": "pump_surf_executor",
+      "engine": "deterministic",
+      "params": { "dry_run": true },
+      "in": ["gate_decisions"],
+      "out": "surf_orders",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "_note": "DRY-RUN by default. Even when live_trading_confirm=true upstream, executor still requires PUMP_LIVE=1 + --confirm + 3 gates open before any real order. Emits SurfOrder{mint, side, sol, dry_run, gates_open}."
+    }
+  ],
+
+  "layer_stack": [
+    { "name": "albedo",   "source": "pass:gmm_classify",       "blend": "base",          "target_uniform": "u_albedo"   },
+    { "name": "normal",   "source": "pass:extract_features",   "blend": "normal_map",    "target_uniform": "u_normal"   },
+    { "name": "ao",       "source": "pass:gmm_classify",       "blend": "multiply",      "target_uniform": "u_ao"       },
+    { "name": "depth",    "source": "pass:xgb_gate",           "blend": "depth_uniform", "target_uniform": "u_depth"    },
+    { "name": "alpha",    "source": "pass:xgb_gate",           "blend": "alpha",         "target_uniform": "u_alpha"    },
+    { "name": "opacity",  "source": "literal:1.0",             "blend": "opacity",       "target_uniform": "u_opacity"  },
+    { "name": "emission", "source": "pass:xgb_gate",           "blend": "additive",      "target_uniform": "u_emission",
+      "sub_layers": [
+        { "name": "bot_density",  "source": "pass:gmm_classify", "blend": "additive" },
+        { "name": "human_inflow", "source": "pass:xgb_gate",     "blend": "additive" }
+      ]
+    }
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/pump_surf_pipeline_proto.py.j2",
+      "out_path": "studio/web/streamlit/pump_surf_pipeline.py",
+      "_note": "Live wave_frame_json panel + decisions table + executor status."
+    },
+    "godot_scene": {
+      "language": "cpp",
+      "scene":  "templates/pump_surf_pipeline_scene.tscn.j2",
+      "script": "templates/pump_surf_pipeline_controller.gd.j2",
+      "native": "templates/pump_surf_pipeline_native.cpp.j2",
+      "out_scene":  "studio/godot/project/scenes/pump_surf.tscn",
+      "out_script": "studio/godot/project/src/pump_surf_controller.gd",
+      "out_native": "studio/godot/project/cpp/src/pump_surf_native.cpp",
+      "_note": "Links to pre-existing pump_surf.tscn scene."
+    },
+    "dapp_route": {
+      "route": "/dapp/pump_surf",
+      "template": "templates/pump_surf_pipeline_dapp.html.j2",
+      "out_path": "studio/dapp/templates/pump_surf.html",
+      "_note": "HTMX panel served from studio/dapp/server.py. Reads wave_frame_json + gate_decisions via SSE."
+    },
+    "blender": {
+      "template": "templates/pump_surf_pipeline_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/pump_surf_pipeline_bake.py"
+    },
+    "comfyui": {
+      "workflow_json": "templates/pump_surf_pipeline_comfy.json.j2",
+      "install_path": "/data/Projects/ComfyUI",
+      "node_packs": ["impact"],
+      "out_path": "/data/Projects/ComfyUI/user/workflows/pump_surf_pipeline.json"
+    }
+  },
+
+  "license_tier": "tier3_engine",
+  "price_usd_cents_per_run": 499,
+
+  "crystal": "",
+  "depends_on": [],
+
+  "_notes": "Five-pass surf pipeline. All passes ACTIVE — pump_stream_ingest / pump_feature_extractor / pump_gmm_classifier / pump_xgboost_gate / pump_surf_executor are all on disk under core/lib/. Emission layer carries the bot_density + human_inflow split as additive sub-layers (mirrors light_field convention from realestate_walkthrough_full.v0). Card is crystal-anchored at the tail — the final trace_crystal binds the wave_frame_json + gate_decisions + surf_orders into one verifiable run hash, matching the studio_runtime pattern. DRY-RUN is the only mode that emits real orders today; live trading still requires PUMP_LIVE=1 in env + --confirm at the executor + 3 gates open."
+}

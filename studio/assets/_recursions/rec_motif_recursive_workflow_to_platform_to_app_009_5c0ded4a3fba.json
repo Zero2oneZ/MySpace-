@@ -1,0 +1,27 @@
+{
+  "crystal": "5c0ded4a3fba8739ebea21dba2d6cf3fb83158eef874a603b2d5bc62eaab2f6004eda2e1930798c07da8903d8af240195b7996128abe063a14f7802ac795dcd1",
+  "description": "Pattern 'recursive_workflow\u2192platform\u2192app' appears 13 times across APPS,PLATFORMS,RECURSIVE_WORKFLOWS",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_recursive_workflow_to_platform_to_app_009",
+  "kind": "motif",
+  "name": "motif: recursive_workflow\u2192platform\u2192app",
+  "nodes": [
+    "op_discord_mcp",
+    "op_huggingface_mcp",
+    "op_product_avatar_nft",
+    "op_product_realestate_walkthrough",
+    "op_product_svg_xml_inference_app",
+    "rec_cycle_op_discord_mcp_02_000",
+    "rec_cycle_op_discord_mcp_04_001",
+    "rec_motif_doc_to_app_to_platform_005",
+    "rec_motif_platform_to_app_to_platform_006",
+    "rec_scc_op_provider_groq_04_000"
+  ],
+  "size": 13,
+  "sub_dags_touched": [
+    "APPS",
+    "PLATFORMS",
+    "RECURSIVE_WORKFLOWS"
+  ]
+}

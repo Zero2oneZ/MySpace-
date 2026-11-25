@@ -1,0 +1,40 @@
+{
+  "_schema": "project_manifest_v1",
+  "project_name": "default",
+  "display_name": "Default Studio Project",
+  "vm_id": "vm_mspc_godot_001",
+  "engine": "godot",
+  "engine_version": "4.6.3-stable",
+  "build_target": "linux.template_debug.x86_64",
+  "assets": {
+    "_global": [
+      "models/avatars/N001.fbx",
+      "animations/*",
+      "data/vm_registry.json",
+      "data/task_chains.json",
+      "data/sym_index.json",
+      "data/motion_index.json"
+    ],
+    "project_specific": [
+      "scenes/main.tscn",
+      "scripts/main_controller.gd"
+    ]
+  },
+  "symlinks": {
+    "description": "Symlinked from _global/ into project tree at build time",
+    "models/avatars/N001.fbx": "_global/models/avatars/N001.fbx",
+    "animations/": "_global/animations/"
+  },
+  "gdext_modules": [
+    "SpatialBridge",
+    "IKSolver"
+  ],
+  "autoloads": [
+    "VMNavigator",
+    "ChainRunner",
+    "TaskManager",
+    "SymIndexer"
+  ],
+  "created_at": "2026-05-27T23:00:00Z",
+  "last_build": null
+}

@@ -1,0 +1,81 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "stripe_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · STRIPE_FIAT_RAIL",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/stripe_mcp.py",
+
+  "summary": "Stripe REST API connector — fiat onramp for the dApp and product subscriptions. Stdlib-only (no `stripe` python SDK dep). Bearer-auth via STRIPE_SECRET_KEY resolved through studio/auth/keys.upstream_key('stripe'). Every successful call appends one InferenceRecord with tier='monetization', model='stripe', scope=f'stripe_<tool>'. Stripe-issued IDs and amounts are preserved in the record for downstream reconciliation. Webhook receiver verifies HMAC over Stripe-Signature with a 5-minute timestamp window.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring blender_mcp shape. SERVICE='stripe'. Uses form-encoded urllib POST to api.stripe.com/v1/*. Tool dispatch via send(recipient=tool_name, message=json_args). Smoke-validates connection via GET /v1/balance (free, no charge).",
+
+  "expected_tools": [
+    "create_payment_intent",
+    "create_subscription",
+    "customer_create",
+    "retrieve_payment_intent",
+    "webhook_route"
+  ],
+
+  "env_vars": {
+    "STRIPE_SECRET_KEY":     "Bearer token (sk_live_... or sk_test_...)",
+    "STRIPE_API_KEY":        "fallback to STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET": "HMAC secret for verifying inbound webhook signatures",
+    "STRIPE_LIVE_MODE":      "set to 1 to allow live keys; default 0 forces test-mode safeguards"
+  },
+
+  "convenience_wrappers": [
+    "create_payment_intent(amount_cents, currency='usd', customer='', description='')",
+    "create_subscription(customer, price_id, trial_days=0)",
+    "customer_create(email, name='')",
+    "webhook_route(payload, sig_header)"
+  ],
+
+  "exports": ["StripeMCPConnector", "EXPECTED_TOOLS", "STRIPE_API_ROOT"],
+
+  "substrate": "studio/third_party/stripe/ (per-config persistence) + ~/.cc/third_party_logs/stripe_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored monetization records, tier='monetization')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py /dapp/api/buy?payment_method=stripe",
+      "core/cc.sh::cmd_stripe_test / cmd_stripe_webhook_test (future)",
+      "studio/endpoints/webhook/stripe_webhook.py (port 8523)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='stripe')"
+    ],
+    "outbound_calls": [
+      "https://api.stripe.com/v1/payment_intents",
+      "https://api.stripe.com/v1/subscriptions",
+      "https://api.stripe.com/v1/customers",
+      "inference_logger.log (every success: tier='monetization', model='stripe')"
+    ],
+    "substrate_reads": "STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET via keys.upstream_key + load_env",
+    "substrate_writes": "send_log entries + crystal_chain monetization records"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "customer_create": "ok — cus_UbMbixYWSNpP0X created in 357ms",
+    "payment_intent": "ok — pi_3Tc9s8PkvXixVVjZ14ArGEFl created ($1.00 test), client_secret returned",
+    "connect": "ok — GET /v1/balance returned 200",
+    "two_chain_flow": "next: wire dApp /buy → PI → webhook → tensorchain_mcp.escrow_settle (A.7 of plan)"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful tool call has a deterministic InferenceRecord with tier='monetization'",
+    "Stdlib-only — no `stripe` python package required; uses urllib with form-encoded POST",
+    "Replay-safe — webhook receiver enforces 5-min timestamp window + HMAC signature verification",
+    "Graceful — if STRIPE_SECRET_KEY missing, connect() returns False and send() emits SendResult(success=False, error='stripe_not_connected')",
+    "Live-mode gated — production keys flagged via STRIPE_LIVE_MODE=1 env (TEXT-PLACEHOLDER for explicit confirm-prompt)"
+  ],
+
+  "usage_example": "from core.lib.third_party.stripe_mcp import StripeMCPConnector\\nc = StripeMCPConnector()\\nc.connect()\\nr = c.send('create_payment_intent', '{\"amount_cents\":99900,\"currency\":\"usd\",\"description\":\"realestate_walkthrough_999\"}')\\nprint(r.metadata['stripe_id'], r.crystal_id)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "A.2 of lively-enchanting-parrot plan"
+}

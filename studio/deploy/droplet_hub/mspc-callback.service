@@ -1,0 +1,17 @@
+[Unit]
+Description=MySpace++ freetier callback server (terms + policies + token gate)
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+WorkingDirectory=/opt/mspc-public
+Environment=PYTHONPATH=/opt/mspc-public/lib:/opt/mspc-public/auth
+ExecStart=/usr/bin/python3 /opt/mspc-public/freetier_callback/server.py --port 8540
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/callback.log
+StandardError=append:/var/log/mspc/callback.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "label",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "Label",
+  "godot_inherits": "Control < CanvasItem < Node",
+  "summary": "Single- or multi-line static text display. Use for headings, captions, status text, crystal_short hashes overlaid on Sprite3D tiles, debug HUD output. Supports BBCode-free plain text with horizontal/vertical alignment, autowrap, and theme font overrides. For chain_render_wall, Label nodes show category/action/crystal under each rendered tile. Prefer Label over RichTextLabel when no inline formatting is needed (cheaper draw).",
+  "exports": [
+    { "name": "text", "type": "String", "default": "\"\"" },
+    { "name": "horizontal_alignment", "type": "int", "default": "0", "hint": "HORIZONTAL_ALIGNMENT_LEFT" },
+    { "name": "vertical_alignment", "type": "int", "default": "0", "hint": "VERTICAL_ALIGNMENT_TOP" },
+    { "name": "autowrap_mode", "type": "int", "default": "0", "hint": "TextServer.AUTOWRAP_OFF" },
+    { "name": "clip_text", "type": "bool", "default": "false" },
+    { "name": "text_overrun_behavior", "type": "int", "default": "0" },
+    { "name": "uppercase", "type": "bool", "default": "false" },
+    { "name": "lines_skipped", "type": "int", "default": "0" },
+    { "name": "max_lines_visible", "type": "int", "default": "-1" }
+  ],
+  "signals": [],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "albedo", "godot_property": "theme_override_colors/font_color" },
+    { "layer": "outline", "godot_property": "theme_override_colors/font_outline_color" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": false,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyLabel\" type=\"Label\" parent=\".\"]\noffset_right = 200.0\noffset_bottom = 24.0\ntext = \"crystal: 0e515ed4\"\nhorizontal_alignment = 1\nvertical_alignment = 1\n",
+  "phase": "Atomic UI element"
+}

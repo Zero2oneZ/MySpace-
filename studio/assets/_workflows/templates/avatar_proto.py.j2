@@ -1,0 +1,280 @@
+{# -----------------------------------------------------------------------------
+   Jinja2 template :: workflow_card_v0 → Streamlit prototype
+   card: {{ card.name }}
+   category: {{ card.category }}
+   schema: {{ card._schema }}
+   This file is consumed by core/lib/workflow_generator.py (Streamlit surface).
+   ----------------------------------------------------------------------------- #}
+# GENERATED from workflow_card: {{ card.name }}
+# card_crystal: {{ card_crystal }}
+# target: streamlit
+# schema: {{ card._schema }}
+# DO NOT EDIT BY HAND — regenerate via: cc workflow generate {{ card.name }}
+"""Streamlit prototype for {{ card.name }} ({{ card.category }})."""
+
+import json
+import time
+from pathlib import Path
+
+import streamlit as st
+
+
+# ---------------------------------------------------------------------------
+# Page chrome
+# ---------------------------------------------------------------------------
+st.set_page_config(
+    page_title={{ card.name | tojson }},
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.title({{ card.name | tojson }})
+st.caption("category: **{{ card.category }}**  ·  state: **{{ card.state }}**  ·  version: **{{ card.version }}**")
+{% if card.summary %}
+st.write({{ card.summary | tojson }})
+{% endif %}
+st.code("card_crystal: {{ card_crystal[:24] }}…", language="text")
+
+st.divider()
+
+
+# ---------------------------------------------------------------------------
+# Sidebar — layer_stack (hypershade vocabulary)
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.header("layer_stack")
+    st.caption("Hypershade / Photoshop vocabulary — drives Godot uniforms, Blender sockets, ComfyUI mix nodes.")
+    layer_rows = [
+        {%- for layer in card.layer_stack %}
+        {
+            "name":   {{ layer.name | tojson }},
+            "source": {{ layer.source | tojson }},
+            "blend":  {{ layer.blend | tojson }},
+            {%- if layer.target_uniform is defined %}
+            "uniform": {{ layer.target_uniform | tojson }},
+            {%- endif %}
+        },
+        {%- endfor %}
+    ]
+    if layer_rows:
+        st.dataframe(layer_rows, hide_index=True, use_container_width=True)
+    else:
+        st.info("No layer_stack declared on this card.")
+
+    st.divider()
+    st.subheader("surfaces")
+    surface_keys = [
+        {%- for sk, sv in card.surfaces.items() %}
+        {{ sk | tojson }},
+        {%- endfor %}
+    ]
+    for sk in surface_keys:
+        st.markdown(f"- `{sk}`")
+
+
+# ---------------------------------------------------------------------------
+# Inputs
+# ---------------------------------------------------------------------------
+st.subheader("Inputs")
+
+inputs_state = {}
+
+with st.form("workflow_inputs"):
+    {%- for inp in card.inputs %}
+    {%- set n = inp.name %}
+    {%- set t = inp.type %}
+    {%- set req = inp.required | default(false) %}
+    {%- set label = n.replace('_', ' ').title() %}
+    {%- set display_label = label ~ ("  (required)" if req else "") %}
+    {%- if 'image' in t %}
+    inputs_state[{{ n | tojson }}] = st.file_uploader(
+        {{ display_label | tojson }},
+        type=["png", "jpg", "jpeg", "webp"],
+        help={{ ("type: " ~ t ~ (" · max_mb=" ~ inp.max_mb if inp.max_mb is defined else "")) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- elif 'audio' in t %}
+    inputs_state[{{ n | tojson }}] = st.file_uploader(
+        {{ display_label | tojson }},
+        type=["wav", "mp3", "flac", "ogg"],
+        help={{ ("type: " ~ t ~ (" · max_mb=" ~ inp.max_mb if inp.max_mb is defined else "")) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- elif t == 'int' %}
+    inputs_state[{{ n | tojson }}] = st.number_input(
+        {{ label | tojson }},
+        value=int({{ inp.default | default(0) }}),
+        step=1,
+        help={{ ("type: " ~ t) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- elif t == 'float' %}
+    inputs_state[{{ n | tojson }}] = st.number_input(
+        {{ label | tojson }},
+        value=float({{ inp.default | default(0.0) }}),
+        help={{ ("type: " ~ t) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- elif t == 'str' %}
+    inputs_state[{{ n | tojson }}] = st.text_input(
+        {{ label | tojson }},
+        value={{ (inp.default | default('')) | tojson }},
+        help={{ ("type: " ~ t) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- elif 'workflow_ref' in t %}
+    inputs_state[{{ n | tojson }}] = st.text_input(
+        {{ label | tojson }},
+        help={{ ("type: " ~ t ~ " — workflow_ref or path") | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- else %}
+    inputs_state[{{ n | tojson }}] = st.text_input(
+        {{ label | tojson }},
+        help={{ ("type: " ~ t) | tojson }},
+        key={{ ("in_" ~ n) | tojson }},
+    )
+    {%- endif %}
+    {%- endfor %}
+
+    submit = st.form_submit_button("Execute pipeline", type="primary", use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline execution — pass-by-pass progress via st.status
+# ---------------------------------------------------------------------------
+PASSES = [
+    {%- for p in card.passes %}
+    {
+        "id":     {{ p.id | tojson }},
+        "agent":  {{ p.agent | tojson }},
+        "engine": {{ p.engine | tojson }},
+        "in":     {{ (p['in'] | default([])) | tojson }},
+        "out":    {{ p.out | tojson }},
+        "status": {{ (p.status | default('STUB')) | tojson }},
+        {%- if p.model_path is defined %}
+        "model_path": {{ p.model_path | tojson }},
+        {%- endif %}
+        {%- if p.tier is defined %}
+        "tier":   {{ p.tier | tojson }},
+        {%- endif %}
+        {%- if p.vram_gb is defined %}
+        "vram_gb": {{ p.vram_gb }},
+        {%- endif %}
+        {%- if p.optional is defined and p.optional %}
+        "optional": True,
+        {%- endif %}
+    },
+    {%- endfor %}
+]
+
+
+def _run_pass(p):
+    """Stub dispatch — real generator wires this into ~/.cc/inference_master_chain.jsonl."""
+    time.sleep(0.25)
+    return {
+        "pass_id": p["id"],
+        "agent":   p["agent"],
+        "engine":  p["engine"],
+        "status":  p["status"],
+        "out":     p["out"],
+    }
+
+
+pipeline_results = {}
+
+if submit:
+    st.subheader("Execution")
+
+    # Validate required inputs
+    required_missing = [
+        {%- for inp in card.inputs %}
+        {%- if inp.required %}
+        {{ inp.name | tojson }},
+        {%- endif %}
+        {%- endfor %}
+    ]
+    missing = [k for k in required_missing if not inputs_state.get(k)]
+    if missing:
+        st.error(f"Missing required inputs: {', '.join(missing)}")
+        st.stop()
+
+    for p in PASSES:
+        label = f"pass: {p['id']} — {p['agent']} [{p['engine']}] ({p['status']})"
+        with st.status(label, expanded=False) as status:
+            st.write(f"in:  {p['in']}")
+            st.write(f"out: {p['out']}")
+            if p.get("optional"):
+                st.caption("(optional pass)")
+            if p["status"] == "STUB":
+                status.update(label=label + "  — SKIPPED (stub)", state="error")
+                continue
+            result = _run_pass(p)
+            pipeline_results[p["id"]] = result
+            status.update(
+                label=label + "  — done",
+                state="complete" if p["status"] == "ACTIVE" else "running",
+            )
+
+    st.success("Pipeline dispatched. Trace at ~/.cc/inference_master_chain.jsonl")
+
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+with st.expander("Outputs", expanded=bool(pipeline_results)):
+    {%- for out in card.outputs %}
+    {%- set on = out.name %}
+    {%- set ot = out.type %}
+    st.markdown("**{{ on }}**  ·  type: `{{ ot }}`")
+    {%- if 'image' in ot or 'png' in ot or 'jpeg' in ot or 'atlas' in ot %}
+    _out_payload = pipeline_results.get({{ on | tojson }}) or {}
+    _out_path = _out_payload.get("artifact_path")
+    if _out_path and Path(_out_path).exists():
+        st.image(_out_path, caption={{ on | tojson }})
+    else:
+        st.caption("_(no artifact yet — run pipeline)_")
+    {%- elif 'audio' in ot or 'wav' in ot or 'mp3' in ot %}
+    _out_payload = pipeline_results.get({{ on | tojson }}) or {}
+    _out_path = _out_payload.get("artifact_path")
+    if _out_path and Path(_out_path).exists():
+        st.audio(_out_path)
+    else:
+        st.caption("_(no audio artifact yet)_")
+    {%- elif 'gltf' in ot or 'fbx' in ot or 'tscn' in ot or 'json' in ot or 'manifest' in ot %}
+    _out_payload = pipeline_results.get({{ on | tojson }})
+    if _out_payload:
+        st.json(_out_payload)
+    else:
+        st.caption("_(no payload yet)_")
+    {%- else %}
+    _out_payload = pipeline_results.get({{ on | tojson }})
+    if _out_payload:
+        st.code(json.dumps(_out_payload, indent=2), language="json")
+    else:
+        st.caption("_(no payload yet)_")
+    {%- endif %}
+    st.markdown("---")
+    {%- endfor %}
+
+
+# ---------------------------------------------------------------------------
+# Footer — depends_on crystals
+# ---------------------------------------------------------------------------
+st.divider()
+st.caption("**depends_on** — upstream crystal hashes this card references")
+DEPENDS_ON = [
+    {%- for dep in card.depends_on %}
+    {{ dep | tojson }},
+    {%- endfor %}
+]
+if DEPENDS_ON:
+    for dep in DEPENDS_ON:
+        st.code(dep, language="text")
+else:
+    st.caption("_(no upstream crystal dependencies)_")
+
+st.caption(
+    "card: `{{ card.vm_id }}` · `{{ card.name }}` · `{{ card.version }}`  ·  "
+    "schema: `{{ card._schema }}`  ·  card_crystal: `{{ card_crystal[:16] }}…`"
+)

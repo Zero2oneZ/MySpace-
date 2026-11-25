@@ -1,0 +1,99 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "identity_resolver",
+  "state": "active",
+  "version": "v1",
+  "role": "SIGNAL_FUSION · AUDIENCE_PERSONA_VECTOR_EMITTER",
+  "tier": "L0",
+  "module_path": "core/lib/identity_resolver.py",
+  "summary": "The signal-fusion layer for the morphing-game runtime. Takes a viewer's bearer token + optional platform addresses/handles (Sui, Solana, X, Snap, Facebook) and emits an AudiencePersonaVector — a 32-d float vector plus an inferred_role label that morph_game_runtime uses to decide which scene variant to render for that viewer.",
+  "engine_pattern": "stateless fusion. resolve(token, extras) verifies the bearer via freetier_gate, fans out to every available connector best-effort under a 2s/probe deadline, computes a deterministic 32-d persona vector, runs the cheap role classifier, crystal-anchors the event, writes a 24h TTL cache, returns the dataclass. NEVER RAISES.",
+  "subcommands": {
+    "resolve": "verify + gather + vectorize + role-infer + crystal-anchor + cache; print AudiencePersonaVector JSON",
+    "infer-role": "given a signals_json bundle, just print the inferred_role label (offline, no connector probes)",
+    "persona-stats": "walk ~/.cc/persona_cache/*.json and bucket personas by inferred_role + tier; count stale entries"
+  },
+  "dataclasses": {
+    "AudiencePersonaVector": [
+      "persona_id (sha256 of user_id + accepted_terms_hash + first_seen_ts, 32-char hex prefix)",
+      "tier (freetier | trolln_tier | premium | unknown)",
+      "friends_count (int)",
+      "friends_consent (bool — token claim OR FB connector probe wins)",
+      "sui_balance_usdc (float)",
+      "sui_nft_count (int — currently coinObjectCount as proxy)",
+      "solana_balance_sol (float)",
+      "solana_spl_count (int)",
+      "x_handle (str)",
+      "x_follower_count (int)",
+      "snap_external_id (str)",
+      "fb_player_id (str — defaults to claims.user_id if not overridden)",
+      "persona_vector (list[float], len=32)",
+      "inferred_role (realtor | buyer | gamer | developer | unknown)",
+      "crystal (inference_logger crystal_id)"
+    ],
+    "IdentitySignalBundle": [
+      "raw_token (str)",
+      "claims (TokenClaims | None)",
+      "sui_addr, solana_addr, x_user_id, snap_external_id, fb_player_id (str)"
+    ]
+  },
+  "persona_vector_slots_32d": {
+    "0..3": "tier one-hot — [freetier, trolln_tier, premium, unknown]",
+    "4":   "log10(friends_count + 1)",
+    "5":   "log10(sui_balance_usdc + 1)",
+    "6":   "friends_consent (0/1)",
+    "7":   "has_x (0/1)",
+    "8":   "has_snap (0/1)",
+    "9":   "has_fb (0/1)",
+    "10":  "log10(sui_nft_count + 1)",
+    "11":  "log10(solana_balance_sol + 1)",
+    "12":  "log10(solana_spl_count + 1)",
+    "13":  "log10(x_follower_count + 1)",
+    "14":  "has_sui_addr (0/1)",
+    "15":  "has_solana_addr (0/1)",
+    "16..31": "reserved — zero-padded for future signals (Discord, Telegram, Stripe tier, on-chain reputation, etc.)"
+  },
+  "role_inference_table": [
+    {"order": 1, "rule": "sui_nft_count > 5 AND x_follower_count > 1000",                  "role": "gamer"},
+    {"order": 2, "rule": "fb_player_id non-empty AND friends_count > 30",                   "role": "buyer"},
+    {"order": 3, "rule": "x_handle in DEVELOPER_HANDLES OR claims.tier == 'premium'",       "role": "developer"},
+    {"order": 4, "rule": "claims.tier == 'trolln_tier' AND sui_balance_usdc > 100",         "role": "realtor"},
+    {"order": 5, "rule": "default (no rule matched)",                                       "role": "unknown"}
+  ],
+  "developer_handles": ["zero2onez", "tomlee", "tomlee3d", "gentlyos"],
+  "exports": ["resolve", "infer_role", "compute_persona_vector", "persona_stats", "AudiencePersonaVector", "IdentitySignalBundle", "PERSONA_VECTOR_DIM", "PERSONA_CACHE_TTL_SECONDS", "DEVELOPER_HANDLES"],
+  "substrate": "writes ~/.cc/persona_cache/<persona_id>.json (24h TTL) + crystal chain entry (tier='identity_resolution', model='identity_resolver')",
+  "env_vars": {
+    "MYSPACE_PERSONA_CACHE": "override the persona cache directory (default ~/.cc/persona_cache)",
+    "CC_AGENT_UUID": "inherited by InferenceLogger when anchoring the crystal",
+    "CC_CORRELATION_ID": "inherited by InferenceLogger",
+    "CC_SESSION_ID": "inherited by InferenceLogger"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "morph_game_runtime (per-viewer scene variant selection)",
+      "CLI: python3 core/lib/identity_resolver.py <resolve|infer-role|persona-stats>"
+    ],
+    "outbound_calls": [
+      "core/lib/freetier_gate.py::verify_token (primary identity check)",
+      "core/lib/social_graph_persistence.py::get_friends (local cache, no network)",
+      "core/lib/third_party/facebook_friends_graph.py::FacebookFriendsGraphConnector.connect (FB user_friends corroboration)",
+      "core/lib/third_party/sui_mcp.py::SuiMCPConnector.send('query_balance', ...) (USDC balance + coin-object count)",
+      "core/lib/third_party/solana_mcp.py::SolanaMCPConnector.send('query_balance', ...) (SOL balance + SPL count — parallel agent D building)",
+      "core/lib/third_party/twitter.py::TwitterConnector.get_user (handle + follower count)",
+      "core/lib/inference_logger.py::InferenceLogger.log (tier='identity_resolution')"
+    ],
+    "substrate_reads": "freetier_acceptances.sqlite (via verify_token), social_graph_persistence db (via get_friends)",
+    "substrate_writes": "persona_cache dir + crystal chain"
+  },
+  "graceful_degradation": "EVERY connector call is lazy-imported and wrapped in try/except + a 2s POSIX SIGALRM deadline. Missing keys / missing libs / network failures yield zero/empty slots; the rest of the resolution proceeds. resolve() NEVER RAISES.",
+  "determinism": "persona_id = sha256(user_id|accepted_terms_hash|first_seen_ts)[:32]. stdlib has no blake3 so sha256 is the locked contract — same inputs yield the same persona_id across runs and hosts. first_seen_ts defaults to claims.iat so the id is stable across the token's lifetime.",
+  "ttl": "persona cache entries are valid for 24h (PERSONA_CACHE_TTL_SECONDS = 86400). persona_stats reports the count of stale entries.",
+  "usage_example": "python3 core/lib/identity_resolver.py resolve $TOKEN\\n# Returns AudiencePersonaVector JSON. inferred_role defaults to 'unknown' when no platform connectors return data.",
+  "chain_runs": ["identity_resolution_v1"]
+}

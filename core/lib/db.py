@@ -244,7 +244,9 @@ def init() -> None:
           ms_elapsed INTEGER,
           from_cache INTEGER DEFAULT 0,
           started_at TEXT DEFAULT (datetime('now')),
-          finished_at TEXT
+          finished_at TEXT,
+          cell_cid TEXT,              -- points at the canonical cell in the global cells table
+          recipe_cid TEXT             -- the transposition-table key that produced this step
         );
         CREATE TABLE IF NOT EXISTS capability_cards(
           opcode TEXT PRIMARY KEY,
@@ -359,12 +361,74 @@ def init() -> None:
           error_text TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_dag_queue_status ON dag_build_queue(status, priority DESC);
+        -- ─── unified content-addressed cell substrate (outer transformer) ───
+        -- One global store: every artifact (prompt, bash output, object, script,
+        -- model response) is a cell, content-addressed by cid = blake3(content).
+        -- The same cid is simultaneously the RAG key, the prompt fragment, the
+        -- cache ingredient, the lineage pointer, and the dedup identity.
+        CREATE TABLE IF NOT EXISTS cells(
+          cid TEXT PRIMARY KEY,          -- blake3(content)[:32]
+          kind TEXT,                     -- prompt|bash|object|script|response|meta
+          content TEXT NOT NULL,
+          content_len INTEGER,
+          embedding BLOB,                -- packed float32 768-dim (NULL until embedded)
+          intent TEXT,                   -- case label
+          source TEXT,                   -- chain|freeform|phase|loop|manual
+          project TEXT,                  -- tag for narrowing retrieval (NOT a fragment)
+          scope_cwd TEXT,
+          agent_uuid TEXT,
+          ts TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_cells_kind ON cells(kind);
+        CREATE INDEX IF NOT EXISTS idx_cells_intent ON cells(intent);
+        CREATE INDEX IF NOT EXISTS idx_cells_project ON cells(project);
+        -- Transposition table: recipe_cid -> output_cid. Same recipe (upstream
+        -- content + op + params) ALWAYS yields the same output under determinism
+        -- (temp=0, seed=42), so a hit short-circuits with zero execution.
+        CREATE TABLE IF NOT EXISTS recipes(
+          recipe_cid TEXT PRIMARY KEY,   -- blake3(upstream_content + op + params)
+          output_cid TEXT NOT NULL REFERENCES cells(cid),
+          kind TEXT,                     -- model|bash
+          op TEXT,
+          intent TEXT,
+          model TEXT,
+          dt_ms INTEGER,
+          hit_count INTEGER DEFAULT 0,
+          last_hit_at TEXT,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_recipes_output ON recipes(output_cid);
+        CREATE INDEX IF NOT EXISTS idx_recipes_intent ON recipes(intent);
+        -- Lineage / attention graph: which cell produced / contextualized / retrieved which.
+        CREATE TABLE IF NOT EXISTS cell_edges(
+          src_cid TEXT REFERENCES cells(cid),
+          dst_cid TEXT REFERENCES cells(cid),
+          edge_kind TEXT,                -- produced|context|retrieved|composed
+          weight REAL,
+          ts TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (src_cid, dst_cid, edge_kind)
+        );
+        -- Per-case attention programs: an intent selects how cells are
+        -- retrieved (top_k, filters) + composed (template) + when to stop.
+        -- This is the "weights" of the outer transformer, content-addressed
+        -- by intent. v1 ships `default` (seeded by cell_store/loop.py).
+        CREATE TABLE IF NOT EXISTS attention_programs(
+          intent TEXT PRIMARY KEY,
+          spec_json TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
         COMMIT;
         """)
         # Backfill column if pre-existing db lacks projects.path
         cols = [r[1] for r in c.execute("PRAGMA table_info(projects);")]
         if "path" not in cols:
             c.execute("ALTER TABLE projects ADD COLUMN path TEXT;")
+        # Backfill chain_run_steps.cell_cid / recipe_cid on pre-existing dbs
+        cr_cols = [r[1] for r in c.execute("PRAGMA table_info(chain_run_steps);")]
+        if "cell_cid" not in cr_cols:
+            c.execute("ALTER TABLE chain_run_steps ADD COLUMN cell_cid TEXT;")
+        if "recipe_cid" not in cr_cols:
+            c.execute("ALTER TABLE chain_run_steps ADD COLUMN recipe_cid TEXT;")
 
 
 def get_or_create_project(c: sqlite3.Connection, name: str) -> int:
@@ -976,14 +1040,16 @@ def chain_run_step_add(
     run_id: int, step_idx: int, op: str, isolated: int,
     context_in: str, prompt: str, output: str,
     ms_elapsed: int, from_cache: int,
+    cell_cid: str = "", recipe_cid: str = "",
 ) -> None:
     with conn() as c:
         c.execute(
             "INSERT INTO chain_run_steps(chain_run_id, step_idx, op, isolated, "
-            "context_in, prompt, output, ms_elapsed, from_cache, finished_at) "
-            "VALUES(?,?,?,?,?,?,?,?,?,datetime('now'))",
+            "context_in, prompt, output, ms_elapsed, from_cache, finished_at, "
+            "cell_cid, recipe_cid) "
+            "VALUES(?,?,?,?,?,?,?,?,?,datetime('now'),?,?)",
             (run_id, step_idx, op, isolated, context_in, prompt, output,
-             ms_elapsed, from_cache),
+             ms_elapsed, from_cache, cell_cid or None, recipe_cid or None),
         )
 
 
@@ -1065,6 +1131,182 @@ def chain_run_list(n: int = 20) -> None:
             spec_short = (spec[:60] + '...') if len(spec) > 60 else spec
             print(f"  #{rid:<4} [{status:<7}] steps={n_steps} ms={total_ms} "
                   f"{started}  {spec_short}")
+
+
+# ---- cells / recipes (unified content-addressed cell substrate) ---------
+# These tables live in the GLOBAL db (cc.db). cell_store.py reads/writes them
+# directly via sqlite3, but the CRUD here is exposed so `cc` shell wrappers
+# (G cell-add etc.) and chain.py's _db_cli can reach them too.
+
+def cell_add(cid: str, kind: str, content: str, intent: str = "",
+             source: str = "", project: str = "", scope_cwd: str = "",
+             agent_uuid: str = "", embedding: bytes = b"") -> None:
+    """INSERT OR IGNORE — dedup by cid (content-addressed). Prints the cid."""
+    with conn() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO cells(cid, kind, content, content_len, "
+            "embedding, intent, source, project, scope_cwd, agent_uuid) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (cid, kind, content, len(content), embedding or None,
+             intent, source, project, scope_cwd, agent_uuid),
+        )
+        print(cid)
+
+
+def cell_get(cid: str) -> None:
+    with conn() as c:
+        r = c.execute(
+            "SELECT cid, kind, content_len, intent, source, project, ts "
+            "FROM cells WHERE cid=?",
+            (cid,),
+        ).fetchone()
+        if not r:
+            sys.exit(f"no cell {cid}")
+        cid_, kind, clen, intent, source, project, ts = r
+        print(f"cell {cid_}")
+        print(f"  kind:     {kind}")
+        print(f"  len:      {clen}")
+        print(f"  intent:   {intent or '-'}")
+        print(f"  source:   {source or '-'}")
+        print(f"  project:  {project or '-'}")
+        print(f"  ts:       {ts}")
+
+
+def cell_list(kind: str = "", intent: str = "", project: str = "",
+             limit: int = 50) -> None:
+    q = "SELECT cid, kind, content_len, intent, source, ts FROM cells"
+    where, args = [], []
+    if kind:
+        where.append("kind=?"); args.append(kind)
+    if intent:
+        where.append("intent=?"); args.append(intent)
+    if project:
+        where.append("project=?"); args.append(project)
+    if where:
+        q += " WHERE " + " AND ".join(where)
+    q += " ORDER BY ts DESC LIMIT ?"
+    args.append(limit)
+    with conn() as c:
+        rows = c.execute(q, args).fetchall()
+    if not rows:
+        print("(no cells)")
+        return
+    for cid_, k, clen, it, src, ts in rows:
+        print(f"  {cid_[:12]}  {k:10} {clen:>7}  {it or '-':12} {src or '-':10} {ts}")
+
+
+def cell_content(cid: str) -> None:
+    """Print raw content of a cell (for cache-hit replay)."""
+    with conn() as c:
+        r = c.execute("SELECT content FROM cells WHERE cid=?", (cid,)).fetchone()
+    if not r:
+        sys.exit(f"no cell {cid}")
+    sys.stdout.write(r[0])
+
+
+def cell_set_embedding(cid: str, embedding_b64: str) -> None:
+    """Store a base64-encoded embedding BLOB (called from cell_store.embed path)."""
+    import binascii
+    blob = binascii.a2b_base64(embedding_b64)
+    with conn() as c:
+        c.execute("UPDATE cells SET embedding=? WHERE cid=?", (blob, cid))
+
+
+def cell_edge_add(src_cid: str, dst_cid: str, edge_kind: str,
+                  weight: float = 1.0) -> None:
+    with conn() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO cell_edges(src_cid, dst_cid, edge_kind, weight) "
+            "VALUES(?,?,?,?)",
+            (src_cid, dst_cid, edge_kind, weight),
+        )
+
+
+def recipe_add(recipe_cid: str, output_cid: str, kind: str, op: str,
+               intent: str = "", model: str = "", dt_ms: int = 0) -> None:
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO recipes(recipe_cid, output_cid, kind, op, "
+            "intent, model, dt_ms) VALUES(?,?,?,?,?,?,?)",
+            (recipe_cid, output_cid, kind, op, intent, model, dt_ms),
+        )
+        print(output_cid)
+
+
+def recipe_get(recipe_cid: str) -> None:
+    """Print the output_cid for a recipe (empty if miss). Used for cache lookup."""
+    with conn() as c:
+        r = c.execute(
+            "SELECT output_cid FROM recipes WHERE recipe_cid=?",
+            (recipe_cid,),
+        ).fetchone()
+    print(r[0] if r else "")
+
+
+def recipe_hit(recipe_cid: str) -> None:
+    """Increment hit_count + touch last_hit_at. Print output_cid (or empty)."""
+    with conn() as c:
+        r = c.execute(
+            "SELECT output_cid FROM recipes WHERE recipe_cid=?",
+            (recipe_cid,),
+        ).fetchone()
+        if not r:
+            print("")
+            return
+        c.execute(
+            "UPDATE recipes SET hit_count=hit_count+1, last_hit_at=datetime('now') "
+            "WHERE recipe_cid=?",
+            (recipe_cid,),
+        )
+        print(r[0])
+
+
+def recipe_stats() -> None:
+    with conn() as c:
+        r = c.execute(
+            "SELECT COUNT(*), COALESCE(SUM(hit_count),0), "
+            "COALESCE(SUM(CASE WHEN hit_count>0 THEN 1 ELSE 0 END),0) FROM recipes"
+        ).fetchone()
+        total, hits, hit_recipes = r
+        print(f"recipes: {total}  total_hits={hits}  hit_recipes={hit_recipes}")
+        print("\ntop 10 by hit_count:")
+        for rcid, ocid, hc, last in c.execute(
+            "SELECT recipe_cid, output_cid, hit_count, COALESCE(last_hit_at,'-') "
+            "FROM recipes WHERE hit_count>0 ORDER BY hit_count DESC LIMIT 10"
+        ):
+            print(f"  {rcid[:12]} -> {ocid[:12]}  hits={hc}  {last}")
+
+
+def program_upsert(intent: str, spec_json: str) -> None:
+    with conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO attention_programs(intent, spec_json) VALUES(?,?)",
+            (intent, spec_json),
+        )
+        print(intent)
+
+
+def program_get(intent: str) -> None:
+    with conn() as c:
+        r = c.execute(
+            "SELECT spec_json FROM attention_programs WHERE intent=?",
+            (intent,),
+        ).fetchone()
+    if not r:
+        sys.exit(f"no attention program: {intent}")
+    print(r[0])
+
+
+def program_list() -> None:
+    with conn() as c:
+        rows = c.execute(
+            "SELECT intent, created_at FROM attention_programs ORDER BY intent"
+        ).fetchall()
+    if not rows:
+        print("(no attention programs)")
+        return
+    for intent, ts in rows:
+        print(f"  {intent:20} {ts}")
 
 
 # ---- capability cards (tiny-model-drafted, per-opcode) -----------------
@@ -2059,6 +2301,8 @@ COMMANDS = {
     "chain-run-step-add": lambda a: chain_run_step_add(
         int(a[0]), int(a[1]), a[2], int(a[3]), a[4], a[5], a[6],
         int(a[7]), int(a[8]),
+        a[9] if len(a) > 9 else "",
+        a[10] if len(a) > 10 else "",
     ),
     "chain-run-end": lambda a: chain_run_end(int(a[0]), a[1]),
     "chain-run-show": lambda a: chain_run_show(int(a[0])),
@@ -2157,6 +2401,40 @@ COMMANDS = {
         int(a[1]) if len(a) > 1 else 30,
     ),
     "chat-show": lambda a: chat_show(int(a[0])),
+    # ── cells / recipes (unified content-addressed cell substrate) ──
+    "cell-add": lambda a: cell_add(
+        a[0], a[1], a[2],
+        a[3] if len(a) > 3 else "",
+        a[4] if len(a) > 4 else "",
+        a[5] if len(a) > 5 else "",
+        a[6] if len(a) > 6 else "",
+        a[7] if len(a) > 7 else "",
+    ),
+    "cell-get": lambda a: cell_get(a[0]),
+    "cell-list": lambda a: cell_list(
+        a[0] if a and a[0] != "-" else "",
+        a[1] if len(a) > 1 and a[1] != "-" else "",
+        a[2] if len(a) > 2 and a[2] != "-" else "",
+        int(a[3]) if len(a) > 3 else 50,
+    ),
+    "cell-content": lambda a: cell_content(a[0]),
+    "cell-set-embedding": lambda a: cell_set_embedding(a[0], a[1]),
+    "cell-edge-add": lambda a: cell_edge_add(
+        a[0], a[1], a[2],
+        float(a[3]) if len(a) > 3 else 1.0,
+    ),
+    "recipe-add": lambda a: recipe_add(
+        a[0], a[1], a[2], a[3],
+        a[4] if len(a) > 4 else "",
+        a[5] if len(a) > 5 else "",
+        int(a[6]) if len(a) > 6 else 0,
+    ),
+    "recipe-get": lambda a: recipe_get(a[0]),
+    "recipe-hit": lambda a: recipe_hit(a[0]),
+    "recipe-stats": lambda a: recipe_stats(),
+    "program-upsert": lambda a: program_upsert(a[0], " ".join(a[1:])),
+    "program-get": lambda a: program_get(a[0]),
+    "program-list": lambda a: program_list(),
 }
 
 

@@ -24,22 +24,21 @@ import streamlit as st
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-MEDIA_DIR = PROJECT_DIR / "media"
-# Align with the canonical media taxonomy (capital M / capitalized stems).
-VIDEO_DIR  = MEDIA_DIR / "Media" / "Video"
-SOUND_DIR  = MEDIA_DIR / "Media" / "Sounds"
-VOCALS_DIR = SOUND_DIR / "Vocals"
-MUSIC_DIR  = SOUND_DIR / "Music"
-NOISE_DIR  = SOUND_DIR / "Noise"
-CACHE_DIR  = MEDIA_DIR / ".cache"
-for d in (VIDEO_DIR, SOUND_DIR, VOCALS_DIR, MUSIC_DIR, NOISE_DIR, CACHE_DIR):
-    d.mkdir(parents=True, exist_ok=True)
-
-# Ensure the studio dir is on the path so `auth.gate` resolves whether the
-# script is launched from /opt/studio (container) or studio/ (repo).
 sys.path.insert(0, str(PROJECT_DIR))
+
+import bootstrap, paths  # noqa: E402  -- canonical layout
+bootstrap.ensure()
+
+MEDIA_DIR  = paths.MEDIA_ROOT
+VIDEO_DIR  = paths.VIDEO_DIR
+SOUND_DIR  = paths.SOUNDS_DIR
+VOCALS_DIR = paths.VOCALS_DIR
+MUSIC_DIR  = paths.MUSIC_DIR
+NOISE_DIR  = paths.NOISE_DIR
+CACHE_DIR  = paths.YTDLP_CACHE_DIR
+
 # Also expose media/.tools/ for the separate.py + sidecar.py utilities.
-sys.path.insert(0, str(MEDIA_DIR / ".tools"))
+sys.path.insert(0, str(paths.TOOLS_DIR))
 
 
 def _find_ffmpeg() -> str:

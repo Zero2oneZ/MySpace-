@@ -1,0 +1,6 @@
+{"attributes":{"_quality":"godot_v1","_source":"godot","site_name":"","title":"untitled","url":""},"data":"untitled","depth":0,"name":"document","parent":null,"type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_name":"Node","node_type":"class","tag":"h1"},"data":"Class: Node","depth":1,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"Node","dt_class":"","node_type":"method","signature":"method add_child(child: Node)"},"data":"method add_child(child: Node)","depth":3,"name":"term","parent":"Node","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"Node","node_type":"doc","term":"method add_child(child: Node)"},"data":"Adds a child node.","depth":4,"name":"definition","parent":"method add_child(child: Node)","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_name":"Control","node_type":"class","tag":"h1"},"data":"Class: Control","depth":1,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"Control","dt_class":"","node_type":"method","signature":"method set_focus_neighbor(side: int)"},"data":"method set_focus_neighbor(side: int)","depth":3,"name":"term","parent":"Control","type":"element"}

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>loom.workspace — stackable nodes, top-down modification</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --gs-bg:#070a0e; --gs-card:#0b1119; --gs-line:#1b2533; --gs-text:#cbd6e2;
+  --gs-dim:#7e8a9a; --gs-accent:#58A6FF; --gs-sovereign:#D2A8FF;
+  --gs-on:#7ce0a2; --gs-warn:#e8c46a; --gs-danger:#ff6b6b;
+}
+html,body{background:var(--gs-bg);color:var(--gs-text);font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:13px;line-height:1.45;margin:0;padding:0}
+
+/* outer workspace shell */
+.workspace{max-width:1280px;margin:0 auto;padding:24px}
+.ws-head{display:flex;gap:12px;align-items:baseline;padding:10px 14px;
+  border:1px solid var(--gs-line);border-radius:8px 8px 0 0;background:var(--gs-card)}
+.ws-head .brand{color:var(--gs-sovereign);font-weight:600}
+.ws-head .sub{color:var(--gs-dim);font-size:12px}
+.ws-head .meta{margin-left:auto;color:var(--gs-dim);font-size:11px}
+.ws-head .meta b{color:var(--gs-text)}
+
+/* direction indicator: top-down cascade */
+.cascade-rail{display:flex;flex-direction:column;align-items:center;
+  padding:8px 0;color:var(--gs-dim);font-size:10px;letter-spacing:.08em;
+  background:linear-gradient(180deg, rgba(210,168,255,0.08), transparent 80%);
+  border-left:1px solid var(--gs-line);border-right:1px solid var(--gs-line)}
+.cascade-rail .arr{color:var(--gs-sovereign);font-size:14px;margin:2px 0}
+.cascade-rail .label{text-transform:uppercase}
+
+/* node stack — each entry is itself a workspace */
+.node-stack{border:1px solid var(--gs-line);border-top:none;border-bottom:none;
+  background:var(--gs-card)}
+.node-row{border-bottom:1px solid var(--gs-line);padding:0;position:relative}
+.node-row:last-child{border-bottom:none}
+.node-head{padding:10px 14px;display:flex;gap:10px;align-items:center;
+  cursor:pointer;user-select:none;background:rgba(0,0,0,0.15)}
+.node-head:hover{background:rgba(88,166,255,0.06)}
+.node-head .glyph{color:var(--gs-sovereign);font-size:14px;width:18px;text-align:center}
+.node-head .nm{color:var(--gs-text)}
+.node-head .kind{color:var(--gs-dim);font-size:11px}
+.node-head .idx{margin-left:auto;color:var(--gs-dim);font-size:11px;
+  background:var(--gs-line);padding:1px 6px;border-radius:3px;font-variant-numeric:tabular-nums}
+.node-head .chev{color:var(--gs-dim);transition:transform .15s ease}
+.node-row.closed .chev{transform:rotate(-90deg)}
+.node-row.closed .node-body{display:none}
+.node-body{padding:0;background:var(--gs-bg)}
+.node-body iframe{width:100%;border:none;background:transparent;display:block}
+
+/* top-of-stack marker */
+.node-row.top-of-stack .node-head{border-left:3px solid var(--gs-sovereign);padding-left:11px}
+.node-row.top-of-stack .node-head .nm::after{content:" · MODIFIES BELOW";color:var(--gs-sovereign);
+  font-size:10px;margin-left:8px;letter-spacing:.05em}
+.node-row.base-of-stack .node-head{border-left:3px solid var(--gs-accent);padding-left:11px}
+.node-row.base-of-stack .node-head .nm::after{content:" · FOUNDATION";color:var(--gs-accent);
+  font-size:10px;margin-left:8px;letter-spacing:.05em}
+
+/* ripple flash on cascade */
+.node-row.cascading{animation:cascadeflash .8s ease}
+@keyframes cascadeflash{0%{box-shadow:inset 4px 0 0 var(--gs-warn)}
+                          100%{box-shadow:inset 4px 0 0 transparent}}
+
+/* footer */
+.ws-foot{border:1px solid var(--gs-line);border-radius:0 0 8px 8px;
+  padding:10px 14px;display:flex;gap:10px;align-items:center;background:var(--gs-card)}
+.ws-foot .dot{width:6px;height:6px;border-radius:50%;background:var(--gs-on);
+  display:inline-block;animation:dotpulse 2s ease-in-out infinite}
+.ws-foot .status{color:var(--gs-dim);font-size:11px}
+.ws-foot .add{margin-left:auto;color:var(--gs-accent);cursor:pointer;
+  padding:4px 10px;border:1px solid var(--gs-accent);border-radius:4px;font-size:11px;
+  user-select:none}
+.ws-foot .add:hover{background:rgba(88,166,255,0.12)}
+.ws-foot .add-menu{position:absolute;background:var(--gs-card);border:1px solid var(--gs-accent);
+  border-radius:4px;padding:6px;display:none;flex-direction:column;gap:2px;z-index:100;
+  margin-top:-4px;transform:translateY(-100%)}
+.ws-foot .add-menu.open{display:flex}
+.ws-foot .add-menu div{padding:4px 10px;cursor:pointer;color:var(--gs-text);font-size:11px}
+.ws-foot .add-menu div:hover{background:rgba(88,166,255,0.12)}
+@keyframes dotpulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+
+<div class="workspace">
+  <div class="ws-head">
+    <span class="brand">loom.workspace</span>
+    <span class="sub">// every node IS a workspace · stack flows top → down</span>
+    <span class="meta">depth: <b id="depth">3</b> · cascade: <b>top-down</b></span>
+  </div>
+
+  <div class="cascade-rail">
+    <span class="label">cascade direction</span>
+    <span class="arr">↓</span>
+    <span class="label">parent modifies child</span>
+  </div>
+
+  <div class="node-stack" id="stack"></div>
+
+  <div class="ws-foot">
+    <span class="dot"></span>
+    <span class="status" id="status">workspace online · 3 nodes stacked · top modifies all below</span>
+    <span class="add-menu" id="addMenu">
+      <div data-kind="morph_engine">◉ morph.engine — geometry node</div>
+      <div data-kind="pipeline">⇲ pipeline node — passes</div>
+      <div data-kind="scope">⊞ scope node — domain profile</div>
+    </span>
+    <span class="add" id="addBtn">+ add node above</span>
+  </div>
+</div>
+
+<script>
+/* The model: an ordered list of nodes. nodes[0] is TOP (modifies everything below).
+   nodes[len-1] is BOTTOM (the foundation). When a node is added it goes ON TOP.
+   Each node is itself a workspace, rendered in an iframe pointed at a card URL. */
+
+const NODE_REGISTRY = {
+  morph_engine: {
+    glyph: '◉',
+    kind: 'morph.engine',
+    name_seed: 'goo',
+    description: 'geometry workspace · modifier stack inside · evaluated bottom-up',
+    src: 'morph_engine.html',
+    h: 720,
+  },
+  pipeline: {
+    glyph: '⇲',
+    kind: 'pipeline.5pass',
+    name_seed: 'blob_to_unreal',
+    description: 'pipeline workspace · 5 passes · each pass is a workspace too',
+    src: 'morph_engine.html',  // placeholder until pipeline_node.html is minted
+    h: 420,
+  },
+  scope: {
+    glyph: '⊞',
+    kind: 'scope.domain',
+    name_seed: 'scope',
+    description: 'scope workspace · domain profile · RAG-chat→mint pending',
+    src: 'morph_engine.html',  // placeholder until scope_node.html is minted
+    h: 360,
+  },
+};
+
+let nodes = [
+  { id: 'n1', kind: 'pipeline',     name: 'blob_to_unreal', closed: false },
+  { id: 'n2', kind: 'morph_engine', name: 'goo.primary',    closed: false },
+  { id: 'n3', kind: 'scope',        name: 'character',      closed: true  },
+];
+
+const stackEl = document.getElementById('stack');
+const statusEl = document.getElementById('status');
+const depthEl = document.getElementById('depth');
+
+function render(){
+  stackEl.innerHTML = '';
+  depthEl.textContent = nodes.length;
+  nodes.forEach((n, i) => {
+    const reg = NODE_REGISTRY[n.kind];
+    const row = document.createElement('div');
+    row.className = 'node-row' + (n.closed ? ' closed' : '') +
+      (i === 0 ? ' top-of-stack' : '') +
+      (i === nodes.length - 1 ? ' base-of-stack' : '');
+    row.dataset.id = n.id;
+    row.innerHTML = `
+      <div class="node-head">
+        <span class="chev">▾</span>
+        <span class="glyph">${reg.glyph}</span>
+        <span class="nm">${n.name}</span>
+        <span class="kind">· ${reg.kind} · workspace inside</span>
+        <span class="idx">${i + 1}/${nodes.length}</span>
+      </div>
+      <div class="node-body">
+        <iframe src="${reg.src}" style="height:${reg.h}px"
+                title="${n.name} (workspace)"></iframe>
+      </div>
+    `;
+    row.querySelector('.node-head').addEventListener('click', () => {
+      n.closed = !n.closed;
+      render();
+      log(`${n.closed ? 'collapsed' : 'opened'} ${n.name}`);
+      if (i > 0) cascadeFlash(0, i);  // top-down ripple visualization
+    });
+    stackEl.appendChild(row);
+  });
+}
+
+function cascadeFlash(fromIdx, throughIdx){
+  // visualize top-down modification: rows from fromIdx down to throughIdx flash.
+  const rows = stackEl.querySelectorAll('.node-row');
+  for (let i = fromIdx; i <= throughIdx; i++) {
+    if (rows[i]) {
+      rows[i].classList.add('cascading');
+      setTimeout(() => rows[i].classList.remove('cascading'), 800);
+    }
+  }
+}
+
+function log(msg) {
+  const ts = new Date().toLocaleTimeString('en-GB');
+  statusEl.textContent = `[${ts}] ${msg} · ${nodes.length} nodes · top modifies all below`;
+}
+
+/* add node menu */
+const addBtn = document.getElementById('addBtn');
+const addMenu = document.getElementById('addMenu');
+addBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  addMenu.classList.toggle('open');
+});
+document.addEventListener('click', () => addMenu.classList.remove('open'));
+addMenu.querySelectorAll('div').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const kind = opt.dataset.kind;
+    const reg = NODE_REGISTRY[kind];
+    const id = 'n' + (Date.now() % 1e6);
+    nodes.unshift({  // ON TOP — new node modifies everything below
+      id, kind, name: `${reg.name_seed}.${id.slice(1, 5)}`, closed: false
+    });
+    render();
+    log(`+ added ${reg.kind} ON TOP (modifies all ${nodes.length - 1} below)`);
+    cascadeFlash(0, nodes.length - 1);
+    addMenu.classList.remove('open');
+  });
+});
+
+render();
+log('workspace online · stack is a workspace · each row is a workspace · turtles');
+</script>
+</body>
+</html>

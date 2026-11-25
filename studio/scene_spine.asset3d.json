@@ -1,0 +1,26 @@
+{
+ "_doc": "paperdoll3d: image\u2192GLB(cached) placed. source=painted_orbit_seed0.png",
+ "frame": "MetaXR",
+ "nodes": [
+  {
+   "id": "asset_41d3782438ab9e07",
+   "glb": "/data/Projects/MySpace++/studio/cache3d/41d3782438ab9e07.glb",
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "edit_mode": "link"
+  }
+ ]
+}

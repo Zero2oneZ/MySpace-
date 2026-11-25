@@ -1,0 +1,95 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "solana_webhook",
+  "state": "active",
+  "version": "v0",
+  "role": "ENDPOINT · SOLANA_EVENT_WEBHOOK_TO_RENDER_PUSH",
+  "tier": "L0",
+  "module_path": "studio/endpoints/webhook/solana_webhook.py",
+
+  "summary": "HTTP receiver on port 8524 (env MSPC_SOLANA_WEBHOOK_PORT) that accepts Helius / Triton / QuickNode webhook bodies AND raw custom JSON, verifies HMAC-SHA256, normalizes to a ChainEvent, and forwards to chain_event_render.render_one. The PUSH counterpart to program_monitor's PULL; both end at the same render call.",
+
+  "engine_pattern": "Stdlib http.server.ThreadingHTTPServer. Routes: GET /webhook/solana (health), POST /webhook/solana (normalize then render), POST /webhook/solana/raw (skip normalize). HMAC verify against HELIUS_WEBHOOK_SECRET or MSPC_WEBHOOK_SECRET (header: X-Helius-Signature). Replay window 5 min (env MSPC_WEBHOOK_REPLAY_S; header X-Helius-Timestamp). Body cap 1 MB.",
+
+  "supported_payload_shapes": [
+    "Helius enhanced — list of {type, signature, accountData[], nativeTransfers[], tokenTransfers[], slot, timestamp, source, events: {}}",
+    "Helius raw — list of {signature, logMessages[], slot, blockTime, err}",
+    "Custom — single dict already in ChainEvent shape (must have program_id + action)"
+  ],
+
+  "smoke_test_2026_05_28": {
+    "port": 8524,
+    "health_endpoint_returns": "200 OK with {ok, service, render_image, render_video, secret_set, replay_window_s}",
+    "self_call_via_test_cli": {
+      "method": "POST /webhook/solana/raw with HMAC-signed Pump.fun sample",
+      "result": "200 {ok:true, accepted:1, rendered:[{crystal_short, image_status, video_status, prompt}]}",
+      "image_status_after": "queued_offline (ComfyUI not running on :8188)",
+      "render_dispatched": true,
+      "hmac_verify": "ok",
+      "timestamp_verify": "ok"
+    }
+  },
+
+  "configuration_env": {
+    "MSPC_SOLANA_WEBHOOK_PORT": "default 8524",
+    "HELIUS_WEBHOOK_SECRET": "preferred — HMAC-SHA256 secret",
+    "MSPC_WEBHOOK_SECRET": "fallback secret name (we accept either)",
+    "MSPC_WEBHOOK_REPLAY_S": "default 300 (5 min replay window)"
+  },
+
+  "security": [
+    "HMAC-SHA256 verification — rejected with 401 if header missing or mismatched (when secret is set)",
+    "Replay-window check — rejects requests whose X-Helius-Timestamp is >300s away from now",
+    "Body cap 1 MB to prevent ingest-flood DoS",
+    "Unsigned requests accepted ONLY when no secret is set; server logs a warning each time",
+    "stdlib http.server runs single-process; no third-party WSGI; deploy behind Caddy + TLS for public exposure"
+  ],
+
+  "exports": ["WebhookHandler", "serve", "normalize_event", "verify_signature",
+              "verify_timestamp", "DEFAULT_PORT", "DEFAULT_SECRET",
+              "REPLAY_WINDOW_S", "EVENT_LOG"],
+
+  "cli": [
+    "serve [--port 8524] [--secret X] [--no-image] [--video]",
+    "test [--url URL] [--secret X]                — self-call sanity test"
+  ],
+
+  "cc_dispatchers": [
+    "cc solana-webhook-serve [--port 8524] [--secret X] [--no-image] [--video]",
+    "cc solana-webhook-test"
+  ],
+
+  "operational_notes": {
+    "where_to_register_the_endpoint_with_Helius": "https://dashboard.helius.dev → Webhooks → 'Create Webhook' → Webhook URL: https://YOUR.DOMAIN/webhook/solana → Transaction Types: any of the enhanced types you care about → Account Addresses: paste from `cc programs-watchset` output (the watchset is the curated list this receiver knows how to interpret)",
+    "where_to_proxy_TLS_for_public_exposure": "Caddy on droplet (159.89.181.146); add 'reverse_proxy /webhook/solana* studio-host:8524' to Caddyfile",
+    "local_only_alternative": "Use program_monitor (PULL) + chain_event_render tail mode instead — zero external dep, zero cost"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Helius webhook (dashboard.helius.dev)",
+      "Triton One webhooks",
+      "QuickNode functions / streams",
+      "Manual cc solana-webhook-test smoke",
+      "Any custom signer that knows HELIUS_WEBHOOK_SECRET"
+    ],
+    "outbound_calls": [
+      "core/lib/chain_event_render.render_one() per accepted event",
+      "core/lib/program_registry.find() to enrich category from program_id",
+      "core/lib/inference_logger.log() — tier='webhook_event'"
+    ],
+    "substrate_reads": "studio/assets/_program_registry/catalog.jsonl (via find())",
+    "substrate_writes": [
+      "~/.cc/solana_webhook_events.jsonl (every accepted event for audit)",
+      "indirectly: ~/.cc/chain_renders/<short>/* (via render_one)"
+    ]
+  },
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Endpoint · push trigger for render bridge"
+}

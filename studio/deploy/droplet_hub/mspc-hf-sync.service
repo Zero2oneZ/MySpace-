@@ -1,0 +1,13 @@
+[Unit]
+Description=MySpace++ HuggingFace Data Sync
+
+[Service]
+Type=oneshot
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/hf_sync.py --feed /opt/mspc-public/solana/feed/live_features.jsonl --dataset zero2onez/solana-pump-patterns
+StandardOutput=append:/var/log/mspc/hf-sync.log
+StandardError=append:/var/log/mspc/hf-sync.log

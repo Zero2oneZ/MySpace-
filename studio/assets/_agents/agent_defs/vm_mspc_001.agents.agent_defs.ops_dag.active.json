@@ -1,0 +1,86 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "ops_dag",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · OPERATIONAL_DAG",
+  "tier": "L0",
+  "module_path": "core/lib/ops_dag.py",
+  "summary": "The deterministic operational DAG. Auto-walks studio/assets/_agents/agent_defs/ (22 cards), studio/assets/_workflows/ (1 card → 8 passes), and studio/assets/_operations/text_placeholders.json (13 future ops). Emits 43 nodes + 59 edges to ~/.cc/ops_dag.jsonl. Topo sort gives optimal execution order. Parallel groups show what can run concurrently. text_placeholders are first-class nodes that retroactively activate when implementations land.",
+  "engine_pattern": "pure-Python graph builder. Kahn topological sort. Level-based parallel detection. BFS path queries. ParserCursor-compatible output.",
+  "node_kinds": {
+    "agent":       "auto-built from each agent_def JSON in _agents/agent_defs/",
+    "pass":        "auto-built from each pass in each workflow_card in _workflows/",
+    "placeholder": "hand-authored in _operations/text_placeholders.json — TEXT-PLACEHOLDER status"
+  },
+  "edge_kinds": {
+    "calls":           "inferred from routing_connections.inbound_callers / outbound_calls",
+    "feeds_into":      "from workflow_card pass.in / pass.out wiring",
+    "placeholder_for": "from text_placeholder.expected_after / expected_before",
+    "depends_on":      "explicit (manual) declarations (future)",
+    "reads / writes":  "from routing_connections substrate_reads / substrate_writes (future)"
+  },
+  "queries": {
+    "build":        "walk all substrates → emit ~/.cc/ops_dag.jsonl + summary stats",
+    "summary":      "current node/edge/status/kind counts",
+    "topo":         "Kahn's algorithm; ordering edges only",
+    "parallel":     "group by topological level → ops within a level can run concurrently",
+    "placeholders": "list every TEXT-PLACEHOLDER op (the 'retroactive active' surface)",
+    "ready":        "ops whose ALL ordering deps are ACTIVE — these can be built NEXT",
+    "path A B":     "shortest path between two ops"
+  },
+  "exports": ["OpNode", "OpEdge", "build_ops_dag", "emit_jsonl", "topo_sort",
+              "parallel_groups", "find_placeholders", "find_ready", "find_path"],
+  "substrate": "ops_dag (JSONL — joinable with all other chains via op_id == agent name)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_ops_dag (cc ops-dag {build|summary|topo|parallel|placeholders|ready|path})",
+      "workflow_generator (future — verify card passes are realizable in current DAG state)",
+      "task_queue (future — pull next-ready ops to dispatch automatically)"
+    ],
+    "outbound_calls": ["std json + pathlib + regex + collections"],
+    "substrate_reads": [
+      "studio/assets/_agents/agent_defs/*.active.json (22 cards)",
+      "studio/assets/_workflows/vm_mspc_001.workflows.*.json (1 flagship card → 8 passes)",
+      "studio/assets/_operations/text_placeholders.json (13 future ops)"
+    ],
+    "substrate_writes": ["~/.cc/ops_dag.jsonl (ParserCursor-compatible)"]
+  },
+  "smoke_test_results_2026_05_28": {
+    "total_nodes": 43,
+    "total_edges": 59,
+    "status_breakdown": { "ACTIVE": 28, "IN-FLIGHT": 2, "TEXT-PLACEHOLDER": 13 },
+    "kind_breakdown":   { "agent": 22, "pass": 8, "placeholder": 13 },
+    "edge_breakdown":   { "calls": 25, "feeds_into": 7, "placeholder_for": 27 },
+    "topological_levels": 6,
+    "level_0_parallel_ops": 27,
+    "ready_to_build_next": [
+      "op_bb_emit_godot",
+      "op_mcp_bridge",
+      "op_pinterest_third_party",
+      "op_tri_modal_logger_wiring",
+      "op_zpin_identity",
+      "op_pass_photo_to_avatar_rigged_faceswap_lock"
+    ]
+  },
+  "guarantees": [
+    "Deterministic — same substrate JSONs → same DAG bytes",
+    "Backward-compatible — placeholders integrate cleanly when their real implementations land (status flip + module_path update; edges stay)",
+    "Walkable — ParserCursor reads ~/.cc/ops_dag.jsonl identically to all other chains",
+    "Optimal scheduling — topo sort + parallel groups give a build order that respects all declared dependencies",
+    "Cross-substrate joinable — op_id maps directly to agent_def name; can join with crystal chain by name"
+  ],
+  "the_text_placeholder_principle": [
+    "A future op gets declared as TEXT-PLACEHOLDER with a description + expected_after + expected_before.",
+    "Downstream ops can reference it BEFORE it exists.",
+    "When the real implementation lands, its status flips ACTIVE and edges remain valid.",
+    "Result: forward-compatible architecture — you sketch the future and it actually wires up later."
+  ],
+  "usage_example": "cc ops-dag build       # rebuild after any agent_def or placeholder change\\ncc ops-dag ready       # show what's buildable right now\\ncc ops-dag parallel    # show what can run concurrently\\ncc ops-dag path op_tri_modal_embedder op_studio_marketplace",
+  "chain_runs": ["moe_chain_router_v0"]
+}

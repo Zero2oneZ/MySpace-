@@ -1,0 +1,18 @@
+{
+  "crystal": "004597179f9d088f176f16a4b09e83bae37e6987449a7bda05b513c78ab8fd356d50b973a6e8889b4a374b2922e15fd9ff2f5daaf457f070401ec2c5219bcb6b",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_morph_game_runtime_01_002",
+  "kind": "simple_cycle",
+  "name": "morph_game_runtime",
+  "nodes": [
+    "op_morph_game_runtime"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "crystal": "1926c2a9d3d073dac09917b5b82b1626b7e14a7b8741958561947cb25d8c0f455dc6b51beb946d7d02b83ab844b4ed45590055a70170c96a3cee5f28b1e2c2f7",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_pump_visualizer_3d_01_236",
+  "kind": "scc",
+  "name": "pump_visualizer_3d",
+  "nodes": [
+    "op_pump_visualizer_3d"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "crystal": "748e7618f1b49fe2f3652e5a4d00ed686ced6bbfe90f4f6c199255c3a85c5aa2cf6f4872a6cd5ec243d3ca62f50831ff6d87341491eaa61bdae8abf12e2e2188",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_identity_resolver_01_072",
+  "kind": "scc",
+  "name": "identity_resolver",
+  "nodes": [
+    "op_identity_resolver"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

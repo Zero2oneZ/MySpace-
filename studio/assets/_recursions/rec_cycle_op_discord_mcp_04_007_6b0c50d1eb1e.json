@@ -1,0 +1,26 @@
+{
+  "crystal": "6b0c50d1eb1e3e87aedefbb2103388b7f8c857d22e6d4c5594fb1ee5d593e727b44665cd7fe451ef12e52b1a76cdf00a9e8257bcdc62f3f79a037820860b5828",
+  "description": "Simple cycle of length 4 spanning APPS,DOCS,INFERENCE,PLATFORMS",
+  "edge_kinds_traversed": [
+    "feeds_back",
+    "feeds_into",
+    "produces"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_discord_mcp_04_007",
+  "kind": "simple_cycle",
+  "name": "discord-mcp \u2192 AGENT_AUDIT_2026_0 \u2192 groq...",
+  "nodes": [
+    "op_discord_mcp",
+    "op_doc_agent_audit_2026_05_28",
+    "op_provider_groq",
+    "op_product_avatar_nft"
+  ],
+  "size": 4,
+  "sub_dags_touched": [
+    "APPS",
+    "DOCS",
+    "INFERENCE",
+    "PLATFORMS"
+  ]
+}

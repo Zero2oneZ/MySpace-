@@ -13,6 +13,9 @@ fi
 source .venv/bin/activate
 pip install --disable-pip-version-check -r requirements.txt
 
+# Canonical layout — idempotent.
+python3 bootstrap.py >/dev/null
+
 # Nix-aware lib paths so numpy/cv2 native extensions resolve on NixOS.
 # Safe no-op on every other OS (the dirs simply won't exist).
 LDP=""

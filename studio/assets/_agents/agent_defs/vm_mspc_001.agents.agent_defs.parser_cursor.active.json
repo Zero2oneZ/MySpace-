@@ -1,0 +1,37 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "parser_cursor",
+  "state": "active",
+  "version": "v0",
+  "role": "ENGINE · CURSOR_BASE",
+  "tier": "L0",
+  "module_path": "core/lib/parser_cursor.py",
+  "summary": "XMLParser-shaped cursor over append-only JSONL documents. The engine pattern behind every other substrate in the MoE-chain-router stack.",
+  "engine_pattern": "XMLParser API verbatim (open / read / get_node_type / get_node_name / get_node_data / get_node_offset / get_current_line / is_empty / get_attribute_count / get_attribute_name / get_attribute_value / has_attribute / get_named_attribute_value / get_named_attribute_value_safe / seek / skip_section / walk / close)",
+  "node_types": ["none", "element", "element_end", "text", "comment", "cdata", "unknown", "eof"],
+  "error_codes": {"OK": 0, "ERR_FILE_NOT_FOUND": 7, "ERR_FILE_EOF": 8, "ERR_PARSE_ERROR": 43},
+  "exports": ["ParserCursor", "ParserWriter", "CursorNode", "NODE_* constants", "OK / ERR_* constants"],
+  "substrate": "none (base class; substrates extend it)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/user_graph.py::UserGraph (subclass)",
+      "core/lib/moe_router.py::CrystalChainCursor (subclass)"
+    ],
+    "outbound_calls": [],
+    "substrate_reads": "any JSONL given via open() or open_buffer()",
+    "substrate_writes": "ParserWriter appends to any path"
+  },
+  "guarantees": [
+    "Deterministic walk order — same JSONL bytes → same node offsets, every time",
+    "Append-safe — readers can walk while writers append (cursor reads up to its byte position)",
+    "Subclass-friendly — override _dict_to_node to adapt arbitrary JSON shapes",
+    "XMLParser semantics preserved — skip_section walks past current depth, seek is byte-addressable"
+  ],
+  "usage_example": "from parser_cursor import ParserCursor, OK, ERR_FILE_EOF, NODE_ELEMENT\\ncur = ParserCursor()\\ncur.open('doc.jsonl')\\nwhile cur.read() != ERR_FILE_EOF:\\n    if cur.get_node_type() == NODE_ELEMENT:\\n        print(cur.get_node_name(), cur.get_named_attribute_value_safe('uuid'))",
+  "chain_runs": ["moe_chain_router_v0"]
+}

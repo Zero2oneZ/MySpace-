@@ -1,0 +1,205 @@
+{#-
+  avatar_comfy.json.j2 — ComfyUI surface template for workflow_card_v0 cards.
+
+  Renders a ComfyUI workflow JSON ({"prompt": {nid: {class_type, inputs}}})
+  by walking card.passes[] and emitting the matching node chain for any pass
+  whose engine == "comfyui". Other engines (diffusers/blender/mcp/spriteforge)
+  are handled by their own surface templates and are skipped here.
+
+  Placeholders honored by core/lib/chain_event_render.py::_substitute_template:
+    __PROMPT__   text prompt
+    __NEG__      negative prompt
+    __SEED__     KSampler seed / RandomNoise noise_seed (sentinel 0)
+    __WIDTH__    EmptyLatentImage width  (sentinel 0)
+    __HEIGHT__   EmptyLatentImage height (sentinel 0)
+
+  Additional placeholder:
+    __CHECKPOINT__   CheckpointLoaderSimple ckpt_name (default v1-5-pruned-emaonly.safetensors)
+
+  We build the graph as a Jinja namespace dict (nid → node) then `tojson` it
+  so node-id wiring stays consistent even with multiple comfyui passes.
+-#}
+{%- set ns = namespace(nid=0, nodes={}, last_pos="2", last_neg="3", last_model="1", last_cond_pos="2") -%}
+
+{#- helper: bump id and return as string -#}
+{%- macro next_id(ns) -%}
+{%- set ns.nid = ns.nid + 1 -%}{{ ns.nid }}
+{%- endmacro -%}
+
+{#- ── node 1: CheckpointLoaderSimple ── -#}
+{%- set _ = ns.nodes.update({"1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {"ckpt_name": "__CHECKPOINT__"}
+}}) -%}
+{%- set ns.nid = 1 -%}
+
+{#- ── node 2: positive CLIPTextEncode ── -#}
+{%- set pos_id = next_id(ns) -%}
+{%- set _ = ns.nodes.update({pos_id: {
+    "class_type": "CLIPTextEncode",
+    "inputs": {"text": "__PROMPT__", "clip": ["1", 1]}
+}}) -%}
+{%- set ns.last_pos = pos_id -%}
+{%- set ns.last_cond_pos = pos_id -%}
+
+{#- ── node 3: negative CLIPTextEncode ── -#}
+{%- set neg_id = next_id(ns) -%}
+{%- set _ = ns.nodes.update({neg_id: {
+    "class_type": "CLIPTextEncode",
+    "inputs": {"text": "__NEG__", "clip": ["1", 1]}
+}}) -%}
+{%- set ns.last_neg = neg_id -%}
+
+{#- ── node 4: EmptyLatentImage ── -#}
+{%- set latent_id = next_id(ns) -%}
+{%- set _ = ns.nodes.update({latent_id: {
+    "class_type": "EmptyLatentImage",
+    "inputs": {"width": "__WIDTH__", "height": "__HEIGHT__", "batch_size": 1}
+}}) -%}
+
+{#- ── walk passes[] — emit ComfyUI-engine passes only ── -#}
+{%- for p in card.passes if p.engine == "comfyui" -%}
+  {%- set pid = p.id -%}
+
+  {%- if pid == "depth" -%}
+    {%- set cn_load = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({cn_load: {
+        "class_type": "ControlNetLoader",
+        "inputs": {"control_net_name": "control_v11f1p_sd15_depth.pth"}
+    }}) -%}
+    {%- set depth_img = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({depth_img: {
+        "class_type": "LoadImage",
+        "inputs": {"image": "depth_map.png"}
+    }}) -%}
+    {%- set cn_apply = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({cn_apply: {
+        "class_type": "ControlNetApply",
+        "inputs": {
+            "conditioning": [ns.last_cond_pos, 0],
+            "control_net": [cn_load, 0],
+            "image": [depth_img, 0],
+            "strength": 0.85
+        }
+    }}) -%}
+    {%- set ns.last_cond_pos = cn_apply -%}
+
+  {%- elif pid == "style" -%}
+    {%- set ip_load = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({ip_load: {
+        "class_type": "IPAdapterUnifiedLoader",
+        "inputs": {"model": ["1", 0], "preset": "PLUS (high strength)"}
+    }}) -%}
+    {%- set ip_img = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({ip_img: {
+        "class_type": "LoadImage",
+        "inputs": {"image": "style_ref.png"}
+    }}) -%}
+    {%- set ip_adv = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({ip_adv: {
+        "class_type": "IPAdapterAdvanced",
+        "inputs": {
+            "model": [ip_load, 0],
+            "ipadapter": [ip_load, 1],
+            "image": [ip_img, 0],
+            "weight": 0.75,
+            "weight_type": "linear",
+            "start_at": 0.0,
+            "end_at": 1.0
+        }
+    }}) -%}
+    {%- set ns.last_model = ip_adv -%}
+
+  {%- elif pid == "faceswap" or pid == "faceswap_lock" -%}
+    {%- set face_img = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({face_img: {
+        "class_type": "LoadImage",
+        "inputs": {"image": "face_ref.png"}
+    }}) -%}
+    {%- set instid = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({instid: {
+        "class_type": "InstantIDLoader",
+        "inputs": {
+            "instantid_file": "ip-adapter.bin",
+            "controlnet_file": "diffusion_pytorch_model.safetensors",
+            "image": [face_img, 0]
+        }
+    }}) -%}
+    {%- set ns.last_model = instid -%}
+
+  {%- elif pid == "bake" or pid == "bake_pbr" -%}
+    {%- set ks = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({ks: {
+        "class_type": "KSampler",
+        "inputs": {
+            "model": [ns.last_model, 0],
+            "positive": [ns.last_cond_pos, 0],
+            "negative": [ns.last_neg, 0],
+            "latent_image": [latent_id, 0],
+            "seed": "__SEED__",
+            "steps": 25,
+            "cfg": 7.0,
+            "sampler_name": "euler",
+            "scheduler": "normal",
+            "denoise": 1.0
+        }
+    }}) -%}
+    {%- set ns.last_sampler = ks -%}
+
+  {%- else -%}
+    {%- set txt = next_id(ns) -%}
+    {%- set _ = ns.nodes.update({txt: {
+        "class_type": "CLIPTextEncode",
+        "inputs": {"text": "pass:" ~ pid ~ " — __PROMPT__", "clip": ["1", 1]}
+    }}) -%}
+
+  {%- endif -%}
+{%- endfor -%}
+
+{#- ── ensure a KSampler exists even if no bake pass declared ── -#}
+{%- if ns.last_sampler is not defined -%}
+  {%- set ks = next_id(ns) -%}
+  {%- set _ = ns.nodes.update({ks: {
+      "class_type": "KSampler",
+      "inputs": {
+          "model": [ns.last_model, 0],
+          "positive": [ns.last_cond_pos, 0],
+          "negative": [ns.last_neg, 0],
+          "latent_image": [latent_id, 0],
+          "seed": "__SEED__",
+          "steps": 25,
+          "cfg": 7.0,
+          "sampler_name": "euler",
+          "scheduler": "normal",
+          "denoise": 1.0
+      }
+  }}) -%}
+  {%- set ns.last_sampler = ks -%}
+{%- endif -%}
+
+{#- ── VAEDecode ── -#}
+{%- set vae_dec = next_id(ns) -%}
+{%- set _ = ns.nodes.update({vae_dec: {
+    "class_type": "VAEDecode",
+    "inputs": {"samples": [ns.last_sampler, 0], "vae": ["1", 2]}
+}}) -%}
+
+{#- ── SaveImage ── -#}
+{%- set save = next_id(ns) -%}
+{%- set _ = ns.nodes.update({save: {
+    "class_type": "SaveImage",
+    "inputs": {"images": [vae_dec, 0], "filename_prefix": card.name ~ "_pass"}
+}}) -%}
+
+{#- ── final emit ── -#}
+{{ {
+  "_meta": {
+    "name": card.name,
+    "category": card.category,
+    "version": card.version,
+    "card_crystal": card.crystal | default(""),
+    "node_packs": card.surfaces.comfyui.node_packs | default([]),
+    "placeholders": ["__CHECKPOINT__", "__PROMPT__", "__NEG__", "__SEED__", "__WIDTH__", "__HEIGHT__"]
+  },
+  "prompt": ns.nodes
+} | tojson(indent=2) }}

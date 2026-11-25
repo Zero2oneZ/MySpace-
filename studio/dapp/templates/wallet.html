@@ -1,0 +1,91 @@
+<h1>Wallet</h1>
+<p class="meta">Connect a Sui wallet (wallet-standard) to view balances across Sui + TensorChain. Polls every 30s.</p>
+
+<div class="panel">
+  <h3 style="margin-top:0;">Connect</h3>
+  <button id="connect-btn" class="cta" onclick="_connect()">Connect Sui wallet</button>
+  <div id="connect-status" class="meta" style="margin-top:.5rem;">(not connected)</div>
+</div>
+
+<div class="panel">
+  <h3 style="margin-top:0;">Your address</h3>
+  <div id="addr" class="addr-display">(connect to populate)</div>
+  <p class="meta" style="margin:.3rem 0 0;">Stored in <code>localStorage.mspc_addr</code> for the polling loop.</p>
+</div>
+
+<div class="panel"
+     hx-get="/dapp/api/balance"
+     hx-trigger="every 30s, load delay:200ms"
+     hx-vals="js:{addr: localStorage.getItem('mspc_addr') || ''}"
+     hx-target="#balance-panel"
+     hx-swap="innerHTML">
+  <h3 style="margin-top:0;">Balances <span class="htmx-indicator">…</span></h3>
+  <div id="balance-panel" class="meta">(waiting for first refresh)</div>
+</div>
+
+<div class="panel">
+  <h3 style="margin-top:0;">Recent NFTs</h3>
+  <p class="meta">Indexer integration is part of A.7. For now, mints recorded in the crystal chain at <code>scope='dapp_mint'</code>.</p>
+</div>
+
+<p class="stamp">
+  Wallet-standard JS from
+  <code>cdn.jsdelivr.net/npm/@mysten/wallet-standard</code>.
+  Balance fanout reads both chains in one request.
+</p>
+
+<script src="https://cdn.jsdelivr.net/npm/@mysten/wallet-standard@latest/dist/wallet-standard.min.js"
+        crossorigin="anonymous" defer></script>
+
+<script>
+function _connect() {
+  var btn = document.getElementById('connect-btn');
+  var status = document.getElementById('connect-status');
+  var addrEl = document.getElementById('addr');
+
+  // wallet-standard exposes window.getWallets(); fall back gracefully.
+  var ws = (typeof window !== 'undefined' && typeof window.getWallets === 'function')
+    ? window.getWallets() : null;
+  if (!ws) {
+    status.innerHTML = 'wallet-standard not loaded yet — manual address entry below.';
+    _manualPrompt();
+    return;
+  }
+  var wallets = ws.get();
+  if (!wallets || wallets.length === 0) {
+    status.innerHTML = 'No Sui wallet detected — install one (Slush, Suiet, Sui Wallet) or use manual entry.';
+    _manualPrompt();
+    return;
+  }
+  var w = wallets[0];
+  var connectFeat = w.features && w.features['standard:connect'];
+  if (!connectFeat) {
+    status.innerHTML = 'wallet lacks standard:connect — falling back to manual entry.';
+    _manualPrompt();
+    return;
+  }
+  connectFeat.connect().then(function(res) {
+    var accts = (res && res.accounts) || w.accounts || [];
+    if (accts.length === 0) { status.innerHTML = 'connected but no account exposed'; return; }
+    var addr = accts[0].address || '';
+    localStorage.setItem('mspc_addr', addr);
+    addrEl.textContent = addr;
+    status.innerHTML = '<b>connected</b> · ' + (w.name || 'wallet');
+    btn.disabled = true;
+    // Force a refresh of the balance panel.
+    htmx.trigger(document.querySelector('[hx-get="/dapp/api/balance"]'), 'every');
+  }).catch(function(e) {
+    status.innerHTML = 'connect failed: ' + String(e && e.message || e);
+    _manualPrompt();
+  });
+}
+
+function _manualPrompt() {
+  var addr = prompt('Enter your Sui address (0x...)') || '';
+  addr = addr.trim();
+  if (!addr) { return; }
+  localStorage.setItem('mspc_addr', addr);
+  document.getElementById('addr').textContent = addr;
+  document.getElementById('connect-status').innerHTML = 'manual address set';
+}
+</script>

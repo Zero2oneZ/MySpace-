@@ -1,0 +1,130 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "hf_endpoint_provision",
+  "category": "deploy",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Provision an HF Inference Endpoint (the always-on deployed-model product, DISTINCT from the 19-provider router). One persistent endpoint per data domain: mspc-text-default, mspc-code-coder, mspc-embed-default, mspc-image-flux2klein, mspc-video-hunyuan, mspc-3d-trellis. Each endpoint registers as a ProviderSpec(kind='hf_inference_endpoint') so router_policy can elect it. Deploy events crystal-anchor tier='deploy' for cost/runtime audit. Defaults to cpu-basic to avoid runaway burn; --auto-pause-after flag for cost control.",
+
+  "inputs": [
+    {"name": "endpoint_name", "type": "str", "required": true,
+      "notes": "mspc-<modality>-<flavor>"},
+    {"name": "model_id", "type": "str", "required": true,
+      "notes": "HF model_id, e.g. meta-llama/Llama-3.2-1B-Instruct"},
+    {"name": "hardware", "type": "str", "required": false,
+      "default": "cpu-basic",
+      "notes": "cpu-basic | cpu-upgrade | gpu-medium | gpu-large | gpu-xlarge"},
+    {"name": "region", "type": "str", "required": false, "default": "us-east-1"},
+    {"name": "auto_pause_after_min", "type": "int", "required": false, "default": 0,
+      "notes": "0=disabled; otherwise pause idle endpoint after N min to bound spend"},
+    {"name": "register_in_router", "type": "bool", "required": false, "default": true}
+  ],
+
+  "outputs": [
+    {"name": "endpoint_url", "type": "str"},
+    {"name": "endpoint_state", "type": "str",
+      "notes": "pending | running | failed"},
+    {"name": "deploy_crystal", "type": "str"},
+    {"name": "router_registered", "type": "bool"}
+  ],
+
+  "passes": [
+    {
+      "id": "validate_name",
+      "agent": "hf_endpoints",
+      "model_path": "core/lib/hf_endpoints.py::validate_name",
+      "engine": "deterministic",
+      "in": ["endpoint_name"],
+      "out": "validated_name",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Reject if not matching ^mspc-[a-z]+(-[a-z0-9]+)+$. Reject if already exists (idempotency via list_endpoints check)."
+    },
+    {
+      "id": "deploy",
+      "agent": "hf_endpoints",
+      "model_path": "core/lib/hf_endpoints.py::deploy",
+      "engine": "mcp",
+      "in": ["validated_name", "model_id", "hardware", "region"],
+      "out": "endpoint_state",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "POST https://api.endpoints.huggingface.cloud/v2/endpoint/<namespace>. Bearer HF_TOKEN. Poll status every 10s up to 600s. State transitions: initializing → updating → running."
+    },
+    {
+      "id": "fetch_endpoint_url",
+      "agent": "hf_endpoints",
+      "model_path": "core/lib/hf_endpoints.py::endpoint_url",
+      "engine": "mcp",
+      "in": ["validated_name"],
+      "out": "endpoint_url",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Pattern: https://<endpoint_name>.<region>.aws.endpoints.huggingface.cloud/v1/..."
+    },
+    {
+      "id": "register_in_router",
+      "agent": "cloud_providers",
+      "model_path": "core/lib/cloud_providers.py::register_provider",
+      "engine": "deterministic",
+      "in": ["validated_name", "endpoint_url", "register_in_router"],
+      "out": "router_registered",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Conditional on register_in_router. Append ProviderSpec(kind='hf_inference_endpoint', endpoint=endpoint_url, cost_class=infer_from_hw, tier='endpoint') to PROVIDERS registry + persist to ~/.cc/providers_dynamic.jsonl."
+    },
+    {
+      "id": "schedule_auto_pause",
+      "agent": "hf_endpoints",
+      "model_path": "core/lib/hf_endpoints.py::schedule_pause",
+      "engine": "deterministic",
+      "in": ["validated_name", "auto_pause_after_min"],
+      "out": "pause_schedule_id",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Conditional on auto_pause_after_min > 0. Cron-ish: a TaskQueue entry that fires after N min idle (no predict call) → calls hf_endpoints.pause(name). Forward progress + cost-bound."
+    },
+    {
+      "id": "anchor_deploy",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["validated_name", "endpoint_url", "model_id", "hardware"],
+      "out": "deploy_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='deploy', model='hf_endpoint', chain_context=f'endpoint_deployed:{name}'. metadata={model_id, hardware, region, url, hourly_cost_estimate}. Cost ladder hard-coded per hardware tier."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "endpoint", "source": "pass:deploy", "blend": "base"},
+    {"name": "url", "source": "pass:fetch_endpoint_url", "blend": "screen"},
+    {"name": "router_link", "source": "pass:register_in_router", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "mcp": {
+      "transport": "stdio",
+      "tools": [
+        "deploy",
+        "list_endpoints",
+        "pause",
+        "resume",
+        "delete",
+        "predict",
+        "endpoint_url"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/hf_endpoints.py (Phase D.6 — new)",
+    "core/lib/cloud_providers.py (Phase D.7 — completed task #70)",
+    "HF_TOKEN (existing in .env)",
+    "core/lib/task_queue.py (existing — for auto-pause scheduling)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

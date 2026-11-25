@@ -1,0 +1,219 @@
+{
+    "_schema": "workflow_card_v0",
+    "vm_id": "vm_mspc_001",
+    "name": "solana_pattern_trade",
+    "category": "trade",
+    "state": "active",
+    "version": "v0",
+    "summary": "Deterministic Solana DEX pattern-intelligence pipeline. Polls Solana RPC for Pump.fun program transactions → extracts 32-dim feature vectors → detects recursive CPI orchestration patterns + wallet grid clusters → trains a pure-Python MLP (forward-in-time) to score bot activity → predicts on live patterns → paper-trades tokens with high predicted bot scores. Zero external ML deps; stdlib-only inference.",
+    "inputs": [
+        {
+            "name": "mode",
+            "type": "str",
+            "required": true,
+            "notes": "feed | map | train | predict | trade | dashboard | all"
+        },
+        {
+            "name": "threshold",
+            "type": "float",
+            "required": false,
+            "default": 0.60,
+            "notes": "ML prediction threshold for signal generation (0.0–1.0)"
+        },
+        {
+            "name": "hold_txs",
+            "type": "int",
+            "required": false,
+            "default": 5,
+            "notes": "Number of subsequent transactions to hold in paper-trade simulation"
+        },
+        {
+            "name": "capital",
+            "type": "float",
+            "required": false,
+            "default": 10.0,
+            "notes": "Starting SOL capital for paper trading"
+        },
+        {
+            "name": "epochs",
+            "type": "int",
+            "required": false,
+            "default": 3000,
+            "notes": "ML training epochs for pattern model"
+        },
+        {
+            "name": "rpc_poll_interval",
+            "type": "float",
+            "required": false,
+            "default": 3.0,
+            "notes": "Seconds between Solana RPC polls in feed mode"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "feed_path",
+            "type": "path",
+            "notes": "studio/solana/feed/live_features.jsonl"
+        },
+        {
+            "name": "orchestration_report",
+            "type": "path",
+            "notes": "studio/solana/feed/orchestration.jsonl"
+        },
+        {
+            "name": "pattern_model",
+            "type": "path",
+            "notes": "studio/solana/feed/pattern_model.json (pure-Python MLP weights)"
+        },
+        {
+            "name": "trades_log",
+            "type": "path",
+            "notes": "studio/solana/feed/trades.jsonl"
+        },
+        {
+            "name": "dashboard_url",
+            "type": "str",
+            "notes": "http://localhost:8767/dashboard.html when dashboard server is running"
+        }
+    ],
+    "passes": [
+        {
+            "id": "pump_feed",
+            "agent": "solana_feed",
+            "model_path": "studio/solana/pump_feed.py::feed_loop",
+            "engine": "asyncio",
+            "in": ["rpc_poll_interval"],
+            "out": "feed_path",
+            "tier": "fast",
+            "status": "ACTIVE",
+            "notes": "Round-robin across 3 public RPC endpoints + optional Tatum. Writes real metadata (logMessages, innerInstructions, accountKeys). PID-tracked via nohup."
+        },
+        {
+            "id": "orchestration_map",
+            "agent": "solana_mapper",
+            "model_path": "studio/solana/orchestration_mapper.py::run_mapper",
+            "engine": "deterministic",
+            "in": ["feed_path"],
+            "out": "orchestration_report",
+            "tier": "deterministic",
+            "status": "ACTIVE",
+            "notes": "Builds CPI call graphs from innerInstructions. Detects self-activating contracts, recursive cycles, deep chains. Top orchestrator = Pump.fun program (6EF8r...)."
+        },
+        {
+            "id": "wallet_grid",
+            "agent": "solana_mapper",
+            "model_path": "studio/solana/wallet_grid_mapper.py::run_mapper",
+            "engine": "deterministic",
+            "in": ["feed_path"],
+            "out": "grid_report",
+            "tier": "deterministic",
+            "status": "ACTIVE",
+            "notes": "Account-level proxy for coordinated clusters. 5-second window, min 3 wallets. Tags: COORDINATED_CLUSTER, DAISY_CHAIN, VOLUME_SPIKE, MIRROR_PAIR, GRID_NODE."
+        },
+        {
+            "id": "pattern_train",
+            "agent": "solana_ml",
+            "model_path": "studio/solana/pattern_trainer.py::train_mlp",
+            "engine": "deterministic",
+            "in": ["orchestration_report", "epochs"],
+            "out": "pattern_model",
+            "tier": "deterministic",
+            "status": "ACTIVE",
+            "notes": "Pure-Python MLP (15 input → hidden → 1). Forward-in-time training wins over shuffle/backward (test MSE 0.00086). Features: depth, freq, interval, recursion, self-activation, node diversity, rep ratio, root one-hot, tags."
+        },
+        {
+            "id": "pattern_predict",
+            "agent": "solana_ml",
+            "model_path": "studio/solana/pattern_predictor.py::score_file",
+            "engine": "deterministic",
+            "in": ["pattern_model", "orchestration_report", "threshold"],
+            "out": "scored_patterns",
+            "tier": "fast",
+            "status": "ACTIVE",
+            "notes": "Loads JSON MLP weights, scores each pattern in orchestration.jsonl. Threshold slider in dashboard. 73 patterns above 0.6 in current feed."
+        },
+        {
+            "id": "pattern_trade",
+            "agent": "solana_trade",
+            "model_path": "studio/solana/pattern_trader.py::run_trader",
+            "engine": "deterministic",
+            "in": ["pattern_model", "feed_path", "orchestration_report", "threshold", "hold_txs", "capital"],
+            "out": "trades_log",
+            "tier": "fast",
+            "status": "ACTIVE",
+            "notes": "Cross-references patterns with feed by timestamp. Simulates buy at signal tx, exit after hold_txs. Synthetic return = volume trend (avg window delta vs entry delta). Paper-only; no real wallet execution."
+        },
+        {
+            "id": "dashboard_server",
+            "agent": "solana_dashboard",
+            "model_path": "studio/solana/dashboard_server.py::run_server",
+            "engine": "http",
+            "in": [],
+            "out": "dashboard_url",
+            "tier": "fast",
+            "status": "ACTIVE",
+            "notes": "Stdlib-only HTTPServer on :8767. Serves dashboard.html (Tailwind + Chart.js) with live stats, score distribution, root breakdown, tag frequency, top orchestrators, ML predictions, patterns table. Auto-refreshes every 30s via /api/stats."
+        }
+    ],
+    "layer_stack": [
+        {
+            "name": "ingest",
+            "source": "pass:pump_feed",
+            "blend": "base"
+        },
+        {
+            "name": "detect",
+            "source": "pass:orchestration_map",
+            "blend": "additive"
+        },
+        {
+            "name": "train",
+            "source": "pass:pattern_train",
+            "blend": "alpha"
+        },
+        {
+            "name": "predict",
+            "source": "pass:pattern_predict",
+            "blend": "multiply"
+        },
+        {
+            "name": "trade",
+            "source": "pass:pattern_trade",
+            "blend": "overlay"
+        },
+        {
+            "name": "viz",
+            "source": "pass:dashboard_server",
+            "blend": "screen"
+        }
+    ],
+    "surfaces": {
+        "cc": {
+            "commands": [
+                "cc -pump-feed",
+                "cc -orchestration-map",
+                "cc -wallet-grid",
+                "cc -pattern-train",
+                "cc -pattern-predict",
+                "cc -pattern-trade",
+                "cc -pattern-dashboard"
+            ]
+        },
+        "http": {
+            "dashboard": "http://localhost:8767/dashboard.html"
+        }
+    },
+    "depends_on": [
+        "studio/solana/pump_feed.py",
+        "studio/solana/orchestration_mapper.py",
+        "studio/solana/wallet_grid_mapper.py",
+        "studio/solana/pattern_trainer.py",
+        "studio/solana/pattern_predictor.py",
+        "studio/solana/pattern_trader.py",
+        "studio/solana/dashboard_server.py",
+        "studio/solana/dashboard.html",
+        "core/cc.sh (dispatchers: -pump-feed, -orchestration-map, -wallet-grid, -pattern-train, -pattern-predict, -pattern-trade, -pattern-dashboard)",
+        "Solana RPC endpoint pool (3 public + optional Tatum)",
+        "Pump.fun program ID: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+    ]
+}

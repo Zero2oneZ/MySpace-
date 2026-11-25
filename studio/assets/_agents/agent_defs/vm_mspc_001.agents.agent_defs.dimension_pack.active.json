@@ -1,0 +1,94 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "dimension_pack",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · UNIVERSAL_5_TUPLE_RECORD_SIGNATURE",
+  "tier": "L0",
+  "module_path": "core/lib/dimension_pack.py",
+
+  "summary": "The audit layer that makes every chain entry queryable in all five canonical frames simultaneously (vector / circle / hex / rgb / fps) without re-computation. Sidecar — does NOT enter canonical_json, so v1 chain verification is unchanged. Built 2026-05-28 in response to Tom's directive 'make sure we are always mapping vector circle hexidecimal rgb fps' after the cycle_4 loop traversal identified rgb under-threading + fps under-quantization gaps. Retroactive: audit_chain() applies the 5-tuple to existing entries.",
+
+  "engine_pattern": "Pure-math stdlib module. emit(record) -> DimensionPack with: vector_hex_64 (first 64 chars of multi_layer_hex.pack_layers), circle_motif_id (recursive_workflows match — which SCC/cycle this event closes into; '*' if leaf), crystal_hex (the InferenceRecord's anchor), rgba (deterministic 4-float color from HSV(hue_from_sub_dag, saturation_from_cost_class, value_from_tier)), frame_pack (timestamp quantized at all 5 canonical FPS simultaneously). Same inputs always produce same pack across runs/machines.",
+
+  "five_canonical_frames": {
+    "vector": "multi_layer_hex.pack_layers slot 0 (sentence axis, 32 bytes); fallback SHA-256 of canonical record JSON",
+    "circle": "recursive_workflows match against persisted SCCs/cycles/motifs in studio/assets/_recursions/; '*' if event is a leaf (not yet part of any detected closed loop)",
+    "hex": "InferenceRecord.crystal_id (BLAKE3 deterministic anchor)",
+    "rgb": "HSV→RGB derived from (sub_dag_hue, cost_class_saturation, tier_value) — 6 sub_dag hues + 9 cost_class saturations + 26 tier values locked",
+    "fps": "frame_clock.timestamp_to_frame for all 5 canonical FPS (24/30/60/90/120) simultaneously; stdlib floor(ts*fps) fallback if frame_clock import fails"
+  },
+
+  "sub_dag_hue_table": {
+    "PLATFORMS":            210.0,
+    "DOCS":                 130.0,
+    "INFERENCE":             30.0,
+    "APPS":                 290.0,
+    "RECURSIVE_WORKFLOWS":    0.0,
+    "ORCHESTRATION":        220.0
+  },
+
+  "graceful_fallbacks": [
+    "multi_layer_hex unimportable → SHA-256 of canonical JSON (still deterministic)",
+    "frame_clock unimportable → stdlib floor(ts*fps) (same semantics)",
+    "recursive_workflows persistence dir absent → circle_motif_id='*'",
+    "All fallbacks deterministic — pack content stable across environments"
+  ],
+
+  "exports": ["DimensionPack", "emit", "deterministic_rgba", "match_recursion",
+               "audit_chain", "save_pack", "CANONICAL_FPS", "SUB_DAG_HUES",
+               "COST_CLASS_SATURATION", "TIER_VALUE"],
+
+  "substrate": "Sidecar JSON files at ~/.cc/dimension_packs/<crystal_short>.json (optional; never automatic). Does NOT modify ~/.cc/inference_master_chain.jsonl or any existing record.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/inference_logger.py (future: call dimension_pack.emit after log() returns crystal_id)",
+      "studio/docs/AGENT_AUDIT — color-coded visualizations using rgba",
+      "studio/docs/LOOP-FOUR-DAG.svg renderer (dag_render.py — future: use deterministic_rgba instead of hardcoded sub_dag colors)",
+      "cc dimension-pack {emit|audit|rgba-table|self-test} dispatcher (future)"
+    ],
+    "outbound_calls": [
+      "multi_layer_hex.pack_layers (lazy, optional)",
+      "frame_clock.timestamp_to_frame (lazy, optional)",
+      "recursive_workflows persisted recursions dir read-only"
+    ],
+    "substrate_reads": "studio/assets/_recursions/*.json (read-only; for circle_motif match)",
+    "substrate_writes": "~/.cc/dimension_packs/ (optional sidecar; only when caller asks)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "yes",
+    "self_test": "PASS — same input always yields same rgba/vector_hex/frame_pack; different sub_dag yields different color",
+    "emit_smoke": "rgba=[0.6125,0.175,0.7,0.92] for (morph_plan,cheap,APPS); frame_pack has all 5 canonical FPS keys; circle_motif resolved to a real recursion match (00459717…)",
+    "retroactive_audit": "Last 15 chain entries each got a 5-tuple. Determinism verified: 4 model_api/trade_surf entries all rgba=(0.80,0.58,0.36,0.92); 5 ml_inference/pump_xgboost_gate entries match recursion crystal 07d78a12c6079d23…",
+    "rgba_table": "26 tiers × 5 cost_classes = 130 unique-but-deterministic colors generated, no collisions in observed sample"
+  },
+
+  "guarantees": [
+    "Determinism — same (tier, cost_class, sub_dag, ts) always produces the same pack across machines and runs",
+    "Non-invasive — does NOT modify InferenceRecord, canonical_json, or any existing record",
+    "Retroactive — audit_chain() backfills the 5-tuple for entries created BEFORE this module landed",
+    "Sub-DAG-aware — sub_dag inferred from tier if not provided (_TIER_TO_SUB_DAG mapping covers all 26 active tiers)",
+    "All 5 frames always populated — graceful fallbacks ensure no None / missing values; circle_motif uses '*' for leaves",
+    "Stdlib only — math + hashlib + json + dataclasses + pathlib; no numpy, no scipy, no scikit-learn",
+    "Cheap — typical pack emission ~0.3ms in the smoke (mostly the recursion scan; cacheable)"
+  ],
+
+  "usage_example": "# After inference_logger.log() returns the crystal_id:\\nfrom dimension_pack import emit, save_pack\\npack = emit(record_dict, crystal_id=crystal)\\n# Optional sidecar persistence:\\nsave_pack(pack)\\n# Or just read the 5 fields directly:\\nprint(pack.vector_hex_64, pack.circle_motif_id, pack.crystal_hex, pack.rgba, pack.frame_pack)\\n\\n# Retroactive audit of the existing chain:\\nfrom dimension_pack import audit_chain\\nrows = audit_chain(sample=50)\\n# rows = [{tier, model, crystal_short, rgba, circle, frame_60fps, vec_head}, ...]",
+
+  "future_v2_hooks": [
+    "Wire inference_logger to auto-emit a pack on every log() call (sidecar only; never into canonical_json)",
+    "Wire dag_render.py to use deterministic_rgba instead of hardcoded SUB_DAG COLOR dict",
+    "Add 'antipode' slot — apply energy_inversion.invert_vec to the vector_hex_64 for the 6th canonical frame (negation lens)",
+    "Add a TimingHistogram across frame_pack[60] values to detect bot-vs-human signatures purely from FPS quantization (echoes pump_xgboost_gate from a different angle)"
+  ],
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Substrate audit / completeness layer — bridges the 5 canonical mappings Tom established in the cycle_4 traversal"
+}

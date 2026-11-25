@@ -1,0 +1,160 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "landing.page.with_eefe4f71",
+  "category": "render",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: landing page with embedded morph engine and pinterest harvest",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_comfyui",
+      "agent": "comfyui",
+      "kernel_ref": "connector:comfyui",
+      "engine": "comfyui",
+      "in": [
+        "ANY"
+      ],
+      "out": "IMAGE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    },
+    {
+      "id": "p01_godot",
+      "agent": "godot",
+      "kernel_ref": "connector:godot",
+      "engine": "godot",
+      "in": [
+        "3D"
+      ],
+      "out": "SCENE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    },
+    {
+      "id": "p02_text_to_image",
+      "agent": "Text-to-Image",
+      "kernel_ref": "hf:Text-to-Image",
+      "engine": "hf",
+      "in": [
+        "TEXT"
+      ],
+      "out": "IMAGE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Unconditional Image Generation",
+        "hf:Image-Text-to-Image",
+        "hf:Any-to-Any"
+      ]
+    },
+    {
+      "id": "p03_image_classification",
+      "agent": "Image Classification",
+      "kernel_ref": "hf:Image Classification",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "LABEL",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Object Detection",
+        "hf:Zero-Shot Image Classification"
+      ]
+    },
+    {
+      "id": "p04_pinterest_vector_motherl",
+      "agent": "pinterest_vector_motherload",
+      "kernel_ref": "card:pinterest_vector_motherload",
+      "engine": "card",
+      "in": [
+        "LIST[STR]",
+        "INT",
+        "INT",
+        "BOOL"
+      ],
+      "out": "JSONL",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:blob_to_unreal",
+        "card:generative_mcp_fanout",
+        "card:unified_model_api",
+        "card:snap_to_unreal",
+        "card:solana_program_oracle",
+        "card:document_processing",
+        "card:pump_surf_pipeline",
+        "card:cross_chain_swap"
+      ]
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_comfyui",
+      "source": "pass:p00_comfyui",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_godot",
+      "source": "pass:p01_godot",
+      "blend": "additive"
+    },
+    {
+      "name": "p02_text_to_image",
+      "source": "pass:p02_text_to_image",
+      "blend": "additive"
+    },
+    {
+      "name": "p03_image_classification",
+      "source": "pass:p03_image_classification",
+      "blend": "additive"
+    },
+    {
+      "name": "p04_pinterest_vector_motherl",
+      "source": "pass:p04_pinterest_vector_motherl",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:pinterest_vector_motherload",
+    "connector:comfyui",
+    "connector:godot",
+    "hf:Image Classification",
+    "hf:Text-to-Image"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "image",
+      "game"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:39:03Z"
+  }
+}

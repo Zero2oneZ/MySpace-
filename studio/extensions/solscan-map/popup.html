@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<style>
+  body{width:300px;margin:0;padding:14px;background:#0b0e14;color:#cbd5e1;
+       font:13px/1.5 ui-monospace,Menlo,monospace}
+  h1{font-size:14px;margin:0 0 10px;color:#e2e8f0}
+  .row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+  b{color:#2dd4bf}
+  button{width:100%;margin-top:8px;padding:8px;border:1px solid #243140;border-radius:6px;
+         background:#111824;color:#cbd5e1;cursor:pointer;font:inherit}
+  button:hover{background:#16202e}
+  button.primary{background:#134e4a;border-color:#2dd4bf;color:#a7f3eb}
+  button.primary:hover{background:#155e58}
+  .err{color:#f87171;font-size:11px;word-break:break-all;margin-top:8px}
+  .ok{color:#34d399;font-size:11px;margin-top:8px}
+  label{display:flex;gap:8px;align-items:center;cursor:pointer}
+  textarea{width:100%;box-sizing:border-box;height:46px;resize:vertical;margin-top:6px;
+           background:#111824;border:1px solid #243140;color:#94a3b8;border-radius:6px;
+           font:11px/1.4 ui-monospace,monospace;padding:5px}
+  .hint{color:#475569;font-size:10px;margin:2px 0 0}
+  hr{border:0;border-top:1px solid #1c2530;margin:12px 0}
+</style></head>
+<body>
+  <h1>Wallet Map</h1>
+
+  <button id="grab" class="primary">⬇ Grab all wallets on this page</button>
+  <p class="hint">Scans the container below (falls back to <code>.padre-no-scroll</code>,
+     then the whole page) for full base58 addresses.</p>
+  <textarea id="selector" spellcheck="false"></textarea>
+  <div class="ok" id="result"></div>
+
+  <hr>
+  <button id="record">● Record this tab (video + sound)</button>
+  <p class="hint">Captures the tab's video + audio; the sound becomes an
+     rgb/#hex wave and the recording is mapped to the token on this page.</p>
+  <div class="row"><span>streams recorded</span><b id="streams">0</b></div>
+
+  <hr>
+  <div class="row"><span>addresses sent (total)</span><b id="sent">0</b></div>
+  <div class="row"><label><input type="checkbox" id="enabled"> auto-capture on solscan</label></div>
+  <button id="open">Open the map ↗</button>
+  <button id="reset">Reset counter</button>
+  <div class="err" id="err"></div>
+<script src="popup.js"></script>
+</body></html>

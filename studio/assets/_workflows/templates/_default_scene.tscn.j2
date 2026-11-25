@@ -1,0 +1,45 @@
+{# Generic Godot 4 scene template — drives off card schema only. #}
+{%- set root_name = card.name | replace("_", " ") | title | replace(" ", "") -%}
+[gd_scene load_steps=5 format=3 uid="uid://b{{ card_crystal[:23] }}"]
+
+[ext_resource type="Script" path="res://src/{{ card.name }}_controller.gd" id="1_ctrl"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_default"]
+sky_top_color = Color(0.0588235, 0.0784314, 0.117647, 1)
+sky_horizon_color = Color(0.121569, 0.137255, 0.196078, 1)
+
+[sub_resource type="Sky" id="Sky_default"]
+sky_material = SubResource("SkyMaterial_default")
+
+[sub_resource type="Environment" id="Environment_default"]
+background_mode = 2
+sky = SubResource("Sky_default")
+ambient_light_source = 2
+ambient_light_color = Color(0.6, 0.65, 0.8, 1)
+ambient_light_energy = 0.7
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="{{ root_name }}" type="Node3D"]
+script = ExtResource("1_ctrl")
+{% for layer in card.layer_stack %}metadata/layer_{{ loop.index0 }} = "{{ layer.name }}:{{ layer.blend }}"
+{% endfor %}
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.34, 0, -0.34, 0.94, 0, 2.5, 8.0)
+fov = 60.0
+far = 500.0
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.7071, 0.7071, 0, -0.7071, 0.7071, 0, 5, 0)
+light_energy = 1.0
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_default")
+{% for p in card.passes if p.engine == "comfyui" %}
+[node name="{{ p.id }}_output" type="MeshInstance3D" parent="."]
+metadata/pass_id = "{{ p.id }}"
+metadata/pass_engine = "{{ p.engine }}"
+metadata/pass_tier = "{{ p.tier }}"
+{% endfor %}

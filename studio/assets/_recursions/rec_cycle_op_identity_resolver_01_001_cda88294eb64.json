@@ -1,0 +1,18 @@
+{
+  "crystal": "cda88294eb640b99f160cc50fc8e42fbf0b78adb60c98726819e5fded78109914d80c17d6829ac5b9b5c1e8314adbaf34a5aef9f18b139a6741900d1f0242dac",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_identity_resolver_01_001",
+  "kind": "simple_cycle",
+  "name": "identity_resolver",
+  "nodes": [
+    "op_identity_resolver"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

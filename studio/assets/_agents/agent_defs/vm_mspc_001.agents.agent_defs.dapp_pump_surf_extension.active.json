@@ -1,0 +1,104 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "dapp_pump_surf_extension",
+  "state": "active",
+  "version": "v0",
+  "role": "HTTP_EXTENSION · PUMP_FUN_BOT_VS_HUMAN_RADAR_SURFACE",
+  "tier": "L0",
+  "module_path": "studio/dapp/server.py",
+  "extends": "vm_mspc_001.agents.agent_defs.dapp_server",
+  "parent_card": "studio/assets/_agents/agent_defs/vm_mspc_001.agents.agent_defs.dapp_server.active.json",
+  "siblings": [
+    "vm_mspc_001.agents.agent_defs.dapp_play_extension",
+    "vm_mspc_001.agents.agent_defs.dapp_morph_extension"
+  ],
+
+  "summary": "Additive surface bolted onto the existing dapp_server: hosts the pump.fun bot-vs-human radar. The /dapp/pump_surf page embeds the Godot pump_surf scene and runs an HTMX poll every 2s to /dapp/api/pump_wave for a live WaveFrame. The wave endpoint reads the latest JSONL events file from ~/.cc/pump_stream/ (sibling agent A's ingest), loads ~/.cc/pump_surf_gate_decisions.json (sibling agents B+C+D's gate output) when present, and calls pump_visualizer_3d.build_wave_frame(events, gates, window_seconds=60) (sibling agent F's visualizer). When any of those modules / files are absent, the endpoint returns a fixed-shape stub WaveFrame (HTTP 200) so the radar + Godot iframe never break. Parent dapp_server.active.json, dapp_play_extension.active.json, dapp_morph_extension.active.json are NOT modified.",
+
+  "engine_pattern": "Reuses dapp_server's stdlib http.server.ThreadingHTTPServer + string.Template render path. Adds module-level helpers (_stub_wave_frame, _latest_pump_events_path, _load_pump_events, _load_pump_gate_decisions, _build_pump_wave). Lazy-imports pump_stream_ingest.replay_jsonl when available; otherwise reads the latest .jsonl directly. Lazy-imports pump_visualizer_3d.build_wave_frame and stubs on ImportError. The /dapp/pump_surf page mirrors play_embed.html with a surf_state LED badge, wave-data metrics panel, manual surf form, and inline <style id='pump-style'> driven by hx-on::after-request='updateSurfStyle(event)'. HTMX configRequest hook injects 'Authorization: Bearer <localStorage.mspc_freetier_token>' on every poll.",
+
+  "added_routes": {
+    "GET /dapp/pump_surf":         "PUBLIC · renders pump_surf.html — embeds /studio/godot/builds/web_instant_games/index.html?scene=pump_surf and runs an HTMX every-2s poll to /dapp/api/pump_wave to drive the surf-state LED badge + wave-metrics panel. The page itself renders without a bearer; only the polling endpoint is gated. godot_build_present flag stamped in the page so the template can show a fallback hint if the HTML5 export is missing.",
+    "GET /dapp/api/pump_wave":     "BEARER · returns the latest WaveFrame JSON. Reads the most-recent .jsonl events file from ~/.cc/pump_stream/ (by mtime), loads ~/.cc/pump_surf_gate_decisions.json if present, and calls pump_visualizer_3d.build_wave_frame(events, gates, window_seconds=60) when importable. On ImportError or any failure: returns a fixed-shape stub {surf_state:'no_signal', bot_density_avg:0, human_inflow_score:0, ripples:[], crystal:'', stub:true} with HTTP 200 so the radar keeps polling cleanly. Inline crystal-anchor via inference_logger at tier='pump_wave_served', model='dapp_pump_route', scope='wave_get'."
+  },
+
+  "added_templates": {
+    "studio/dapp/templates/pump_surf.html": "~155 lines — surf-state LED badge (red/gold/green via --pump-surf-state-color), wave-metrics grid (bot_density_avg + human_inflow_score), Godot iframe at /studio/godot/builds/web_instant_games/index.html?scene=pump_surf, manual <form> calling /dapp/api/pump_surf_action with consider_buy (graceful 404 → focuses Godot iframe), collapsible <details> showing raw WaveFrame JSON, and a 'DRY-RUN by default — no real trades without SOLANA_NETWORK=mainnet-beta + PUMP_SURF_LIVE_TRADING=1' footer warning. HTMX hx-trigger='load, every 2s' with htmx:configRequest stamping Bearer <localStorage.mspc_freetier_token>. After-request callback updateSurfStyle(event) parses the WaveFrame, rewrites :root { --pump-surf-state-color: … }, updates the badge text, fills the wave-data panel, and refreshes the raw-JSON pre block."
+  },
+
+  "added_helpers": [
+    "_stub_wave_frame() — fixed-shape WaveFrame dict ({surf_state:'no_signal', bot_density_avg:0, human_inflow_score:0, ripples:[], crystal:'', stub:true}) served on import or build failure; mirrors the future pump_visualizer_3d.build_wave_frame output shape",
+    "_latest_pump_events_path() — returns most-recent .jsonl in ~/.cc/pump_stream/ (by mtime) or None; never raises",
+    "_load_pump_events(window_seconds=60) — prefers pump_stream_ingest.replay_jsonl when present; falls back to direct JSONL read; never raises; returns []",
+    "_load_pump_gate_decisions() — reads ~/.cc/pump_surf_gate_decisions.json when present; returns {} on absence or parse failure; never raises",
+    "_build_pump_wave(claims) — orchestrates events + gates + lazy import of pump_visualizer_3d.build_wave_frame; returns asdict(WaveFrame) or stub; inline crystal-anchor via inference_logger at tier='pump_wave_served', model='dapp_pump_route', scope='wave_get'; never raises"
+  ],
+
+  "nav_changes": "Added one <a href=\"/dapp/pump_surf\">pump_surf</a> entry to nav.tabs in studio/dapp/templates/base.html, placed immediately after the existing /dapp/play_morph link added by the dapp_morph_extension sidecar — single-line addition, no other base.html edits.",
+
+  "boot_banner_addition": "main() boot stderr banner gets one extra line: '/dapp/pump_surf /dapp/api/pump_wave' so operators see the new surface at startup.",
+
+  "substrate": "additive — no own DB. Reuses freetier_gate.require_token for bearer gating, inference_logger for crystal anchors, lazy-imports pump_stream_ingest (parallel agent A) and pump_visualizer_3d (parallel agent F) when present, and reads ~/.cc/pump_surf_gate_decisions.json (parallel agents B+C+D output) when present.",
+
+  "runtime_state_files": {
+    "~/.cc/pump_stream/*.jsonl":             "input — sibling agent A's pump_stream_ingest writes events here; the wave endpoint reads the latest by mtime",
+    "~/.cc/pump_surf_gate_decisions.json":   "input — sibling agents B+C+D's gate output; optional; absent → empty dict passed to build_wave_frame"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "browser: visitors to /dapp/pump_surf (public page, no token required to view)",
+      "the in-page HTMX panel: hx-get /dapp/api/pump_wave every 2s with Bearer header stamped from localStorage.mspc_freetier_token",
+      "Godot HTML5 build: iframe loads index.html?scene=pump_surf and selects the pump_surf.tscn scene on its end (sibling agent G build)"
+    ],
+    "outbound_calls": [
+      "core/lib/pump_stream_ingest.replay_jsonl(latest_path) → List[event_dict] — lazy import, agent A build",
+      "core/lib/pump_visualizer_3d.build_wave_frame(events, gates, window_seconds=60) → WaveFrame — lazy import, agent F build",
+      "core/lib/freetier_gate.require_token(headers) on /dapp/api/pump_wave",
+      "core/lib/inference_logger.InferenceLogger().log(tier='pump_wave_served', model='dapp_pump_route', scope='wave_get')"
+    ],
+    "substrate_reads": "~/.cc/pump_stream/*.jsonl; ~/.cc/pump_surf_gate_decisions.json; studio/godot/builds/web_instant_games/index.html presence check; templates under studio/dapp/templates/",
+    "substrate_writes": "crystal chain entries via inference_logger only — no trades fire from this surface"
+  },
+
+  "graceful_degradations": [
+    "pump_visualizer_3d missing → /dapp/api/pump_wave returns stub WaveFrame (HTTP 200, stub:true)",
+    "pump_stream_ingest missing → /dapp/api/pump_wave falls back to direct JSONL read of the latest mtime file",
+    "~/.cc/pump_stream/ empty or missing → events=[], WaveFrame built over no events (or stub if build_wave_frame absent)",
+    "~/.cc/pump_surf_gate_decisions.json missing → gates={} passed to build_wave_frame",
+    "Godot HTML5 build not exported → iframe shows 404 inside the panel; the surf radar + form remain functional; godot_build_present='no' stamped in template footer",
+    "No bearer in localStorage → HTMX poll → 401 (unauthed inner panel rendered into #wave-data); page itself remains visible",
+    "build_wave_frame raises → stub WaveFrame (HTTP 200, stub:true) + stderr warning",
+    "inference_logger missing → crystal log skipped, response unaffected"
+  ],
+
+  "guarantees": [
+    "Existing dapp_server routes (services, mint, wallet, products, balance, buy, mint, healthz) are NOT modified",
+    "dapp_play_extension routes (/dapp/play*, /dapp/api/fb_event, /dapp/api/social_graph) are NOT modified",
+    "dapp_morph_extension routes (/dapp/play_morph, /dapp/api/morph_plan) are NOT modified",
+    "dapp_server.active.json, dapp_play_extension.active.json, dapp_morph_extension.active.json are NOT modified — additions live in this sidecar card only",
+    "/dapp/api/pump_wave is bearer-gated via the same freetier_gate.require_token path as the other write endpoints",
+    "Stub WaveFrame returned on import/build failure carries HTTP 200 so the Godot iframe and radar panel never break on a freshly-provisioned host",
+    "No real trades fire from this surface — the manual surf form is a UI that POSTs to a separate endpoint (/dapp/api/pump_surf_action) which is NOT exposed by this dApp; the executor lives elsewhere and is dry-run-by-default per pump_executor's own env gating",
+    "Stdlib-only — no new deps; all CSS / JS is inline in pump_surf.html",
+    "Single line added to base.html nav; no other template touched"
+  ],
+
+  "smoke_test_2026_05_28": {
+    "syntax_check":         "ok — ast.parse passes on server.py",
+    "pump_surf_public":     "ok — GET /dapp/pump_surf renders 200 without a bearer token",
+    "pump_wave_unauth":     "ok — GET /dapp/api/pump_wave without bearer → 401",
+    "pump_wave_authed":     "ok — GET /dapp/api/pump_wave with valid bearer → 200 + WaveFrame JSON (stub-shaped while pump_visualizer_3d absent)",
+    "no_existing_route_changed": "ok — /dapp/healthz /dapp/services /dapp/mint /dapp/wallet /dapp/play /dapp/play/embed /dapp/play/sdk-bridge.js /dapp/api/fb_event /dapp/api/social_graph /dapp/play_morph /dapp/api/morph_plan all unaffected"
+  },
+
+  "usage_example": "GET  /dapp/pump_surf\\ncurl -H 'Authorization: Bearer <token>' http://localhost:8520/dapp/api/pump_wave",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "pump.fun bot-vs-human radar surface. Pairs with parallel agent A (pump_stream_ingest), agents B+C+D (gate decisions writer), agent F (pump_visualizer_3d.build_wave_frame), and agent G (Godot pump_surf.tscn variant). The dApp side is forward-compatible: stub WaveFrame today, real radar the moment the modules + events land."
+}

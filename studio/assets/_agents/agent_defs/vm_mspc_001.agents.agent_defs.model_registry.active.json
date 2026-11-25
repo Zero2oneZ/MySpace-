@@ -1,0 +1,50 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "model_registry",
+  "state": "active",
+  "version": "v0",
+  "role": "REGISTRY · MODEL_LOOKUP",
+  "tier": "L0",
+  "module_path": "core/lib/model_registry.py",
+  "summary": "Read-only lookup interface over studio/models/registry.json. Provides tier resolution (tiny/medium/large/epic), VRAM budgeting, quantization selection. The bridge between the installer (writes) and the token_router (reads).",
+  "engine_pattern": "stateless dataclass-backed query (ModelCard) over the registry JSON. Loaded lazily; rebuilds by re-reading the file.",
+  "storage": {
+    "reads": "studio/models/registry.json"
+  },
+  "exports": ["ModelRegistry", "ModelCard"],
+  "substrate": "studio/models/registry.json (read-only consumer)",
+  "tier_resolution": {
+    "tiny": "context_window ≤ 8k, vram ≤ 2gb, brand=ollama, tag=tiny",
+    "medium": "context_window 8k-65k, vram 2-8gb, brand=ollama, tag=medium",
+    "large": "context_window 65k-200k, brand=cloud (anthropic|openai), tag=large",
+    "epic": "context_window > 200k, brand=cloud (anthropic), tag=epic"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/token_router.py::ModelRouter (imports ModelRegistry + ModelCard for tier → model resolution)",
+      "core/lib/chat.py (transitively via token_router)",
+      "core/lib/forward_projector.py (transitively — picks CC_TINY_MODEL default from registry)"
+    ],
+    "outbound_calls": ["std json + pathlib (no subprocess, no network)"],
+    "substrate_reads": "studio/models/registry.json",
+    "substrate_writes": "none"
+  },
+  "guarantees": [
+    "Deterministic lookup: same registry + same query → same ModelCard, byte-for-byte",
+    "No mutation: registry is read-only here; only model_installer writes",
+    "Graceful degradation: missing registry returns empty list (router falls back to defaults)",
+    "Cross-brand: ollama + huggingface + cloud entries unified under one schema"
+  ],
+  "produced_by": ["core/lib/model_installer.py (writes the registry it reads)"],
+  "consumed_by": [
+    "core/lib/token_router.py (tier_to_model + tier_to_scope)",
+    "core/lib/chat.py (transitively)"
+  ],
+  "usage_example": "from model_registry import ModelRegistry\\nreg = ModelRegistry()\\ncard = reg.find_for_tier('tiny')\\nprint(card.name, card.context_window, card.vram_gb)",
+  "chain_runs": ["moe_chain_router_v0"]
+}

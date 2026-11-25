@@ -1,0 +1,48 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "forward_projector",
+  "state": "active",
+  "version": "v0",
+  "role": "PROJECTOR · FORWARD_CHAIN",
+  "tier": "L0",
+  "module_path": "core/lib/forward_projector.py",
+  "summary": "Emit future-adjacent forward chains. Inline extraction from controlled models (free, instant) + post-hoc fallback via tiny model (qwen2.5-coder:1.5b via ollama, ~10s). The projection is what feeds the next inference node as context.",
+  "engine_pattern": "stateless — given (reasoning_trace, output_text, prev_forward) returns ForwardResult(inline, posthoc, source, chosen)",
+  "modes": {
+    "inline": "regex <forward>(.*?)</forward> against the just-completed output; placeholder bodies rejected (literal '...', single phrases, empty)",
+    "posthoc": "subprocess ollama run <tiny_model> with stdin pipe + dumb TERM + CSI cursor-back interpretation; bounded by CC_FORWARD_TIMEOUT (default 20s)"
+  },
+  "tty_artifact_handling": "_strip_ansi interprets CSI \\x1b[<N>D (cursor back N — pops up to N chars from output buffer, stops at newlines), drops other CSI codes silently, then a (\\\\S{2,})\\\\n(\\\\1\\\\S*) regex collapses any wrap-fragment-then-redraw pairs",
+  "exports": ["ForwardResult", "extract_inline", "strip_inline", "project_posthoc", "project", "_is_placeholder", "_strip_ansi", "TINY_MODEL", "POSTHOC_TIMEOUT_S"],
+  "substrate": "none (consumes reasoning + output, produces forward_chain text)",
+  "env_vars": {
+    "CC_TINY_MODEL": "tiny model name (default qwen2.5-coder:1.5b)",
+    "CC_FORWARD_TIMEOUT": "posthoc timeout seconds (default 20)"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::cmd_full (post-pipeline projection)",
+      "core/lib/chat.py::cmd_godot (Godot bridge packet projection)",
+      "CLI: python3 forward_projector.py inline | posthoc | project"
+    ],
+    "outbound_calls": [
+      "subprocess.run(['ollama', 'run', <tiny_model>], input=prompt) — only when posthoc fallback fires"
+    ],
+    "substrate_reads": "none",
+    "substrate_writes": "none (projector is pure; chat.py persists the result)"
+  },
+  "guarantees": [
+    "Inline extraction is byte-deterministic (regex on the model's literal output)",
+    "Posthoc projection runs only when inline returns empty (lazy)",
+    "Posthoc determinism is best-effort (OLLAMA_TEMPERATURE=0, OLLAMA_SEED=42)",
+    "Graceful degradation — missing ollama / timeout / parse error → returns empty string, never raises",
+    "No TTY artifacts persisted — cursor-back interpretation + wrap-repeat regex run before storage"
+  ],
+  "usage_example": "from forward_projector import project\\nresult = project(reasoning_trace='I read X then edited Y', output_text='Done. <forward>- step1\\\\n- step2</forward>', prev_forward='', enable_posthoc=True)\\nprint(result.source, result.chosen())  # -> 'inline', '- step1\\\\n- step2'",
+  "chain_runs": ["moe_chain_router_v0"]
+}

@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:todo="https://myspace.local/todo/v1" width="340" height="240" viewBox="0 0 340 240" font-family="monospace" font-size="10" todo:role="browser-state" todo:browser-id="browser-1" todo:layer="mirror-export" todo:state="GO">
+  <ns0:metadata>
+    <todo:about>browser-1 — MASTER-OUTWARD view. Read-only. Validates pair crystal on every tick.</todo:about>
+    <todo:parent-svg>MASTER-TODO.svg</todo:parent-svg>
+    <todo:peer-svg>MASTER-OUTWARD.svg</todo:peer-svg>
+    <todo:mirror-peer>browser-0</todo:mirror-peer>
+    <todo:state>GO</todo:state>
+    <todo:last-update>2026-05-28T00:55:30Z</todo:last-update>
+    <todo:next-browser>browser-2</todo:next-browser>
+    <todo:inference>none</todo:inference>
+    <todo:active-nodes>32</todo:active-nodes>
+    <todo:pass-targets>none</todo:pass-targets>
+    <todo:coherence-check status="PASS" drift="0" />
+    <todo:coherence-check-status>PASS</todo:coherence-check-status>
+    <todo:coherence-check-drift>0</todo:coherence-check-drift>
+    <todo:active-task>T-001</todo:active-task>
+  </ns0:metadata>
+  <ns0:defs>
+    <ns0:linearGradient id="bg1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#0a0a15" />
+      <ns0:stop offset="100%" stop-color="#050510" />
+    </ns0:linearGradient>
+  </ns0:defs>
+  <ns0:rect width="340" height="240" rx="6" fill="url(#bg1)" stroke="#c896ff" stroke-width="2" />
+  <ns0:rect x="0" y="0" width="340" height="28" rx="6" fill="#1a0a2a" />
+  <ns0:text x="10" y="18" fill="#c896ff" font-size="12" font-weight="bold">browser-1 · MASTER-OUTWARD</ns0:text>
+  <ns0:text x="300" y="18" fill="#c896ff" font-size="10">GO</ns0:text>
+  <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: mirror-export</ns0:text>
+  <ns0:text x="10" y="66" fill="#aaa" font-size="10">State: read-only view</ns0:text>
+  <ns0:text x="10" y="82" fill="#888" font-size="10">Peer: MASTER-OUTWARD.svg</ns0:text>
+  <ns0:text x="10" y="104" fill="#c896ff" font-size="10">Active nodes: 32 paired</ns0:text>
+  <ns0:text x="10" y="120" fill="#c896ff" font-size="10">Crystal: sha256:d25eee26…be81</ns0:text>
+  <ns0:rect x="10" y="140" width="320" height="50" rx="3" fill="#0a0a1a" />
+  <ns0:text x="16" y="156" fill="#888" font-size="9">Accent sync:</ns0:text>
+  <ns0:text x="16" y="170" fill="#c896ff" font-size="9">• reads MASTER-INWARD for forward state</ns0:text>
+  <ns0:text x="16" y="184" fill="#c896ff" font-size="9">• validates pair crystal on every tick</ns0:text>
+  <ns0:rect x="10" y="200" width="320" height="30" rx="3" fill="#0a0a0a" stroke="#c896ff" stroke-width="1" />
+  <ns0:text x="16" y="218" fill="#c896ff" font-size="9">Coherence: PASS · Drift: 0 · Next: browser-2</ns0:text>
+</ns0:svg>

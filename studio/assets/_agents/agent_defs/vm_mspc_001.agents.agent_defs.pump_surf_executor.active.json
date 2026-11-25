@@ -1,0 +1,168 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_surf_executor",
+  "state": "active",
+  "version": "v0",
+  "role": "EXECUTOR - PUMP_FUN_SURF_TRADING_LOOP",
+  "tier": "L0",
+  "module_path": "core/lib/pump_surf_executor.py",
+
+  "summary": "Consumes XGBoost gate decisions from pump_xgboost_gate (parallel agent D) and emits BUY/SELL orders against pump.fun / PumpSwap via the surf strategy: follow large bot-driven volume on fresh mints, ride the human-inflow wake, exit before bots dump. STRICT DRY-RUN DEFAULT: every order returns dry_run=True UNLESS all three gates are open: SOLANA_NETWORK=mainnet-beta AND PUMP_SURF_LIVE_TRADING=1 AND confirm=True. Any missing condition forces DRY-RUN regardless. Per-trade SOL cap (default 0.1) and per-day SOL cap (default 1.0, tracked in ~/.cc/pump_surf_daily.json) enforced before any live execution. Every order (DRY-RUN or live, refused or accepted) crystal-anchors via inference_logger with tier='trade_action', model='pump_surf', scope='buy'|'sell'.",
+
+  "engine_pattern": "Stdlib-only Python module (json, time, pathlib, os, dataclasses, uuid, argparse). Mirrors the topstep_mcp double-gate pattern but extends it to TRIPLE-gate (network + flag + confirm) because Solana mainnet exposure is binary on-chain whereas TopstepX has DRY-RUN built into its sandbox. Public API: consider_buy / consider_sell / execute_dryrun_or_live / surf_loop. CLI: status / order-log / simulate --replay <jsonl> / buy --mint --sol --target-wallet [--confirm]. Live execution path (solana_mcp.transfer to PumpSwap router) is INTENTIONALLY UNWIRED in this executor per scope constraints; if all 3 gates open the order is demoted to DRY-RUN with error='live_path_not_wired:solana_mcp_invocation_out_of_scope' so an audit row still lands.",
+
+  "safety_rails": {
+    "live_trading_gates": [
+      "SOLANA_NETWORK=mainnet-beta in process env",
+      "PUMP_SURF_LIVE_TRADING=1 in process env",
+      "confirm=True in call args"
+    ],
+    "gate_logic": "ALL THREE must be true for a real on-chain swap. Any missing => DRY-RUN regardless. No exceptions, no override path.",
+    "per_trade_cap": {
+      "env_var": "PUMP_SURF_MAX_SOL_PER_TRADE",
+      "default_sol": 0.1,
+      "behavior": "any order request > cap returns order.error='exceeds_per_trade_cap' and is demoted to DRY-RUN. The audit row still lands so the refusal is crystal-anchored."
+    },
+    "per_day_cap": {
+      "env_var": "PUMP_SURF_MAX_SOL_PER_DAY",
+      "default_sol": 1.0,
+      "ledger_path": "~/.cc/pump_surf_daily.json",
+      "ledger_format": "JSON dict keyed by UTC date YYYY-MM-DD -> {sol_in: float, trades: int}",
+      "behavior": "before a live BUY can fire, used_today + requested_sol must be <= cap. Otherwise order.error='exceeds_per_day_cap' and demoted to DRY-RUN. DRY-RUN orders do NOT increment the daily ledger (so simulate/replay does not pollute the cap)."
+    },
+    "console_message": "DRY-RUN: would have placed buy 0.5 SOL of mint <x>  written to stderr on every dry-run order; matches the topstep_mcp pattern.",
+    "live_execution_status": "NOT WIRED IN THIS EXECUTOR. Solana mainnet swap path (solana_mcp.transfer -> PumpSwap router or pump.fun program) is intentionally unimplemented per task constraints (do NOT touch solana_mcp.py). If all 3 gates open, the order is logged with error='live_path_not_wired:solana_mcp_invocation_out_of_scope' and demoted to DRY-RUN. Future patch will wire the swap call."
+  },
+
+  "buy_decision_table": {
+    "fires_when_all_true": [
+      "gate_decision.decision == 'surf_candidate'",
+      "current_state.active_position == False",
+      "requested sol_amount <= PUMP_SURF_MAX_SOL_PER_TRADE",
+      "(if live) daily_used + sol_amount <= PUMP_SURF_MAX_SOL_PER_DAY"
+    ],
+    "returns_none_when": [
+      "gate decision is None or != 'surf_candidate'",
+      "already holding a position"
+    ],
+    "returns_refused_order_when": [
+      "sol_amount > per-trade cap (error='exceeds_per_trade_cap')",
+      "live + sol_amount would exceed per-day cap (error='exceeds_per_day_cap')"
+    ],
+    "rationale_format": "echoes gate_decision.rationale if present, else default 'bot_volume+human_inflow above surf threshold'"
+  },
+
+  "sell_decision_table": {
+    "fires_when_any_true": [
+      "consecutive_flat_ticks >= flat_tick_threshold (default 3) - human_inflow has stalled",
+      "bot_prob > 0.95 AND latest_human_inflow < 0.15 - bot exit imminent, no buyers left",
+      "time-in-position > 30 minutes - hard timeout regardless of signal"
+    ],
+    "thresholds_overridable_via": "exit_thresholds dict on consider_sell call",
+    "default_thresholds": {
+      "flat_tick_threshold": 3,
+      "flat_entropy_eps": 0.01,
+      "bot_dump_prob_threshold": 0.95,
+      "bot_dump_inflow_threshold": 0.15,
+      "hard_timeout_seconds": 1800
+    },
+    "fires_only_when": "current_state.active_position == True",
+    "rationale_format": "pipe-joined list of triggered conditions, e.g. 'human_inflow_flatline:3>=3 | hard_timeout:1900s>1800s'"
+  },
+
+  "public_api": [
+    "SurfOrder (dataclass) - ts, kind, mint, sol_amount, target_wallet, bot_prob, human_inflow, rationale, dry_run, tx_signature, crystal, error",
+    "SurfState (dataclass) - active_position, position_mint, position_sol_in, position_entry_ts, last_human_inflow, consecutive_flat_ticks",
+    "GateDecision (dataclass) - stub of the type parallel agent D will produce; defined locally so this module imports without the gate landing first",
+    "consider_buy(gate_decision, current_state, recent_window=None, confirm=False) -> Optional[SurfOrder]",
+    "consider_sell(current_state, latest_human_inflow, latest_bot_prob, exit_thresholds=None, confirm=False) -> Optional[SurfOrder]",
+    "execute_dryrun_or_live(order) -> SurfOrder (crystal-anchored + logged)",
+    "surf_loop(duration_seconds=0, max_orders=0, replay_path=None, confirm=False) -> dict"
+  ],
+
+  "crystal_anchor": {
+    "tier": "trade_action",
+    "model": "pump_surf",
+    "scope_values": ["buy", "sell"],
+    "output_text_carries": ["kind", "mint", "sol_amount", "target_wallet", "bot_prob", "human_inflow", "dry_run", "tx_signature", "error"],
+    "coordinates": "[{axis: 'dry_run', value: 1 if order.dry_run else 0}] so audit walks can split dry-run from live without parsing output_text",
+    "logger_module": "inference_logger.InferenceLogger.log"
+  },
+
+  "env_vars": {
+    "SOLANA_NETWORK":               "must equal 'mainnet-beta' for gate #1 of 3 to open",
+    "PUMP_SURF_LIVE_TRADING":       "must equal '1' for gate #2 of 3 to open; default unset = DRY-RUN forever",
+    "PUMP_SURF_MAX_SOL_PER_TRADE":  "per-trade SOL cap, default 0.1",
+    "PUMP_SURF_MAX_SOL_PER_DAY":    "per-day SOL cap, default 1.0; tracked in ~/.cc/pump_surf_daily.json"
+  },
+
+  "storage": {
+    "orders_log":   "~/.cc/pump_surf_orders.jsonl  (append-only, every BUY/SELL DRY-RUN or live)",
+    "daily_ledger": "~/.cc/pump_surf_daily.json    (atomic write via .tmp + replace; UTC date keyed)",
+    "crystal_chain": "~/.cc/inference_master_chain.jsonl (via inference_logger)"
+  },
+
+  "cli": {
+    "status":     "python3 core/lib/pump_surf_executor.py status                       (active position + daily cap usage)",
+    "order_log":  "python3 core/lib/pump_surf_executor.py order-log -n 20              (tail orders)",
+    "simulate":   "python3 core/lib/pump_surf_executor.py simulate --replay <jsonl>    (replay gate decisions, all DRY-RUN unless --confirm + env)",
+    "buy":        "python3 core/lib/pump_surf_executor.py buy --mint <X> --sol 0.05 --target-wallet <Y> [--confirm]  (DRY-RUN unless all 3 gates open)"
+  },
+
+  "exports": [
+    "SurfOrder",
+    "SurfState",
+    "GateDecision",
+    "consider_buy",
+    "consider_sell",
+    "execute_dryrun_or_live",
+    "surf_loop",
+    "LIVE_ENV_VAR",
+    "NETWORK_ENV_VAR",
+    "CAP_PER_TRADE_ENV",
+    "CAP_PER_DAY_ENV"
+  ],
+
+  "substrate": "consumes pump_xgboost_gate.GateDecision  emits SurfOrder  writes ~/.cc/pump_surf_orders.jsonl + ~/.cc/pump_surf_daily.json  crystal-anchors via inference_logger. Read-only of solana_mcp (untouched per scope). Read-only of pump_xgboost_gate / pump_gmm_classifier (types stubbed locally until they land).",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "pump_xgboost_gate.surf_loop (future, when gate lands)",
+      "core/cc.sh::cmd_pump_surf_* (future)",
+      "studio dashboards reading pump_surf_orders.jsonl"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (every order: tier='trade_action', model='pump_surf', scope=order.kind)",
+      "(live mode only, future) solana_mcp.transfer to swap SOL <-> mint via PumpSwap router or pump.fun program"
+    ],
+    "substrate_reads":  "env vars only (SOLANA_NETWORK, PUMP_SURF_LIVE_TRADING, PUMP_SURF_MAX_SOL_PER_TRADE, PUMP_SURF_MAX_SOL_PER_DAY); plus ~/.cc/pump_surf_daily.json for cap check.",
+    "substrate_writes": "~/.cc/pump_surf_orders.jsonl + ~/.cc/pump_surf_daily.json + crystal chain via inference_logger"
+  },
+
+  "guarantees": [
+    "DRY-RUN by default - real orders require ALL THREE of SOLANA_NETWORK=mainnet-beta, PUMP_SURF_LIVE_TRADING=1, confirm=True",
+    "Crystal-anchored - every order (DRY-RUN, refused, or live) writes one InferenceRecord with tier='trade_action', model='pump_surf'",
+    "Stdlib-only - no pip packages; json, time, pathlib, os, dataclasses, uuid, argparse only",
+    "Solana keys never touched - this executor reads no wallet material; live path delegates to solana_mcp.transfer (unwired here)",
+    "Per-trade cap enforced - any sol_amount > PUMP_SURF_MAX_SOL_PER_TRADE returns error='exceeds_per_trade_cap'",
+    "Per-day cap enforced - live BUY refused if daily_used + sol_amount would exceed PUMP_SURF_MAX_SOL_PER_DAY",
+    "Append-only orders log - ~/.cc/pump_surf_orders.jsonl is never rewritten",
+    "Atomic daily ledger - write to .tmp + replace so a crash mid-write does not corrupt the file"
+  ],
+
+  "scope_constraints_at_creation_2026_05_28": [
+    "ONLY new file (core/lib/pump_surf_executor.py) + this drop card",
+    "Stdlib only - no pip packages",
+    "Do NOT touch solana_mcp.py, pump_xgboost_gate, pump_gmm_classifier, cc.sh, .env, model_api",
+    "NEVER bypass the 3-condition safety gate",
+    "GateDecision type stubbed locally because parallel agent D has not landed yet"
+  ],
+
+  "chain_runs": ["pump_surf_chain_v0"],
+  "phase": "C of pump.fun surf trading integration (Phase C - executor; depends on Phase D = pump_xgboost_gate)"
+}

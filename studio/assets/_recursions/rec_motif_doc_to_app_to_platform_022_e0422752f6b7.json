@@ -1,0 +1,23 @@
+{
+  "crystal": "e0422752f6b7285da3d99c7a78da1b8e45810f122954be1c8a0b2586992748ef3da321bf89de719e27835da697430fc8673aa95876cb1a01ec64fa0702194707",
+  "description": "Pattern 'doc\u2192app\u2192platform' appears 4 times across APPS,DOCS,PLATFORMS",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_doc_to_app_to_platform_022",
+  "kind": "motif",
+  "name": "motif: doc\u2192app\u2192platform",
+  "nodes": [
+    "op_discord_mcp",
+    "op_module_hf_hub",
+    "op_module_inference_logger",
+    "op_module_studio_runtime",
+    "op_module_svg_vector_embed",
+    "op_product_avatar_nft"
+  ],
+  "size": 4,
+  "sub_dags_touched": [
+    "APPS",
+    "DOCS",
+    "PLATFORMS"
+  ]
+}

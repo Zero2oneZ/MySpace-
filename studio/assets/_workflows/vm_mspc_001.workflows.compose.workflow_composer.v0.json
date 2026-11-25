@@ -1,0 +1,201 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "workflow_composer",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Deterministic prompt → workflow_card_v0 JSON compiler. The Python equivalent of morph_engine.html constructEngine(): hash the prompt for a seed, tokenize into kernel_refs against the closed registry (102 kernels: 53 HF + 6 MORPH + 5 BLEND + 6 GOVERNOR + 5 CONNECTOR + 27 CARD), let a cheap LLM propose pass order constrained to those refs, validate every emitted pass through kernel_registry.resolve(), validate zones via workspace_zone_validator, write the JSON, register it as a new CARD kernel. After this card runs, the emitted card itself becomes a kernel_ref the system can call — recursion closed. This is how an app builds apps inside and outside itself.",
+
+  "inputs": [
+    {"name": "prompt", "type": "str", "required": true,
+      "notes": "Natural language describing the desired workflow"},
+    {"name": "scope", "type": "list[str]", "required": false, "default": [],
+      "notes": "Same vocabulary as morph_engine compose scopes: document, game, video, scene·3d, character, audio. Seeds the pass selection."},
+    {"name": "parent_card", "type": "str", "required": false,
+      "notes": "Optional card_ref of the parent workflow this is nested inside; passed as context so the composer knows what types upstream produces"},
+    {"name": "depth_budget", "type": "int", "required": false, "default": 3,
+      "notes": "Max recursion depth — composer may emit sub-cards that themselves call the composer, but stops at this level"},
+    {"name": "min_state", "type": "str", "required": false, "default": "planned",
+      "notes": "planned | active. PLANNED-status passes are allowed; setting 'active' rejects any pass whose kernel isn't ACTIVE."},
+    {"name": "deterministic", "type": "bool", "required": false, "default": true,
+      "notes": "If true, LLM temperature=0 + seed=hash(prompt+scope) so same input always emits same card crystal"}
+  ],
+
+  "outputs": [
+    {"name": "card_path", "type": "path",
+      "notes": "studio/assets/_workflows/<slug>.workflow.v0.json"},
+    {"name": "card_crystal", "type": "str"},
+    {"name": "new_kernel_id", "type": "str",
+      "notes": "The card's name as it now appears in kernel_registry under the CARD plane"},
+    {"name": "sub_card_paths", "type": "list[path]",
+      "notes": "If the composer emitted nested sub-cards within depth_budget"}
+  ],
+
+  "passes": [
+    {
+      "id": "hash_seed",
+      "agent": "workflow_composer",
+      "model_path": "core/lib/workflow_composer.py::seed_from",
+      "engine": "deterministic",
+      "in": ["prompt", "scope"],
+      "out": "compose_seed",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "BLAKE3(prompt + sorted(scope)) → 64-bit seed. Same input → same seed → same crystal. Mirrors morph_engine.html constructEngine's text→baseHue hash."
+    },
+    {
+      "id": "tokenize_to_kernel_refs",
+      "agent": "workflow_composer",
+      "model_path": "core/lib/workflow_composer.py::tokenize",
+      "engine": "deterministic",
+      "in": ["prompt", "scope"],
+      "out": "candidate_kernel_refs",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Direct token match against all 102 kernel ids (HF tasks like 'Text-to-Image', CONNECTOR like 'blender', CARD like 'autonomous_3d_asset'). Plus scope→seed map (game→[twist,bend], scene·3d→[smooth], etc.) same as morph_engine's scopeSeed."
+    },
+    {
+      "id": "llm_propose_passes",
+      "agent": "deepseek_mcp",
+      "model_path": "core/lib/third_party/deepseek_mcp.py::chat_complete",
+      "engine": "mcp",
+      "in": ["prompt", "scope", "candidate_kernel_refs", "parent_card", "compose_seed"],
+      "out": "proposed_passes",
+      "tier": "cheap",
+      "status": "PLANNED",
+      "notes": "Structured-output prompt: 'given the prompt + this closed set of kernel_refs, emit a workflow_card_v0 passes[] array in execution order'. Temperature=0 if deterministic=true. Model=deepseek-coder (JSON best). Fallback hf_hub.inference if DeepSeek 503."
+    },
+    {
+      "id": "validate_kernel_refs",
+      "agent": "kernel_registry",
+      "model_path": "core/lib/kernel_registry.py::resolve",
+      "engine": "deterministic",
+      "in": ["proposed_passes"],
+      "out": "validated_passes",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Every pass's kernel_ref MUST resolve. Reject the card on any unresolved ref. Also reject if min_state='active' AND any kernel's state != 'active'. Same gate that all workflow_cards already pass — this just runs it before write."
+    },
+    {
+      "id": "validate_zones",
+      "agent": "workspace_zone_validator",
+      "model_path": "core/lib/workspace_zone_validator.py::validate",
+      "engine": "deterministic",
+      "in": ["validated_passes"],
+      "out": "zone_report",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "If the proposed card declares zones (workspace_stack does), enforce the three-zone law: card_navbar.mutates_model=false, left_flow is the only commitment_boundary, top_systems is observe-only. Reject on leakage."
+    },
+    {
+      "id": "compose_sub_cards",
+      "agent": "workflow_composer",
+      "model_path": "core/lib/workflow_composer.py::recurse",
+      "engine": "card",
+      "in": ["validated_passes", "depth_budget"],
+      "out": "sub_card_paths",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "RECURSIVE STEP. For any pass whose kernel_ref describes work too coarse to be a single LEAF/CONNECTOR (composer-llm flags this), call THIS card with depth_budget-1. The new sub-card lands on disk and becomes a CARD kernel; the parent's pass is rewritten to kernel_ref:'card:<new_name>'. Hard stop at depth_budget=0 — emit the coarse pass as PLANNED status instead. params.card_ref = 'workflow_composer' (this card calling itself)."
+    },
+    {
+      "id": "write_card_json",
+      "agent": "workflow_composer",
+      "model_path": "core/lib/workflow_composer.py::write",
+      "engine": "deterministic",
+      "in": ["validated_passes", "sub_card_paths", "prompt", "scope"],
+      "out": "card_path",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Atomic write to studio/assets/_workflows/vm_mspc_001.workflows.<category>.<slug>.v0.json. Slug derives from prompt (same shape as morph_engine slug logic). Atomic = write to .tmp then rename so a half-written card never registers."
+    },
+    {
+      "id": "register_in_kernel_registry",
+      "agent": "kernel_registry",
+      "model_path": "core/lib/kernel_registry.py::registry",
+      "engine": "deterministic",
+      "in": ["card_path"],
+      "out": "new_kernel_id",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Bust the _REG singleton cache so the next registry() call rescans CARDS_DIR. The just-written card is now resolvable as 'card:<name>' from any other card. Recursion closed."
+    },
+    {
+      "id": "anchor_composition",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["card_path", "compose_seed", "validated_passes", "sub_card_paths"],
+      "out": "card_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='workflow_composition', model='workflow_composer'. Coords carry [pass_count, sub_card_count, kernel_planes_touched, deterministic_int]. The crystal is the PRESENT→PAST anchor for the act of generating the card — same temporal law as left-FLOW launch."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "prompt_seed",   "source": "pass:hash_seed",            "blend": "base"},
+    {"name": "kernel_pool",   "source": "pass:tokenize_to_kernel_refs", "blend": "additive"},
+    {"name": "llm_proposal",  "source": "pass:llm_propose_passes",   "blend": "screen"},
+    {"name": "validation",    "source": "pass:validate_kernel_refs", "blend": "alpha"},
+    {"name": "recursion",     "source": "pass:compose_sub_cards",    "blend": "additive"},
+    {"name": "emitted_card",  "source": "pass:write_card_json",      "blend": "alpha"}
+  ],
+
+  "recursion_contract": {
+    "may_call_self": true,
+    "self_ref": "card:workflow_composer",
+    "depth_budget_input": "depth_budget",
+    "cycle_detection": "core/lib/recursive_workflows.py (Tarjan SCC over the call graph — reject any card whose composition would create a directed cycle in the CARD plane)",
+    "base_case": "depth_budget == 0 — emit remaining coarse passes as PLANNED status",
+    "guarantees": [
+      "deterministic=true => same (prompt, scope) → same card_crystal",
+      "every emitted pass's kernel_ref resolves in kernel_registry (102+ today)",
+      "no card directly or transitively calls itself (Tarjan-enforced)",
+      "depth_budget exhaustion fails open with PLANNED stubs, never silently"
+    ]
+  },
+
+  "surfaces": {
+    "cc": {
+      "dispatchers": [
+        "cc compose-workflow \"<prompt>\" [--scope game --scope 3d] [--depth 3]",
+        "cc compose-workflow-list   (lists all cards in CARDS_DIR by category)",
+        "cc compose-workflow-graph  (renders the CARD plane as a DAG SVG)"
+      ]
+    },
+    "mcp": {
+      "transport": "stdio",
+      "tools": ["compose", "compose_subcard", "list_cards", "graph"]
+    },
+    "http": {
+      "via": "studio/dapp/server.py",
+      "route": "POST /dapp/api/compose/workflow",
+      "body": "{prompt, scope[], depth_budget, deterministic}",
+      "returns": "{card_path, card_crystal, new_kernel_id, sub_card_paths[]}"
+    },
+    "morph_engine": {
+      "binding": "studio/loom/morph_engine.html → constructEngine() — the in-browser equivalent",
+      "parity": "Same hash function, same scope→seed map, same slug rules. Browser version emits engine cards; this Python version emits workflow_cards. Same crystal space."
+    }
+  },
+
+  "depends_on": [
+    "core/lib/workflow_composer.py (PLANNED — the Python kernel)",
+    "core/lib/kernel_registry.py (ACTIVE — 102 kernels, 6 planes)",
+    "core/lib/workspace_zone_validator.py (PLANNED — zone gate)",
+    "core/lib/recursive_workflows.py (ACTIVE — cycle detection, task #64)",
+    "core/lib/third_party/deepseek_mcp.py (PLANNED — cheap LLM rail)",
+    "core/lib/inference_logger.py (ACTIVE — composition crystal)",
+    "studio/loom/morph_engine.html (ACTIVE — browser sibling)"
+  ],
+
+  "invariants": [
+    "composer is itself a CARD kernel — `kernel_ref: card:workflow_composer` resolves",
+    "every card the composer emits is itself a kernel after register_in_kernel_registry",
+    "the closed kernel set grows monotonically; nothing is ever removed by the composer",
+    "deterministic=true ⇒ output is a pure function of (prompt, scope, registry_state)"
+  ]
+}

@@ -25,6 +25,9 @@ import streamlit as st
 # script is launched from /opt/studio (container) or studio/ (repo).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import bootstrap, paths  # noqa: E402  -- canonical layout
+bootstrap.ensure()
+
 from nodes import (
     NODES_BY_ID, nodes_by_kind, nodes_accepting, nodes_producing,
 )
@@ -37,10 +40,10 @@ from flows import (
     FLOWS, FLOWS_BY_ID, BRIDGES_BY_ID,
     predict_deck, flow_for_anchor, current_step, next_step, load_flow,
 )
+import project_io  # noqa: E402
 
-
-SAVE_DIR = Path(__file__).parent / "saved"
-SAVE_DIR.mkdir(exist_ok=True)
+SAVE_DIR = paths.SAVED_ROOT  # legacy DAG .dag.json saves
+PROJECTS_DIR = paths.PROJECTS_ROOT  # user-facing project tree
 
 
 # ─── App config ──────────────────────────────────────────────────────────────

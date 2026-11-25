@@ -1,0 +1,166 @@
+"""{{ card.name }} — Blender headless bake script (_default_bake.py.j2).
+
+Runs under: blender --background --python <this>.py -- [args]
+
+card_crystal: {{ card_crystal }}
+category:     {{ card.category }}
+rendered_ts:  {{ rendered_ts }}
+
+DO NOT EDIT BY HAND. Regenerate via:
+    cc workflow generate {{ card.name }} --target blender
+"""
+from __future__ import annotations
+
+import sys
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+try:
+    import bpy  # type: ignore
+except ImportError:
+    print("[bake] WARNING: bpy not available; running in dry-mode")
+    bpy = None  # type: ignore
+
+
+CARD_NAME = "{{ card.name }}"
+CARD_CRYSTAL = "{{ card_crystal }}"
+
+LAYER_STACK = {{ card.layer_stack | tojson }}
+PASSES = {{ card.passes | tojson }}
+
+BLEND_SOCKET_MAP = {
+    "base":            "Base Color",
+    "multiply":        "Roughness",
+    "screen":          "Emission Boost",
+    "overlay":         None,
+    "additive":        "Emission",
+    "normal_map":      "Normal",
+    "depth_uniform":   "Displacement",
+    "alpha":           "Alpha",
+    "opacity":         "Alpha",
+    "gradient_h":      None,
+    "gradient_v":      None,
+    "color_dodge":     None,
+    "soft_light":      None,
+    "hard_light":      None,
+}
+
+
+# ── arg parsing (Blender separates with '--') ──────────────────────────────
+
+def parse_args() -> argparse.Namespace:
+    argv = sys.argv
+    if "--" in argv:
+        argv = argv[argv.index("--") + 1:]
+    else:
+        argv = []
+    ap = argparse.ArgumentParser(prog=CARD_NAME)
+{% for inp in card.inputs %}{% set t = inp.type | lower %}{% if t.startswith('image') or t.startswith('audio') or t == 'path' or t == 'str' or t == 'string' %}    ap.add_argument("--{{ inp.name }}", type=str, default={{ (inp.default | tojson) if inp.default is defined else '""' }}{{ ", required=True" if inp.required else "" }})
+{% elif t == 'int' or t == 'integer' %}    ap.add_argument("--{{ inp.name }}", type=int, default={{ inp.default | default(0) }})
+{% elif t == 'float' or t == 'number' %}    ap.add_argument("--{{ inp.name }}", type=float, default={{ inp.default | default(0.0) }})
+{% elif t == 'bool' or t == 'boolean' %}    ap.add_argument("--{{ inp.name }}", action="store_true")
+{% else %}    ap.add_argument("--{{ inp.name }}", default="")
+{% endif %}{% endfor %}    ap.add_argument("--out_dir", default="studio/assets/_bakes/{{ card.name }}")
+    return ap.parse_args(argv)
+
+
+def _det_filename(pass_id: str, ext: str = "png") -> str:
+    """Deterministic filename: hash(card_crystal | pass_id)."""
+    h = hashlib.sha256(f"{CARD_CRYSTAL}|{pass_id}".encode()).hexdigest()
+    return f"{pass_id}_{h[:16]}.{ext}"
+
+
+# ── pass functions (one per engine="blender" pass) ─────────────────────────
+{% for p in card.passes if p.engine == "blender" %}
+
+def pass_{{ p.id }}(args, out_dir: Path) -> Path:
+    """Pass '{{ p.id }}' — agent={{ p.agent | default('?') }} tier={{ p.tier }}."""
+    out = out_dir / _det_filename("{{ p.id }}")
+    pid = "{{ p.id }}".lower()
+    if bpy is None:
+        print(f"[bake] DRY-RUN pass {pid} → {out}")
+        return out
+    # Heuristic bake type from pass id
+    if "albedo" in pid or "color" in pid:
+        bake_type = "DIFFUSE"
+    elif "normal" in pid:
+        bake_type = "NORMAL"
+    elif "ao" in pid or "ambient" in pid:
+        bake_type = "AO"
+    elif "depth" in pid or "z" in pid:
+        bake_type = "EMIT"  # depth via emission proxy
+    elif "alpha" in pid:
+        bake_type = "DIFFUSE"
+    else:
+        bake_type = "COMBINED"
+    try:
+        bpy.context.scene.render.engine = "CYCLES"
+        bpy.ops.object.bake(type=bake_type)
+        # save active image
+        img = bpy.data.images.get("Bake") or bpy.data.images.get(pid)
+        if img:
+            img.filepath_raw = str(out)
+            img.file_format = "PNG"
+            img.save()
+    except Exception as exc:
+        print(f"[bake] pass {pid} failed: {exc!r}")
+    return out
+{% endfor %}
+
+
+# ── composition: walk layer_stack → wire Principled BSDF ───────────────────
+
+def compose_pbr(out_dir: Path) -> Path:
+    """Walk LAYER_STACK and create a Principled BSDF material with each layer
+    wired to its blend socket. Returns path of the exported .glb."""
+    if bpy is None:
+        print(f"[bake] DRY-RUN compose_pbr — {len(LAYER_STACK)} layers")
+        return out_dir / "{{ card.name }}.glb"
+    mat = bpy.data.materials.new(name="{{ card.name }}_pbr")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    for i, layer in enumerate(LAYER_STACK):
+        socket_name = BLEND_SOCKET_MAP.get(layer["blend"])
+        if socket_name is None:
+            print(f"[bake] skip layer {layer['name']} (no socket for blend={layer['blend']})")
+            continue
+        tex = nodes.new(type="ShaderNodeTexImage")
+        tex.label = layer["name"]
+        tex.location = (-400, -i * 200)
+        # Look up the matching baked image
+        match_path = out_dir / _det_filename(layer["name"])
+        if match_path.exists():
+            tex.image = bpy.data.images.load(str(match_path))
+        if socket_name in bsdf.inputs:
+            links.new(tex.outputs["Color"], bsdf.inputs[socket_name])
+    out_glb = out_dir / "{{ card.name }}.glb"
+    bpy.ops.export_scene.gltf(filepath=str(out_glb), export_format="GLB")
+    return out_glb
+
+
+# ── entry ──────────────────────────────────────────────────────────────────
+
+def main():
+    args = parse_args()
+    out_dir = Path(args.out_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[bake] {CARD_NAME} crystal={CARD_CRYSTAL[:12]} out={out_dir}")
+    results = {}
+{% for p in card.passes if p.engine == "blender" %}    results["{{ p.id }}"] = str(pass_{{ p.id }}(args, out_dir))
+{% endfor %}    glb = compose_pbr(out_dir)
+    manifest = {
+        "card_name": CARD_NAME,
+        "card_crystal": CARD_CRYSTAL,
+        "results": results,
+        "glb": str(glb),
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    print(f"[bake] done → {out_dir}")
+
+
+if __name__ == "__main__":
+    main()

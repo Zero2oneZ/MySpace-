@@ -1,0 +1,27 @@
+{
+  "depth_min": 2.4321848622860607,
+  "depth_max": 3.099983784259651,
+  "width": 256,
+  "height": 256,
+  "sentinel_zero": "background \u2014 no back-face hit",
+  "camera": [
+    0.0,
+    0.0,
+    1.5
+  ],
+  "sphere_center": [
+    0.0,
+    0.0,
+    -1.0
+  ],
+  "sphere_radius": 0.6,
+  "focal_plane_z": -2.0,
+  "u_range": [
+    -1,
+    1
+  ],
+  "v_range": [
+    -1,
+    1
+  ]
+}

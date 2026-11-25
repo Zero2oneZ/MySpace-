@@ -1,0 +1,202 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_gmm_classifier",
+  "state": "active",
+  "version": "v0",
+  "role": "ML · UNSUPERVISED_BOT_VS_HUMAN_CLUSTERING",
+  "tier": "L0",
+  "module_path": "core/lib/pump_gmm_classifier.py",
+
+  "summary": "Two-component Gaussian Mixture Model that consumes the 10 behavioral features emitted by pump_feature_extractor (parallel agent B) and unsupervised-separates wallets into bots vs humans. Trained model is pickled to studio/assets/_models/pump_gmm.pkl. Cluster IDs are arbitrary at training time; a post-processing step assigns 'bot_cluster' to whichever cluster has the LOWER value_entropy mean (bots emit more uniform trade sizes -> less Shannon entropy). The mapping is persisted into the bundle so downstream consumers (surf executor) don't have to re-derive.",
+
+  "engine_pattern": "Train: fit a 2-component full-covariance GMM (sklearn) OR a stdlib EM fallback. Post-fit, compute per-cluster mean feature vector; whichever cluster has the lower value_entropy mean is tagged the bot cluster. Persist both the model and the bot_cluster_id + bot_mean_features. Inference: load bundle, run predict_proba on the wallet's feature row, return (cluster_id, cluster_label='bot'|'human', bot_probability) with a crystal anchor per call.",
+
+  "feature_schema": [
+    "tx_per_block",
+    "tx_per_block_var",
+    "value_entropy",
+    "benford_distance",
+    "funding_proximity",
+    "gas_distortion",
+    "jito_bundle_ratio",
+    "buy_sell_balance",
+    "unique_mints_touched",
+    "session_length_seconds"
+  ],
+
+  "public_api": {
+    "ClusterAssignment": "dataclass {wallet, cluster_id (0|1), cluster_label ('bot'|'human'), bot_probability, crystal}",
+    "train_gmm": "train_gmm(features_df, model_out_path=None, random_state=42) -> {model_path, n_samples, bot_cluster_id, bot_mean_entropy, human_mean_entropy, log_likelihood, sklearn_used, crystal}",
+    "classify_wallet": "classify_wallet(features_row: dict, model_path=None) -> ClusterAssignment",
+    "classify_dataframe": "classify_dataframe(features_df, model_path=None) -> list[ClusterAssignment]",
+    "bot_cluster_signature": "bot_cluster_signature(model_path=None) -> {bot_cluster_id, bot_mean_features, human_mean_features, bot_mean_entropy, human_mean_entropy, n_samples, trained_at, sklearn_used}"
+  },
+
+  "input_acceptance": {
+    "features_df": [
+      "str | pathlib.Path  -> CSV produced by pump_feature_extractor (DictReader)",
+      "list[dict]          -> in-memory rows, each with the 10 feature keys + optional 'wallet'",
+      "pandas.DataFrame    -> via iterrows() (pandas optional; never imported at module top)"
+    ],
+    "missing_keys": "Any missing/non-numeric feature value coerces to 0.0 — the model still scores but the wallet drifts toward the origin in feature space."
+  },
+
+  "gmm_shape": {
+    "n_components": 2,
+    "covariance_type_sklearn": "full",
+    "covariance_type_fallback": "diagonal (one variance per feature per component)",
+    "sklearn_max_iter": 200,
+    "fallback_max_iter": 50,
+    "fallback_tol": 1e-4,
+    "random_state_default": 42
+  },
+
+  "sklearn_or_fallback": {
+    "primary": "from sklearn.mixture import GaussianMixture (covariance_type='full')",
+    "fallback_trigger": "ModuleNotFoundError / any import failure for sklearn",
+    "fallback_implementation": "_StdlibGMM in the same file — ~150 LOC of stdlib only: k-means++ stub for initial means, dataset-wide diagonal variance init, uniform weight init, 50 iterations of E-step (responsibilities via log-sum-exp) + M-step (mean, diagonal variance, weight), early-exit on |Δlog-likelihood| < 1e-4",
+    "fallback_numerical_floor": "variance and weight floored at 1e-6 to avoid log(0) explosions",
+    "documented_consequence": "Fallback is diagonal-covariance only; correlated features get slightly worse separation than full-cov sklearn, but value_entropy still drives the bot/human split cleanly because it's the dominant axis."
+  },
+
+  "post_processing_bot_id": {
+    "rule": "bot_cluster_id = argmin over clusters of mean(value_entropy)",
+    "why": "Bots automating trade-size grids emit a small uniform set of (size, time) tuples -> low Shannon entropy on USD value field. Humans exhibit broader, longer-tailed distributions -> higher entropy.",
+    "tie_break": "If both means are equal (degenerate / tiny n), cluster 0 wins by default (`<=` rather than `<`)."
+  },
+
+  "persistence": {
+    "default_path": "studio/assets/_models/pump_gmm.pkl",
+    "format": "stdlib pickle (HIGHEST_PROTOCOL)",
+    "bundle_schema": {
+      "schema_version": "int",
+      "trained_at": "ISO-UTC string",
+      "feature_names": "list[str] — the 10 feature names in order",
+      "n_components": "int (always 2)",
+      "random_state": "int",
+      "n_samples": "int",
+      "sklearn_used": "bool",
+      "sklearn_model_bytes": "bytes — pickle.dumps(sklearn GaussianMixture); present iff sklearn_used",
+      "fallback_gmm": "{means, variances, weights} — present iff !sklearn_used",
+      "bot_cluster_id": "int 0|1",
+      "bot_mean_entropy": "float",
+      "human_mean_entropy": "float",
+      "log_likelihood": "float",
+      "bot_mean_features": "dict[str, float] — feature_name -> mean within bot cluster",
+      "human_mean_features": "dict[str, float] — feature_name -> mean within human cluster"
+    },
+    "directory_creation": "studio/assets/_models/ is mkdir(parents=True, exist_ok=True) on first train"
+  },
+
+  "crystal_anchors": {
+    "training": {
+      "tier": "ml_train",
+      "model": "pump_gmm",
+      "scope": "gmm_trained",
+      "output_text": "{model_path, n_samples, bot_cluster_id, bot_mean_entropy, human_mean_entropy, log_likelihood, sklearn_used} (JSON)",
+      "source_action": "train n=<n_samples> sklearn=<bool>"
+    },
+    "inference_per_wallet": {
+      "tier": "ml_inference",
+      "model": "pump_gmm",
+      "scope": "wallet_classified",
+      "source_file": "<wallet address>",
+      "output_text": "{wallet, cluster_id, cluster_label, bot_probability} (JSON)",
+      "source_action": "classify cluster=<bot|human>"
+    },
+    "graceful": "If inference_logger is unimportable, _try_crystal_anchor falls back to a local blake2b hash of the payload so callers always get a non-empty crystal string. Module still works in isolation."
+  },
+
+  "cli": [
+    "python3 core/lib/pump_gmm_classifier.py train <features.csv> [--out studio/assets/_models/pump_gmm.pkl]",
+    "python3 core/lib/pump_gmm_classifier.py classify-wallet <wallet> --features '<json>' [--model <path>]",
+    "python3 core/lib/pump_gmm_classifier.py inspect <model_path>"
+  ],
+
+  "cli_features_arg_parsing": "classify-wallet --features accepts strict JSON OR a loose `{tx_per_block:0.5,...}` form with bare keys; the latter is auto-quoted via a regex pass before json.loads.",
+
+  "exports": [
+    "ClusterAssignment",
+    "train_gmm",
+    "classify_wallet",
+    "classify_dataframe",
+    "bot_cluster_signature",
+    "FEATURE_NAMES",
+    "DEFAULT_MODEL_PATH"
+  ],
+
+  "stdlib_only_guarantee": [
+    "csv (reading features CSV)",
+    "json (CLI output + crystal payload serialization)",
+    "math (log, exp, pi for log-normal density + log-sum-exp)",
+    "pickle (model persistence)",
+    "random (k-means++ seed + Random(random_state))",
+    "argparse (CLI)",
+    "dataclasses, pathlib, time, os, sys (housekeeping)",
+    "Optional: sklearn.mixture.GaussianMixture — used if present, NOT required"
+  ],
+
+  "integration": {
+    "pump_feature_extractor": {
+      "expected_callable": "produces a CSV (one row per wallet) with the 10 feature columns + a `wallet` column",
+      "coupling": "train_gmm() accepts the CSV path directly; classify_wallet() accepts a single feature-row dict — extractor can call it inline without dumping to disk"
+    },
+    "surf_executor": {
+      "expected_consumer": "calls bot_cluster_signature(model_path) at boot to learn what feature vector to score live wallets against; calls classify_wallet(features_row) per wallet for the bot probability"
+    },
+    "inference_logger": {
+      "called": "InferenceLogger().log(tier='ml_train'|'ml_inference', model='pump_gmm', scope='gmm_trained'|'wallet_classified', ...)",
+      "purpose": "Every train + every classification becomes one record in ~/.cc/inference_master_chain.jsonl — auditors can walk back from a single bot flag to the exact model bundle + the original features that produced it"
+    }
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "pump_feature_extractor (parallel agent B, downstream of pump_stream_ingest agent A)",
+      "surf executor (downstream consumer scoring live wallets)",
+      "CLI: train / classify-wallet / inspect"
+    ],
+    "outbound_calls": [
+      "sklearn.mixture.GaussianMixture (optional)",
+      "pickle.dump/load (model persistence)",
+      "inference_logger.InferenceLogger.log (crystal anchor, graceful)"
+    ],
+    "substrate_reads": "features CSV from pump_feature_extractor (no DB access of its own)",
+    "substrate_writes": "studio/assets/_models/pump_gmm.pkl + per-call rows in inference_master_chain.jsonl"
+  },
+
+  "smoke_test_2026_05_28": {
+    "parse_ok": "python3 -c 'import ast; ast.parse(open(...).read())' -> OK",
+    "synthetic_dataset": "20 wallets: 10 bot-shaped (low entropy ~0.3, high jito_bundle_ratio ~0.9, tight tx_per_block ~0.5, low gas_distortion ~0.05) + 10 human-shaped (high entropy ~2.5, low jito ~0.0, varied tx_per_block ~0.05-0.8, high gas_distortion ~0.5-1.5)",
+    "train_smoke": "train succeeds; n_samples=20; bundle written to studio/assets/_models/pump_gmm.pkl; log_likelihood reported; crystal anchor returned",
+    "classify_smoke": "TEST_WALLET shaped like a bot is classified as cluster_label='bot' with bot_probability >= 0.85",
+    "sklearn_status": "absent on z21 — stdlib EM fallback exercised"
+  },
+
+  "guarantees": [
+    "Stdlib-only baseline — sklearn is optional and gracefully falls back to in-file EM if missing",
+    "Deterministic — random_state=42 default means train_gmm on the same features CSV yields the same labels + bot_cluster_id every run",
+    "Self-describing bundle — the pickled file carries enough metadata (feature_names, n_components, bot_cluster_id, bot_mean_features) that inspect can reconstruct the bot signature without re-running training",
+    "Crystal-anchored — every train + every per-wallet classification logs one row to the inference master chain; if the logger is missing, a local blake2b hash still populates the crystal field",
+    "Bot/human label is post-derived from entropy means, not from labeled data — this is an UNSUPERVISED clustering",
+    "Graceful missing-feature handling — feature row keys that are absent or non-numeric coerce to 0.0; the model scores rather than throws"
+  ],
+
+  "limits_v0": [
+    "2-component GMM is hard-coded — does not detect sub-populations of bot types (e.g. snipers vs grid-makers) which would need n_components >= 3",
+    "Fallback EM uses diagonal covariance — correlated features (e.g. tx_per_block_var vs value_entropy) get slightly worse separation than sklearn's full-cov mode",
+    "Bot-cluster identification rule is single-axis (value_entropy mean). If the two clusters happen to have nearly equal entropy means, the call is fragile — surf executor should treat |bot_mean_entropy - human_mean_entropy| < 0.1 as a warning",
+    "No incremental fit — every train_gmm call rebuilds from scratch and overwrites the pickle. For streaming retraining, downstream layer must batch features + call periodically",
+    "log_likelihood comparison across sklearn vs fallback is not strictly apples-to-apples (full-cov vs diag-cov)",
+    "Pickle file is host-portable only insofar as the bundle itself; loading a sklearn-trained bundle on a host without sklearn falls back to uniform [0.5, 0.5] probabilities (deliberate degrade rather than crash)"
+  ],
+
+  "phase": "Agent C of the pump-trading pipeline — sits between pump_feature_extractor (B) and the surf executor (D). Trained once per feature-window snapshot; queried per live wallet from D.",
+
+  "chain_runs": []
+}

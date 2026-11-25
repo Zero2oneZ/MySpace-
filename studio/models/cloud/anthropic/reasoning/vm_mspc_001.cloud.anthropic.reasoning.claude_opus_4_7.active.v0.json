@@ -1,0 +1,40 @@
+{
+  "_schema": "model_config_v1",
+  "asset_id": "vm_mspc_001.cloud.anthropic.reasoning.claude_opus_4_7.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "brand": "cloud",
+  "provider": "anthropic",
+  "category": "reasoning",
+  "subtype": "epic",
+  "name": "claude-opus-4-7",
+  "display_name": "Claude Opus 4.7",
+  "api_name": "claude-opus-4-7-20251001",
+  "context_window": 200000,
+  "max_output_tokens": 8192,
+  "quantization": "cloud",
+  "vram_gb": 0,
+  "state": "active",
+  "version": "v0",
+  "routing": {
+    "tier": "epic",
+    "scope": "epic",
+    "tags": ["epic", "cloud", "frontier", "synthesis"]
+  },
+  "pricing": {
+    "input_per_1k_tokens": 0.015,
+    "output_per_1k_tokens": 0.075
+  },
+  "endpoints": {
+    "rest": "https://api.anthropic.com/v1/messages",
+    "mcp": "studio/proxy/claude_proxy.py:8520"
+  },
+  "capabilities": {
+    "vision": true,
+    "code": true,
+    "tool_use": true,
+    "streaming": true,
+    "batch": false
+  },
+  "created_at": "2026-05-28T00:00:00Z"
+}

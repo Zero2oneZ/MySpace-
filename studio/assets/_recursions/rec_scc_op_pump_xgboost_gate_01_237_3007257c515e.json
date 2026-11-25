@@ -1,0 +1,18 @@
+{
+  "crystal": "3007257c515ebd4d84d9c55172dc35fa28f3e729003b1bb6915bdfd84af5b74364f173b32132af4f9e53148ae9bea34956bb632054bb54db21787e908135d449",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_pump_xgboost_gate_01_237",
+  "kind": "scc",
+  "name": "pump_xgboost_gate",
+  "nodes": [
+    "op_pump_xgboost_gate"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

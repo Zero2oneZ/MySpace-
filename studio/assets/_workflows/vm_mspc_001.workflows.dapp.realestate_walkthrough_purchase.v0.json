@@ -1,0 +1,129 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "realestate_walkthrough_purchase",
+  "category": "dapp",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "End-to-end two-chain purchase flow for the real-estate walkthrough product (Phase A.7). Buyer pays via Stripe Checkout; webhook lands at port 8523; success mints a TensorChain escrow NFT for the listing deposit; realtor's $99/mo subscription auto-renews; gig fees can settle in Sui USDC. Two crystal records linked by correlation_id make the whole flow auditable via 'cc inference-chain --tier monetization'.",
+
+  "inputs": [
+    {"name": "listing_id", "type": "str", "required": true},
+    {"name": "buyer_email", "type": "str", "required": true},
+    {"name": "amount_cents", "type": "int", "required": false, "default": 99900,
+      "notes": "$999 walkthrough fee"},
+    {"name": "payment_method", "type": "str", "required": false,
+      "default": "stripe", "notes": "stripe | sui_usdc"},
+    {"name": "realtor_addr", "type": "str", "required": true,
+      "notes": "Sui address that receives gig fee"},
+    {"name": "royalty_bps", "type": "int", "required": false, "default": 500,
+      "notes": "5% royalty on escrow NFT"}
+  ],
+
+  "outputs": [
+    {"name": "checkout_url", "type": "str"},
+    {"name": "stripe_payment_intent_id", "type": "str"},
+    {"name": "tensorchain_escrow_nft_id", "type": "str"},
+    {"name": "sui_payment_digest", "type": "str"},
+    {"name": "correlation_id", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "create_payment",
+      "agent": "stripe_mcp",
+      "model_path": "core/lib/third_party/stripe_mcp.py::create_payment_intent",
+      "engine": "mcp",
+      "in": ["amount_cents", "buyer_email", "listing_id"],
+      "out": "stripe_payment_intent_id",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on payment_method=='stripe'. POST /v1/payment_intents. Crystal tier='monetization', model='stripe'. correlation_id minted here."
+    },
+    {
+      "id": "create_sui_payment",
+      "agent": "sui_mcp",
+      "model_path": "core/lib/third_party/sui_mcp.py::transfer_usdc",
+      "engine": "mcp",
+      "in": ["realtor_addr", "amount_cents"],
+      "out": "sui_payment_digest",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on payment_method=='sui_usdc'. amount_cents converted to micro-USDC (× 10000). gas_budget=10000000. Crystal tier='monetization', model='sui_usdc'."
+    },
+    {
+      "id": "stripe_webhook_handler",
+      "agent": "stripe_webhook",
+      "model_path": "studio/endpoints/webhook/stripe_webhook.py::handle_event",
+      "engine": "deterministic",
+      "in": ["stripe_payment_intent_id"],
+      "out": "webhook_event",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Stripe POSTs to port 8523. HMAC verify via STRIPE_WEBHOOK_SECRET, 5-min replay window. Dispatches on payment_intent.succeeded."
+    },
+    {
+      "id": "mint_escrow_nft",
+      "agent": "tensorchain_mcp",
+      "model_path": "core/lib/third_party/tensorchain_mcp.py::escrow_settle",
+      "engine": "mcp",
+      "in": ["listing_id", "amount_cents", "royalty_bps"],
+      "out": "tensorchain_escrow_nft_id",
+      "tier": "medium",
+      "status": "PLANNED",
+      "notes": "TensorChain mint via cargo subprocess OR HTTP RPC. SUI_FALLBACK=1 routes through TROLLN NFT package if TensorChain unreachable. Crystal tier='monetization', model='tensorchain_escrow' (or 'tensorchain_sui_fallback')."
+    },
+    {
+      "id": "link_correlation",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::link",
+      "engine": "deterministic",
+      "in": ["stripe_payment_intent_id", "tensorchain_escrow_nft_id"],
+      "out": "correlation_id",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Same correlation_id on both crystal records. Enables: SELECT * FROM crystals WHERE correlation_id = ? — returns the full cross-rail audit trail."
+    },
+    {
+      "id": "render_receipt",
+      "agent": "dapp_server",
+      "model_path": "studio/dapp/server.py::render_receipt",
+      "engine": "deterministic",
+      "in": ["stripe_payment_intent_id", "tensorchain_escrow_nft_id", "correlation_id"],
+      "out": "checkout_url",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Template at studio/dapp/templates/receipt.html.j2. Shows Stripe PI id + TensorChain NFT id + buyer's downloadable walkthrough booking PDF."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "payment_intent", "source": "pass:create_payment", "blend": "base"},
+    {"name": "webhook_event", "source": "pass:stripe_webhook_handler", "blend": "additive"},
+    {"name": "escrow_nft", "source": "pass:mint_escrow_nft", "blend": "additive"},
+    {"name": "correlation", "source": "pass:link_correlation", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "dapp": {
+      "page_template": "templates/realestate_walkthrough.html.j2",
+      "out_path": "studio/dapp/templates/realestate_walkthrough.html.j2",
+      "routes": [
+        "GET /dapp/services/realestate_walkthrough",
+        "POST /dapp/api/buy/realestate_walkthrough",
+        "POST /stripe/webhook (port 8523)",
+        "GET /dapp/services/realestate_walkthrough/receipt/<correlation_id>"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/third_party/stripe_mcp.py (Phase A.2)",
+    "core/lib/third_party/sui_mcp.py (Phase A.3)",
+    "core/lib/third_party/tensorchain_mcp.py (Phase A.4)",
+    "studio/endpoints/webhook/stripe_webhook.py (Phase A.2)",
+    "studio/dapp/server.py (Phase A.6)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

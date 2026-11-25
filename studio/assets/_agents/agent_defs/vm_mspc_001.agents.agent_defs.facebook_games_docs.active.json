@@ -1,0 +1,122 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "facebook_games_docs",
+  "state": "active",
+  "version": "v1",
+  "role": "ENGINE · DOC_ADAPTER · FACEBOOK_GAMES",
+  "tier": "L0",
+  "module_path": "core/lib/doc_parser_facebook_games.py",
+  "driver_script": "core/scripts/facebook_games_ingest.sh",
+  "extends": "core/lib/doc_parser.py::DocAdapter",
+  "summary": "FacebookGamesAdapter — splices into doc_parser.ADAPTERS at import time and parses Facebook for Developers / Games doc pages into ParserCursor-shaped JSONL. Detects FB pages via og:site_name='Facebook for Developers' / title substrings / body markers; emits CursorNodes typed as section, sdk_method, code_sample, guide_link, doc. Falls back to doc_parser._generic_walk when the page doesn't match. Driver script fetches 8 canonical URLs over stdlib urllib with 2s polite cadence and a 60s wall budget; emits one summary InferenceLogger crystal per ingest run plus a per-page crystal anchor via doc_parser._log_anchor.",
+  "engine_pattern": "import doc_parser_facebook_games (auto-registers) -> doc_parser.parse_url('facebook_games', URL) -> html.parser.HTMLParser via _StructuredHTMLCollector -> FacebookGamesAdapter.parse() yields CursorNode -> ParserWriter writes JSONL -> InferenceLogger.log() per page + one summary log per run",
+  "exports": [
+    "FacebookGamesAdapter",
+    "register",
+    "_detect_language",
+    "_is_games_doc_link"
+  ],
+  "adapter": {
+    "name": "facebook_games",
+    "class": "FacebookGamesAdapter",
+    "state": "live",
+    "quality_tag": "facebook_games_v1",
+    "targets": "developers.facebook.com/docs/games/* and /docs/games-services/*",
+    "signature_signals": [
+      "og:site_name='Facebook for Developers'",
+      "title contains 'Facebook for Developers' / 'Facebook Gaming' / 'Instant Games'",
+      "body markers 'developers.facebook.com/docs/games', 'instant games', 'graph api', 'facebook gaming services'"
+    ],
+    "node_types_emitted": [
+      "document (head — title + canonical url + description)",
+      "section (h1 / h2 / h3 with section_level attr; h1_context/h2_context for nesting)",
+      "term (sdk_method — <dt> signatures with class-context attrs)",
+      "definition (doc — <dd> bodies bound to last term)",
+      "code (code_sample — <pre><code>... with language hint detected from class attr or content sniff)",
+      "link (guide_link — internal /docs/games* hrefs only)"
+    ],
+    "language_detection": "FacebookGamesAdapter._detect_language sniffs class attrs (javascript/typescript/python/java/kotlin/swift/objectivec/csharp/cpp/ruby/php/go/rust/bash/shell/html/json/xml/yaml), then content head (JSON/HTML/JS/bash) — returns 'unknown' on miss",
+    "internal_link_filter": "_is_games_doc_link accepts /docs/games, /docs/games-services, /docs/instant, /docs/cloud-gaming; rejects #anchors, mailto:, javascript:"
+  },
+  "ingest_targets": [
+    "https://developers.facebook.com/docs/games/",
+    "https://developers.facebook.com/docs/games/build/instant-games/",
+    "https://developers.facebook.com/docs/games/build/login/",
+    "https://developers.facebook.com/docs/games/build/cloud/",
+    "https://developers.facebook.com/docs/games-services/",
+    "https://developers.facebook.com/docs/games/services/social-graph",
+    "https://developers.facebook.com/docs/games/services/app-events",
+    "https://developers.facebook.com/docs/games-services/sharing/"
+  ],
+  "output_paths": {
+    "corpus_dir": "studio/assets/_doc_corpus/facebook_games/",
+    "per_page_jsonl": "studio/assets/_doc_corpus/facebook_games/<blake2b8_of_html_bytes>.jsonl",
+    "summary_index": "studio/assets/_doc_corpus/facebook_games/INDEX.json",
+    "node_shape": "ParserCursor JSONL — {type, name, data, attributes, parent, depth}"
+  },
+  "ingest_protocol": {
+    "user_agent": "MySpace++/games_ingest",
+    "per_request_timeout_s": 12.0,
+    "polite_cadence_s": 2.0,
+    "wall_deadline_s": 60.0,
+    "transport": "urllib.request (stdlib only)",
+    "graceful_failure_modes": [
+      "403 (Meta anti-scrape): per-URL entry tagged ok=false, ingest continues",
+      "429 (rate limited): per-URL entry tagged ok=false, ingest continues",
+      "timeout / URLError: per-URL entry tagged ok=false with error msg",
+      "parse exception: caught, error recorded, ingest continues",
+      "wall deadline exceeded: remaining URLs marked status=-1 'skipped'"
+    ],
+    "exit_code": "0 if any URL succeeded, 2 if all failed (re-runnable)"
+  },
+  "dag_routing": {
+    "feeds_into_sub_dag": "DOCS",
+    "consumer": "core/lib/dag_loop.py::load_docs() walks studio/assets/_doc_corpus/facebook_games/*.jsonl and emits LoopNode(kind='doc', sub_dag='DOCS', source='doc_parser') for each one. INDEX.json is informational, not enumerated as a node (only *.jsonl is).",
+    "downstream_passes": "studio/passes/registry.py — pass_06_doc_index (planned) discovers _doc_corpus/<adapter>/*.jsonl files for embedding into the inference loop"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "core/scripts/facebook_games_ingest.sh (this adapter's driver)",
+      "doc_parser.parse_url('facebook_games', URL) (after import-time register())",
+      "doc_parser.parse_html_file('facebook_games', PATH) (after import-time register())",
+      "dag_loop.load_docs() (consumes the *.jsonl shards)"
+    ],
+    "outbound_calls": [
+      "doc_parser.ADAPTERS['facebook_games'] = FacebookGamesAdapter (registry splice via register())",
+      "doc_parser._collect_events / _extract_head_meta (shared HTML walker)",
+      "doc_parser._run_adapter / _emit_jsonl / _log_anchor (shared driver helpers)",
+      "parser_cursor.CursorNode + NODE_ELEMENT (the JSONL row shape)",
+      "inference_logger.InferenceLogger.log() (tier='documentation', model='doc_parser:facebook_games', scope='games_ingest_run' for the run-level crystal; tier='documentation', model='doc_parser' for per-page anchors)",
+      "stdlib urllib.request.urlopen + html.parser.HTMLParser"
+    ],
+    "substrate_reads": "HTML bytes from developers.facebook.com (8 URLs)",
+    "substrate_writes": "studio/assets/_doc_corpus/facebook_games/*.jsonl + INDEX.json + one master-chain summary record"
+  },
+  "guarantees": [
+    "Stdlib only — no BeautifulSoup, no lxml, no pip installs",
+    "DOES NOT modify doc_parser.py — registers via runtime splice into ADAPTERS dict",
+    "Deterministic — same HTML bytes -> same CursorNode order -> same JSONL bytes -> same crystal hash",
+    "Idempotent — re-running overwrites existing per-page JSONL with identical bytes when content unchanged",
+    "Polite — 2s between requests, 12s per-request timeout, 60s total wall budget",
+    "Graceful — 403/429/timeout/parse-failure per URL never aborts the ingest run",
+    "Crystal-anchored — per-page anchor + one summary anchor every run join the master chain"
+  ],
+  "constraints": [
+    "Does NOT modify core/lib/doc_parser.py, core/cc, cc.sh, .env",
+    "ParserCursor JSONL shape is the only output format (interop with the existing cursor stack)",
+    "Meta may 403 our User-Agent — adapter + ingest framework still ship as deliverables even with zero successful fetches"
+  ],
+  "smoke_test": [
+    "python3 -c \"import ast; ast.parse(open('core/lib/doc_parser_facebook_games.py').read())\"  # syntax",
+    "python3 -c \"import sys; sys.path.insert(0, 'core/lib'); from doc_parser_facebook_games import register; register(); import doc_parser; print('facebook_games' in doc_parser.ADAPTERS)\"  # registry splice",
+    "bash -n core/scripts/facebook_games_ingest.sh  # shell syntax",
+    "bash core/scripts/facebook_games_ingest.sh  # full ingest; reports per-URL status + total cursor nodes + ingest crystal"
+  ],
+  "usage_example": "# from a python repl / a pass:\\nimport sys; sys.path.insert(0, 'core/lib')\\nimport doc_parser_facebook_games  # auto-registers\\nimport doc_parser\\nout = doc_parser.parse_url('facebook_games', 'https://developers.facebook.com/docs/games/')\\n# out -> studio/assets/_doc_corpus/facebook_games/<crystal>.jsonl\\nfrom parser_cursor import ParserCursor, ERR_FILE_EOF\\ncur = ParserCursor()\\ncur.open(out)\\nwhile cur.read() != ERR_FILE_EOF:\\n    print(cur.get_node_name(), cur.get_node_data())",
+  "chain_runs": ["moe_chain_router_v0", "facebook_games_ingest"]
+}

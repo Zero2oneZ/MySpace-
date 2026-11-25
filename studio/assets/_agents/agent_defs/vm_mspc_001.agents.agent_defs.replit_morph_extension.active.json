@@ -1,0 +1,127 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "replit_morph_extension",
+  "state": "active",
+  "version": "v0",
+  "role": "MCP_EXTENSION · REPLIT_BRIDGE_MORPH_GAME_DEPLOY_AND_MINT_AND_LENS_LINK",
+  "tier": "L0",
+  "module_path": "studio/mcp/replit-bridge/server.py",
+  "_sidecar_of": "replit_bridge",
+  "parent_card": "studio/mcp/replit-bridge/server.py (no existing replit_bridge agent_def card present — this sidecar documents the extension; freetier_public_deploy.active.json is NOT modified)",
+
+  "summary": "Additive extension to the existing unified MCP bridge at studio/mcp/replit-bridge/server.py. Registers three new tools in the existing TOOLS dispatch dict: replit:deploy_morphing_game, replit:mint_token_on_deploy, replit:link_snap_lens_to_repl. All three are bolted onto the morphing-game stack (morph_game_runtime.ScenePlan, solana_mcp.SolanaMCPConnector, snap_camera_kit.SnapCameraKitConnector) which are being built in parallel by agents G, D, and B respectively. Every dependency is lazy-imported so the bridge degrades gracefully when a parallel build has not landed yet. The existing 18+ tools in TOOLS are NOT modified. The existing FastAPI app, deploy-to-droplet.sh, Caddyfile, and systemd unit are NOT touched — the existing POST /tools/{tool_name} route automatically picks up the new entries.",
+
+  "engine_pattern": "Three new entries are appended at the end of the existing TOOLS = {...} registry in server.py. The dispatcher routes POST /tools/replit:deploy_morphing_game (etc.) to the existing handler-lambda pattern. Helpers live in a clearly-delimited block AFTER the TOOLS dict, prefixed with '_replit_'. Each helper performs sys.path.insert + lazy import of its third-party connector and returns a serialisable dict. Crystal anchors are emitted via core.lib.inference_logger.InferenceLogger.log(...). When inference_logger is not importable the crystal_id silently returns '' so the tool never breaks. lens_routes.json starts as {} and is read/written by replit:link_snap_lens_to_repl as a stdlib-json store.",
+
+  "added_tools": {
+    "replit:deploy_morphing_game": {
+      "inputs":  ["workflow_card_slug", "repl_name", "target_route"],
+      "outputs": ["repl_url", "deploy_crystal", "route_on_droplet", "package", "card_loaded"],
+      "behaviour": "Loads studio/assets/_workflows/<slug>.json (also tries vm_mspc_001.workflows.<slug>.v0.json), packages an HTML5 build referencing studio/godot/scenes/morphing_game.tscn + core/lib/morph_game_runtime.py, reuses an existing generate_app / replit:generate_app / myspace:generate_app tool if registered, synthesizes a deterministic stub Repl URL when no live Replit API helper is configured, then crystal-anchors the deploy.",
+      "log":     "tier='deploy', model='replit_morph', scope='deploy_morphing_game'"
+    },
+    "replit:mint_token_on_deploy": {
+      "inputs":  ["repl_url", "persona_id", "svg_payload_b64", "chain"],
+      "outputs": ["mint_address", "tx_signature", "mint_crystal", "mint_result", "chain"],
+      "behaviour": "chain='solana' (default) routes to core.lib.third_party.solana_mcp.SolanaMCPConnector.send('mint_token_2022', svg_data_uri_b64=svg_payload_b64, persona_id=..., confirm=False). chain='sui' falls back to core.lib.third_party.sui_mcp.nft_mint(package='TROLLN'). Both paths return shaped dicts even when the connector, CLI, or module is missing — the bridge never crashes the deploy pipeline.",
+      "log":     "tier='monetization', model='replit_mint_solana' (or 'replit_mint_sui' on Sui fallback), scope='token_minted_on_deploy'"
+    },
+    "replit:link_snap_lens_to_repl": {
+      "inputs":  ["repl_url", "lens_id", "persona_filter"],
+      "outputs": ["lens_route_url", "link_crystal", "lens_routes_count", "lens_routes_file"],
+      "behaviour": "Persists {repl_url: {lens_id, persona_filter, ts}} to studio/mcp/replit-bridge/lens_routes.json. Builds the Snap Camera Kit deeplink via core.lib.third_party.snap_camera_kit.SnapCameraKitConnector.send('lens_deeplink_url', ...). When the connector is unavailable falls back to a stdlib-built snapchat://camera?lens=<id>&hint=<persona> deeplink.",
+      "log":     "tier='social_event', model='replit_snap_link', scope='lens_linked'"
+    }
+  },
+
+  "added_helpers": [
+    "_replit_inference_logger() — lazy InferenceLogger factory; returns None on failure",
+    "_replit_log(tier, model, scope, prompt, output) — single crystal-anchor entry point for the three tools",
+    "_replit_load_workflow_card(slug) — reads studio/assets/_workflows/<slug>.json with two fallback candidates",
+    "_replit_call_existing_generate_app(card, repl_name) — re-uses generate_app if already registered, else returns a stub package manifest",
+    "_replit_synth_repl_url(repl_name) — deterministic SHA1-based stub Repl URL when the real Replit API helper is absent",
+    "_replit_deploy_morphing_game(slug, repl_name, target_route) — handler for replit:deploy_morphing_game",
+    "_replit_mint_via_solana(persona_id, svg_payload_b64) — Solana Token-2022 mint via SolanaMCPConnector",
+    "_replit_mint_via_sui(persona_id, svg_payload_b64) — Sui NFT mint via TROLLN package",
+    "_replit_mint_token_on_deploy(repl_url, persona_id, svg_payload_b64, chain) — handler for replit:mint_token_on_deploy",
+    "_replit_load_lens_routes() / _replit_save_lens_routes(routes) — JSON-file backed lens-route store",
+    "_replit_snap_deeplink(lens_id, persona_filter) — deeplink builder, real connector preferred, stdlib stub fallback",
+    "_replit_link_snap_lens_to_repl(repl_url, lens_id, persona_filter) — handler for replit:link_snap_lens_to_repl"
+  ],
+
+  "added_constants": {
+    "_WORKFLOWS_DIR":        "PROJECT_ROOT/studio/assets/_workflows",
+    "_LENS_ROUTES_FILE":     "Path(__file__).parent/lens_routes.json",
+    "_REPLIT_MORPH_TSCN":    "studio/godot/scenes/morphing_game.tscn (referenced by the deploy package manifest)",
+    "_REPLIT_MORPH_RUNTIME": "core/lib/morph_game_runtime.py (parallel-build by agent G, contains ScenePlan)"
+  },
+
+  "added_files": {
+    "studio/mcp/replit-bridge/lens_routes.json": "Empty JSON object on first touch; populated by replit:link_snap_lens_to_repl. stdlib-json only, no schema migration needed."
+  },
+
+  "substrate": "additive — no own DB, no new dependencies beyond stdlib + whatever server.py already imports. Reuses the existing FastAPI POST /tools/{tool_name} route, the existing TOOLS dispatch dict, core/lib/inference_logger crystal anchors, and lazy-imports the three parallel-build connectors (morph_game_runtime, solana_mcp, snap_camera_kit, optional sui_mcp).",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "MCP clients hitting POST /tools/replit:deploy_morphing_game on port 8765",
+      "MCP clients hitting POST /tools/replit:mint_token_on_deploy on port 8765",
+      "MCP clients hitting POST /tools/replit:link_snap_lens_to_repl on port 8765",
+      "Studio dashboard.html → calls /tools listing and surfaces the three new replit:* tools alongside existing ones",
+      "Deployed morphing game (in-browser) → fetches its lens deeplink from lens_routes.json indirectly via the bridge"
+    ],
+    "outbound_calls": [
+      "core.lib.morph_game_runtime.ScenePlan — referenced by the deploy package manifest (parallel build by agent G)",
+      "core.lib.third_party.solana_mcp.SolanaMCPConnector.send('mint_token_2022', ...) — parallel build by agent D",
+      "core.lib.third_party.snap_camera_kit.SnapCameraKitConnector.send('lens_deeplink_url', ...) — parallel build by agent B",
+      "core.lib.third_party.sui_mcp.nft_mint(package='TROLLN', ...) — optional Sui fallback",
+      "core.lib.inference_logger.InferenceLogger().log(tier=..., model=..., scope=...) — crystal anchor every tool call",
+      "Existing 'generate_app' / 'replit:generate_app' / 'myspace:generate_app' tool in TOOLS dict — used when present, stubbed when absent"
+    ]
+  },
+
+  "exports": [
+    "_replit_inference_logger",
+    "_replit_log",
+    "_replit_load_workflow_card",
+    "_replit_call_existing_generate_app",
+    "_replit_synth_repl_url",
+    "_replit_deploy_morphing_game",
+    "_replit_mint_via_solana",
+    "_replit_mint_via_sui",
+    "_replit_mint_token_on_deploy",
+    "_replit_load_lens_routes",
+    "_replit_save_lens_routes",
+    "_replit_snap_deeplink",
+    "_replit_link_snap_lens_to_repl",
+    "_WORKFLOWS_DIR",
+    "_LENS_ROUTES_FILE",
+    "_REPLIT_MORPH_TSCN",
+    "_REPLIT_MORPH_RUNTIME"
+  ],
+
+  "constraints_respected": [
+    "ONLY studio/mcp/replit-bridge/server.py was edited and only as an APPEND (TOOLS dict entries + helper block at end)",
+    "studio/mcp/replit-bridge/lens_routes.json created as empty {}",
+    "studio/mcp/replit-bridge/deploy-to-droplet.sh NOT modified",
+    "studio/mcp/replit-bridge/Caddyfile.droplet NOT modified",
+    "studio/mcp/replit-bridge/myspace-bridge.service NOT modified",
+    "studio/assets/_agents/agent_defs/vm_mspc_001.agents.agent_defs.freetier_public_deploy.active.json NOT modified",
+    "No other agent_def card modified",
+    "No new third-party dependency added — stdlib + whatever server.py already imports (json, hashlib, re, urllib.parse)"
+  ],
+
+  "verification": {
+    "ast_parse": "python3 -c \"import ast; ast.parse(open('studio/mcp/replit-bridge/server.py').read())\" — passes",
+    "tool_grep": "grep -c 'deploy_morphing_game' studio/mcp/replit-bridge/server.py >= 3 (input_schema + handler lambda + helper def)",
+    "tool_grep_2": "grep -c 'mint_token_on_deploy' studio/mcp/replit-bridge/server.py >= 3",
+    "tool_grep_3": "grep -c 'link_snap_lens_to_repl' studio/mcp/replit-bridge/server.py >= 3",
+    "lens_routes_exists": "ls studio/mcp/replit-bridge/lens_routes.json — file present, contents '{}'",
+    "import_smoke": "from inside studio/mcp/replit-bridge: 'import server' succeeds (modulo missing fastapi in dev env, which is logged and tolerated)"
+  }
+}

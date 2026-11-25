@@ -1,0 +1,20 @@
+{
+  "_schema": "third_party_config_v1",
+  "asset_id": "vm_mspc_001.telegram.connect.telegram_bot.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "service": "telegram",
+  "action": "connect",
+  "name": "telegram_bot",
+  "state": "active",
+  "version": "v0",
+  "auth": {
+    "bot_token": "TELEGRAM_BOT_TOKEN_HERE"
+  },
+  "limits": {
+    "requests_per_minute": 30,
+    "burst": 5
+  },
+  "routing_tags": ["broadcast", "dm", "alert", "build_notify"],
+  "created_at": "2026-05-28T00:00:00Z"
+}

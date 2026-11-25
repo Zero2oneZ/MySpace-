@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# godot — NixOS wrapper for the bundled Godot 4.6.3 (binary lives in MySpace++ root). Injects the
+# graphics libs the prebuilt binary needs on NixOS, then execs it. Put studio/bin on PATH.
+S="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export LD_LIBRARY_PATH="$(cat "$S/engine.env.path")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$S/../Godot_v4.6.3-stable_linux.x86_64" "$@"

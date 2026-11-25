@@ -1,0 +1,240 @@
+{
+  "ts": 1780031481.4548323,
+  "total_wallets": 22173,
+  "bot_wallets": 1150,
+  "bot_wallet_pct": 5.19,
+  "total_txs": 22173,
+  "bot_txs": 1150,
+  "bot_tx_pct": 5.19,
+  "tag_counts": {
+    "HIGH_FEE": 1150,
+    "MEV_BOT": 110
+  },
+  "top_bots": [
+    {
+      "wallet": "2219cpAF",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2KzAiUfW",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE",
+        "MEV_BOT"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2fb16hDv",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "4ZcD9N3b",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2rCp3oyx",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "27ZbtmCM",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "3uxWNk5Z",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2CHjG8td",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "5wzP4o6q",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "3DuUfjJV",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "5hgXSYdG",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE",
+        "MEV_BOT"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "45JvuvcD",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE",
+        "MEV_BOT"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "5MEY8HXz",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2saTCzjJ",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "2rwTrgfa",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "VjJeAcBF",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "4F8hjvX2",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "3tqN4LD2",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "5ao4Eamd",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE",
+        "MEV_BOT"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    },
+    {
+      "wallet": "m6rSEiMa",
+      "score": 0.0,
+      "tags": [
+        "HIGH_FEE"
+      ],
+      "tx_count": 1,
+      "snipes": 0,
+      "spams": 0,
+      "high_fees": 1
+    }
+  ],
+  "rugged_tokens": 0
+}

@@ -1,0 +1,123 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "freetier_public_deploy",
+  "state": "active",
+  "version": "v0",
+  "role": "DEPLOY · PRODUCTION_PUBLIC_SURFACE_DROPLET",
+  "tier": "L0",
+  "module_paths": [
+    "studio/deploy/freetier_public/Caddyfile.droplet",
+    "studio/deploy/freetier_public/mspc-callback.service",
+    "studio/deploy/freetier_public/mspc-model-api.service",
+    "studio/deploy/freetier_public/deploy.sh",
+    "studio/deploy/freetier_public/README.md"
+  ],
+
+  "summary": "Production deploy bundle for the two public-facing servers (freetier_callback :8540 and model_api :8521) plus the Caddy reverse-proxy fragment that fronts them with TLS on trollz.fun and GentlyOS.io. Both Python servers bind only on 127.0.0.1; Caddy is the sole public surface. Ships to DO droplet 159.89.181.146 via rsync+ssh, installed at /opt/mspc-public/ under unprivileged user 'mspc'. Idempotent — re-running upgrades in place. Reuses the pattern established by studio/mcp/replit-bridge/deploy-to-droplet.sh.",
+
+  "engine_pattern": "Two systemd units (mspc-callback.service, mspc-model-api.service) + one Caddyfile fragment installed into /etc/caddy/Caddyfile.d/. deploy.sh DEFAULTS to DRY_RUN=1; real deploy requires explicit DRY_RUN=0 ./deploy.sh. Pre-flight verifies all source paths exist and .env present on laptop before any rsync runs.",
+
+  "components": {
+    "Caddyfile.droplet": "Reverse-proxy fragment. Two server blocks: trollz.fun (+ www) and GentlyOS.io (+ www). Both auto-acquire TLS via Let's Encrypt. trollz.fun routes /terms* and /terms/policies/callback* to :8540 and /v1/* to :8521; GentlyOS.io routes /endpoint/freetier/* to :8540 and /v1/* to :8521. Sets X-Forwarded-For/-Proto/-Host/-Real-IP via a shared (forwarded) snippet. Catch-all on trollz.fun redirects / -> /terms/; GentlyOS.io returns a friendly dev-front 404.",
+    "mspc-callback.service": "Runs python3 /opt/mspc-public/freetier_callback/server.py --port 8540 --bind 127.0.0.1 as user mspc:mspc. Loads .env via EnvironmentFile. PYTHONPATH includes both /opt/mspc-public and /opt/mspc-public/lib so the server's `sys.path.insert(.., core/lib)` resolves to lib/. Hardened: NoNewPrivileges, PrivateTmp, ProtectSystem=strict, ProtectHome, narrow ReadWritePaths.",
+    "mspc-model-api.service": "Runs python3 /opt/mspc-public/lib/model_api.py serve --port 8521 --bind 127.0.0.1. Ordered After=mspc-callback.service so the token-issuing callback is up first. Same hardening as the callback unit.",
+    "deploy.sh": "Bash script run from laptop. Resolves repo root via SCRIPT_DIR (deploy/freetier_public/ is 3 up). Verifies seven required source paths + .env exist locally. Rsyncs: studio/endpoints/freetier_callback/ -> /opt/mspc-public/freetier_callback/, core/lib/ -> /opt/mspc-public/lib/, studio/auth/ (minus keys.sqlite + .master_secret + freetier_acceptances.sqlite, since the registry is host-scoped) -> /opt/mspc-public/auth/, studio/assets/_agents/agent_defs/ -> /opt/mspc-public/agent_defs/, .env (mode 600) -> /opt/mspc-public/.env, then unit files + Caddyfile. On DRY_RUN=0: creates 'mspc' user, installs unit files into /etc/systemd/system/, daemon-reload + enable + restart, installs Caddyfile fragment + validates + reloads caddy, smoke-tests both /healthz endpoints via loopback. Uses BatchMode SSH + StrictHostKeyChecking=accept-new + ConnectTimeout=8.",
+    "README.md": "Full operator docs: what gets deployed, prerequisites (DNS A records for both domains, .env present, Caddy installed, SSH key, firewall :80/:443 open), how to deploy, cert acquisition flow, post-deploy curl smoke tests, journalctl tails, and rollback (systemctl stop, restore /opt/mspc-public/.prev, or DO snapshot rollback)."
+  },
+
+  "ports_and_paths": {
+    "laptop_source": {
+      "freetier_callback": "studio/endpoints/freetier_callback/",
+      "model_api":         "core/lib/model_api.py",
+      "shared_lib":        "core/lib/",
+      "auth":              "studio/auth/",
+      "env":               ".env (mirrored with /data/Projects/gently/.env)",
+      "agent_defs":        "studio/assets/_agents/agent_defs/"
+    },
+    "droplet_layout": {
+      "root":              "/opt/mspc-public/",
+      "callback":          "/opt/mspc-public/freetier_callback/server.py (listens 127.0.0.1:8540)",
+      "model_api":         "/opt/mspc-public/lib/model_api.py serve (listens 127.0.0.1:8521)",
+      "auth":              "/opt/mspc-public/auth/ (keys.sqlite generated fresh on first run)",
+      "agent_defs":        "/opt/mspc-public/agent_defs/ (audit snapshot only)",
+      "env":               "/opt/mspc-public/.env (mode 600, owned mspc:mspc)",
+      "logs":              "/opt/mspc-public/logs/ + journalctl",
+      "systemd_units":     "/etc/systemd/system/mspc-{callback,model-api}.service",
+      "caddy_fragment":    "/etc/caddy/Caddyfile.d/mspc-freetier-public"
+    },
+    "public_surface": {
+      "trollz.fun":     "/terms/*, /terms/policies/callback*, /v1/*, /healthz",
+      "GentlyOS.io":    "/endpoint/freetier/*, /v1/*, /healthz"
+    },
+    "ports": {
+      "80_443":  "Caddy (public)",
+      "8521":   "model_api (loopback only)",
+      "8540":   "freetier_callback (loopback only)",
+      "8765":   "replit-bridge (existing, unrelated)",
+      "8080":   "trollz-api (existing, unrelated)"
+    }
+  },
+
+  "user_prerequisites_before_deploy": [
+    "DNS A records for trollz.fun, www.trollz.fun, GentlyOS.io, www.GentlyOS.io all point at 159.89.181.146",
+    ".env present at /data/Projects/MySpace++/.env (mirrored with /data/Projects/gently/.env) — contains claude_guest, client_api, pintrest_api, SUI_WALLET + provider keys (deepseek, HF router)",
+    "Caddy installed on droplet (apt-get install caddy) — deploy continues with warning if missing but public surface is unreachable without it",
+    "SSH key authorizes root@159.89.181.146 — auto-detected (~/.ssh/id_ed25519) or override SSH_KEY=...",
+    "Firewall (DO cloud firewall + ufw) allows :80 and :443; does NOT expose :8521 or :8540"
+  ],
+
+  "substrate": "studio/deploy/freetier_public/ (this dir) — five files, ~600 lines total. Drop-in addition; touches no existing code.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Tom runs deploy.sh manually from laptop after DNS + .env are in place",
+      "External HTTPS clients hit trollz.fun + GentlyOS.io after deploy"
+    ],
+    "outbound_calls": [
+      "rsync over ssh to root@159.89.181.146",
+      "systemctl on droplet (daemon-reload, enable, restart)",
+      "caddy validate + reload on droplet",
+      "curl loopback smoke tests on droplet"
+    ],
+    "substrate_reads": [
+      "studio/endpoints/freetier_callback/ (source code + templates)",
+      "core/lib/ (model_api.py + its dependencies)",
+      "studio/auth/ (gate.py + keys.py — registry excluded)",
+      "studio/assets/_agents/agent_defs/ (read-only audit snapshot)",
+      ".env (root of MySpace++ repo)"
+    ],
+    "substrate_writes": "none locally; on droplet creates /opt/mspc-public/ tree + systemd units + caddy fragment"
+  },
+
+  "guarantees": [
+    "DRY_RUN=1 by default — accidental invocation never modifies droplet state",
+    "Pre-flight aborts before any rsync if source paths or .env are missing",
+    "Both Python servers bind 127.0.0.1 only — never publicly exposed",
+    "mspc runs as unprivileged system user, never root",
+    ".env mode 600 owned by mspc:mspc on droplet",
+    "keys.sqlite excluded from rsync — registry stays host-scoped per salted-token rule",
+    "Idempotent — re-running upgrades in place (systemctl restart, caddy reload)",
+    "Does not modify existing replit-bridge files (reuse-as-pattern only)",
+    "Does not touch core/cc.sh or .env in the repo"
+  ],
+
+  "usage_example": "cd studio/deploy/freetier_public/\\n# Dry-run (default):\\n./deploy.sh\\n# Real deploy after DNS + .env in place:\\nDRY_RUN=0 ./deploy.sh\\n# Verify:\\ncurl https://trollz.fun/terms/\\ncurl https://GentlyOS.io/endpoint/freetier/terms/",
+
+  "what_user_must_do_before_first_real_deploy": [
+    "1. Confirm DNS A records resolve: dig +short trollz.fun GentlyOS.io  (both must return 159.89.181.146)",
+    "2. Confirm .env populated at /data/Projects/MySpace++/.env (mirrored from /data/Projects/gently/.env)",
+    "3. SSH to droplet once, install caddy if missing: ssh root@159.89.181.146 'apt-get install -y caddy'",
+    "4. Run dry-run: cd studio/deploy/freetier_public && ./deploy.sh  (reads pre-flight output)",
+    "5. Real deploy: DRY_RUN=0 ./deploy.sh",
+    "6. Verify: curl -i https://trollz.fun/terms/ ; curl -i https://GentlyOS.io/endpoint/freetier/terms/"
+  ],
+
+  "rollback": "ssh root@159.89.181.146 'systemctl stop mspc-callback mspc-model-api'  +  restore /opt/mspc-public/ from snapshot, or DO snapshot rollback. Caddy keeps running with upstream errors until services back up.",
+
+  "phase": "production hand-off bundle for public freetier surface (post lively-enchanting-parrot D.7)"
+}

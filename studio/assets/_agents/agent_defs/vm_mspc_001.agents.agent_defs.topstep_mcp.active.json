@@ -1,0 +1,118 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "topstep_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR - TOPSTEPX_FUTURES_RAIL",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/topstep_mcp.py",
+
+  "summary": "TopstepX futures connector wrapping the existing standalone scalper at /data/Projects/trade-blob/ via subprocess against a cross-repo shim (scripts/tsx_cli.py). HARD SAFETY RAIL: every write tool (order_market, order_limit, flatten_all) DEFAULTS to DRY-RUN and only fires a real order when BOTH `confirm=True` is passed in args AND `TOPSTEP_LIVE_TRADING=1` is set in the environment. Either gate alone returns a safe stub with `dry_run: True`, a `fake_order_id`, and a `would_have_ordered` descriptor. Every call (real or DRY-RUN) crystal-anchors via inference_logger with tier='trade_action', model='topstepx', scope='topstep_<tool>'.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp shape. SERVICE='topstep'. Reads TOPSTEP_USERNAME + TOPSTEP_API_KEY from /data/Projects/trade-blob/.env via a tiny dedicated env reader (does NOT route through studio/auth/keys.upstream_key because 'topstep' may not be in KINDS yet). Subprocess against trade-blob's venv python when present, falls back to system python3. Tool dispatch via send(recipient=tool_name, message=json_args).",
+
+  "safety_rails": {
+    "live_trading_env_var": "TOPSTEP_LIVE_TRADING",
+    "live_trading_env_value": "1",
+    "write_tools_double_gated": [
+      "order_market",
+      "order_limit",
+      "flatten_all"
+    ],
+    "gate_logic": "real order fires iff confirm=True in args AND TOPSTEP_LIVE_TRADING=1 in env. Either missing => DRY-RUN stub returned with dry_run=True, fake_order_id, and would_have_ordered descriptor.",
+    "flatten_all_note": "nuclear close-everything button. Same double-gate; no special override path. Treated identically to a normal write tool.",
+    "cancel_order_classification": "safe (no new exposure). Routed through read-tool path; no live-gate required. Still requires tsx_cli.py to exist for execution.",
+    "stub_behavior_when_shim_missing": "read tools (account_status, positions, health_check, quote_subscribe, pnl_intraday) return stubs marked stub=True so dashboards do not crash. Write tools return SendResult(success=False, error='tsx_cli_not_found: ...') ONLY when both confirm and live env are set; otherwise the DRY-RUN path is taken first and the shim is never consulted.",
+    "credential_leakage_protection": "TOPSTEP_USERNAME and TOPSTEP_API_KEY are loaded from disk into memory only. They are injected into the subprocess env explicitly. They are stripped from any params dict before being passed to inference_logger.log so the crystal chain never embeds them."
+  },
+
+  "tsx_cli_status": {
+    "expected_path": "/data/Projects/trade-blob/scripts/tsx_cli.py",
+    "exists_at_2026_05_28": false,
+    "blocker": "live trading cannot fire until this shim is created in the trade-blob repo. The shim must accept positional `tool` arg + `--json <args>` and emit a single JSON object on stdout. Read-only tools fall back to stubs so dashboards keep working without it.",
+    "remediation": "create /data/Projects/trade-blob/scripts/tsx_cli.py as a thin wrapper around the existing TopstepXClient in trade-blob/topstep_api/*. Must read TOPSTEP_USERNAME and TOPSTEP_API_KEY from process env (injected by this connector). Out of scope for MySpace++ side per constraints."
+  },
+
+  "expected_tools": [
+    "account_status",
+    "positions",
+    "health_check",
+    "order_market",
+    "order_limit",
+    "cancel_order",
+    "flatten_all",
+    "quote_subscribe",
+    "pnl_intraday"
+  ],
+
+  "env_vars": {
+    "TOPSTEP_USERNAME":      "loaded from /data/Projects/trade-blob/.env (mirrored layout)",
+    "TOPSTEP_API_KEY":       "loaded from /data/Projects/trade-blob/.env (mirrored layout)",
+    "TOPSTEP_LIVE_TRADING":  "set to '1' to lift one of two gates required for live orders; default unset = DRY-RUN forever"
+  },
+
+  "convenience_wrappers": [
+    "account_status() -> {balance, equity, day_pnl, ...}",
+    "positions() -> [{symbol, qty, avg_price, ...}, ...]",
+    "health_check() -> {status: 'ok'|'stub'}",
+    "order_market(symbol, qty, side, confirm=False) -> DRY-RUN unless confirm AND live env",
+    "order_limit(symbol, qty, side, price, confirm=False) -> DRY-RUN unless confirm AND live env",
+    "cancel_order(order_id) -> safe; no live gate",
+    "flatten_all(confirm=False) -> nuclear close-all; same double-gate as order_market",
+    "quote_subscribe(symbol) -> writes ~/.cc/topstep_quotes/<symbol>.jsonl sink",
+    "pnl_intraday(start_ts, end_ts) -> sum + per-trade breakdown"
+  ],
+
+  "exports": [
+    "TopStepMCPConnector",
+    "EXPECTED_TOOLS",
+    "WRITE_TOOLS",
+    "READ_TOOLS",
+    "LIVE_ENV_VAR"
+  ],
+
+  "substrate": "/data/Projects/trade-blob/ (READ-ONLY from this connector's POV; subprocess only) + ~/.cc/third_party_logs/topstep_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored trade_action records) + ~/.cc/topstep_quotes/<symbol>.jsonl (quote_subscribe sinks)",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio_runtime._dispatch_topstep (future, when card pass.engine='topstepx')",
+      "core/cc.sh::cmd_topstep_* (future)",
+      "studio dashboards reading account_status / positions"
+    ],
+    "outbound_calls": [
+      "subprocess to /data/Projects/trade-blob/scripts/tsx_cli.py (cross-repo shim, currently missing)",
+      "inference_logger.log (every call: tier='trade_action', model='topstepx', scope='topstep_<tool>')"
+    ],
+    "substrate_reads": "TOPSTEP_USERNAME + TOPSTEP_API_KEY from /data/Projects/trade-blob/.env (direct read, bypasses studio/auth/keys because 'topstep' is not yet in KINDS)",
+    "substrate_writes": "send_log JSONL + crystal_chain trade_action records + quote_subscribe sink files"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "connect": "ok - credentials loaded from trade-blob/.env",
+    "tsx_cli_present": false,
+    "order_market_dry_run_default": "ok - dry_run=True, fake_order_id returned, no shim consulted",
+    "order_market_confirm_without_live_env": "ok - dry_run=True (live env gate held the line)",
+    "account_status_with_no_shim": "returns stub payload, success=True, stub=True, no dashboard crash",
+    "law_verified": "DRY-RUN is the default under all observed conditions"
+  },
+
+  "guarantees": [
+    "DRY-RUN by default - real orders require BOTH confirm=True AND TOPSTEP_LIVE_TRADING=1",
+    "Crystal-anchored - every call (DRY-RUN included) writes one InferenceRecord with tier='trade_action'",
+    "Stdlib-only - no pip packages; subprocess + urllib + json + uuid + pathlib only",
+    "Credential-safe - TOPSTEP_API_KEY never appears in stdout, crystal logs, or send logs",
+    "Graceful - when tsx_cli.py is missing, read tools return stubs marked stub=True; write tools never silently succeed",
+    "Append-only history - ~/.cc/third_party_logs/topstep_sends.jsonl is never rewritten",
+    "Read-only of trade-blob - this connector never edits the trade-blob repo; only subprocess + .env read"
+  ],
+
+  "usage_example": "from core.lib.third_party.topstep_mcp import TopStepMCPConnector\\nimport json\\nc = TopStepMCPConnector()\\nc.connect()\\n# DRY-RUN by default:\\nr = c.send('order_market', json.dumps({'symbol':'ES','qty':1,'side':'BUY'}))\\nassert r.metadata['dry_run'] is True\\n# Even with confirm=True, no real order unless TOPSTEP_LIVE_TRADING=1 in env:\\nr2 = c.send('order_market', json.dumps({'symbol':'ES','qty':1,'side':'BUY','confirm':True}))\\nassert r2.metadata['dry_run'] is True  # because env gate not lifted",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.5 of TopStep MCP integration (Phase D - external broker rails)"
+}

@@ -1,0 +1,164 @@
+<h1>pump.fun surf &mdash; bot vs human radar</h1>
+<p class="meta">Live WaveFrame radar over the latest pump.fun event stream. The HTMX panel polls
+<code>/dapp/api/pump_wave</code> every 2s (bearer-gated). The Godot iframe boots the
+<code>pump_surf</code> scene; a static fallback renders when the HTML5 export is missing.</p>
+
+<style id="pump-style">
+  :root { --pump-surf-state-color: #888; }
+  #surf-badge {
+    display: inline-block; padding: .2rem .6rem; border-radius: 999px;
+    font-weight: 700; font-size: .8rem; letter-spacing: .05em;
+    text-transform: uppercase; color: #fff;
+    background: var(--pump-surf-state-color);
+    box-shadow: 0 0 12px var(--pump-surf-state-color);
+  }
+  .wave-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+  .wave-metrics .cell { background: #f5f5f5; border-radius: 6px; padding: .5rem .65rem; }
+  .wave-metrics .cell b { font-size: 1.15rem; }
+  .ripple-list { font-size: .82rem; color: #555; max-height: 140px; overflow-y: auto; }
+</style>
+
+<div class="panel tight">
+  <h3 style="margin-top:0;">Surf state
+    <span id="surf-badge">no_signal</span>
+    <span class="htmx-indicator">&hellip;</span>
+  </h3>
+  <div id="wave-data"
+       hx-get="/dapp/api/pump_wave"
+       hx-trigger="load, every 2s"
+       hx-target="#wave-data"
+       hx-swap="innerHTML"
+       hx-on::after-request="updateSurfStyle(event)">
+    <span class="meta">(awaiting first poll&hellip;)</span>
+  </div>
+  <p class="stamp">Auth: <code>Authorization: Bearer &lt;localStorage.mspc_freetier_token&gt;</code> &mdash;
+    stamped on every poll by the script below.</p>
+</div>
+
+<div class="panel" style="padding:0;overflow:hidden;">
+  <iframe id="godot-frame"
+          src="{embed_src}"
+          width="100%"
+          height="520"
+          style="border:0;display:block;background:#000;"
+          allow="autoplay; fullscreen; gamepad; cross-origin-isolated"
+          referrerpolicy="strict-origin-when-cross-origin"
+          loading="eager"
+          title="pump_surf · Godot Instant Games"></iframe>
+</div>
+
+<div class="panel tight">
+  <h3 style="margin-top:0;">Manual surf action</h3>
+  <form id="surf-form" onsubmit="return manualSurfAction(event);">
+    <label>token mint or symbol
+      <input type="text" id="surf-token" placeholder="(e.g. PUMP4tom)" maxlength="64">
+    </label>
+    <div class="pay-row" style="display:flex; gap:.5rem; margin-top:.7rem;">
+      <button type="submit" class="cta" style="flex:1;">consider_buy</button>
+      <button type="button" class="alt" style="flex:1;"
+              onclick="document.getElementById('godot-frame').contentWindow.focus();">
+        open Godot iframe
+      </button>
+    </div>
+  </form>
+  <p id="surf-action-result" class="meta" style="margin-top:.5rem;">(no action submitted yet)</p>
+</div>
+
+<details class="panel tight">
+  <summary>Raw WaveFrame JSON</summary>
+  <pre id="raw-wave" class="panel dark" style="white-space:pre-wrap;">(awaiting fetch)</pre>
+</details>
+
+<div class="panel warn">
+  <b>DRY-RUN by default.</b> No real trades fire without
+  <code>SOLANA_NETWORK=mainnet-beta</code> + <code>PUMP_SURF_LIVE_TRADING=1</code> in
+  <code>.env</code>. This surface is a radar; the executor refuses to send.
+</div>
+
+<p class="stamp">Iframe src: <code>{embed_src}</code> &middot; wave endpoint:
+  <code>/dapp/api/pump_wave</code> &middot; build present:
+  <code>{godot_build_present}</code></p>
+
+<script src="/dapp/play/sdk-bridge.js"></script>
+<script>
+(function(){
+  document.body.addEventListener('htmx:configRequest', function(ev){
+    var t = (window.MspcDappBridge && window.MspcDappBridge.token)
+            || localStorage.getItem('mspc_freetier_token')
+            || '';
+    if (t) { ev.detail.headers['Authorization'] = 'Bearer ' + t; }
+  });
+})();
+
+function _surfStateColor(state){
+  if (state === 'human_inflow' || state === 'green') { return '#4caf50'; }
+  if (state === 'mixed' || state === 'gold' || state === 'caution') { return '#f0b04a'; }
+  if (state === 'bot_dominated' || state === 'red') { return '#e53935'; }
+  return '#888';
+}
+
+function updateSurfStyle(ev){
+  try {
+    var xhr = ev && ev.detail && ev.detail.xhr;
+    if (!xhr || !xhr.responseText) { return; }
+    var frame = JSON.parse(xhr.responseText);
+    var state = frame.surf_state || 'no_signal';
+    var color = _surfStateColor(state);
+    document.getElementById('pump-style').innerHTML =
+      ':root { --pump-surf-state-color: ' + color + '; }';
+    var badge = document.getElementById('surf-badge');
+    if (badge) { badge.textContent = state; }
+    var ripples = frame.ripples || [];
+    var bot = frame.bot_density_avg;
+    var hum = frame.human_inflow_score;
+    var stub = frame.stub ? ' <span class="meta">(stub)</span>' : '';
+    document.getElementById('wave-data').innerHTML =
+      '<div class="wave-metrics">' +
+        '<div class="cell"><span class="meta">bot_density_avg</span><br><b>' +
+          (bot == null ? '&mdash;' : bot) + '</b></div>' +
+        '<div class="cell"><span class="meta">human_inflow_score</span><br><b>' +
+          (hum == null ? '&mdash;' : hum) + '</b></div>' +
+      '</div>' +
+      '<div class="ripple-list" style="margin-top:.5rem;">ripples: <b>' +
+        ripples.length + '</b>' + stub + '</div>';
+    document.getElementById('raw-wave').textContent =
+      JSON.stringify(frame, null, 2);
+  } catch (err) {
+    document.getElementById('raw-wave').textContent = 'parse error: ' + err;
+  }
+}
+
+function manualSurfAction(ev){
+  ev.preventDefault();
+  var token = (document.getElementById('surf-token').value || '').trim();
+  var bearer = (window.MspcDappBridge && window.MspcDappBridge.token)
+               || localStorage.getItem('mspc_freetier_token') || '';
+  var resEl = document.getElementById('surf-action-result');
+  if (!token) {
+    resEl.textContent = 'enter a token mint or symbol first';
+    return false;
+  }
+  fetch('/dapp/api/pump_surf_action', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + bearer,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({action: 'consider_buy', token: token})
+  }).then(function(r){
+    if (r.status === 404) {
+      resEl.textContent = 'consider_buy endpoint not exposed yet — opening Godot iframe';
+      try { document.getElementById('godot-frame').contentWindow.focus(); } catch(e) {}
+      return null;
+    }
+    return r.json();
+  }).then(function(res){
+    if (res) {
+      resEl.textContent = 'response: ' + JSON.stringify(res).slice(0, 200);
+    }
+  }).catch(function(err){
+    resEl.textContent = 'err: ' + err;
+  });
+  return false;
+}
+</script>

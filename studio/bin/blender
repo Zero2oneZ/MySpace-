@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# blender — NixOS wrapper for the bundled Blender 5.1.2. The prebuilt binary can't find system
+# graphics libs on NixOS; this injects them (resolved nixpkgs lib paths in studio/engine.env.path)
+# then execs the real binary. Put studio/bin on PATH so the project's bare `blender …` calls work.
+S="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export LD_LIBRARY_PATH="$(cat "$S/engine.env.path")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$S/blender-5.1.2-linux-x64/blender" "$@"

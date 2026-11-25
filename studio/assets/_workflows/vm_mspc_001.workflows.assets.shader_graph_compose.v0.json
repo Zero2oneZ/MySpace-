@@ -1,0 +1,103 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "shader_graph_compose",
+  "category": "assets",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Given existing per-layer PNGs and a target mesh, compose a Blender shader graph using the canonical 14-layer / 13-blend taxonomy, validate the spec, and export. No baking, no LLM, no ComfyUI — just deterministic graph composition. The shader-only subset of autonomous_3d_asset; the most cacheable and reproducible of the three asset cards.",
+
+  "inputs": [
+    {"name": "input_mesh_path", "type": "path", "required": true},
+    {"name": "layer_specs", "type": "list[layer_spec]", "required": true,
+      "notes": "List of {layer_name, image_path, blend_mode, weight}. layer_name ∈ CANONICAL_LAYERS, blend_mode ∈ CANONICAL_BLENDS."},
+    {"name": "uv_set", "type": "str", "required": false, "default": "UVMap"},
+    {"name": "export_format", "type": "str", "required": false, "default": "glb"}
+  ],
+
+  "outputs": [
+    {"name": "shader_graph_spec", "type": "json"},
+    {"name": "exported_path", "type": "path"},
+    {"name": "asset_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "compose_spec",
+      "agent": "autonomous_modeler",
+      "model_path": "core/lib/autonomous_modeler.py::_compose_shader_graph",
+      "engine": "deterministic",
+      "in": ["layer_specs", "uv_set"],
+      "out": "shader_graph_spec",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Same _compose_shader_graph used by autonomous_modeler. Emits the dict consumed by blender_mcp.material.bake_pbr (socket-mapped Principled BSDF)."
+    },
+    {
+      "id": "validate_spec",
+      "agent": "autonomous_modeler",
+      "model_path": "core/lib/autonomous_modeler.py::validate_shader_graph_spec",
+      "engine": "deterministic",
+      "in": ["shader_graph_spec"],
+      "out": "validated_spec",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Reject unknown sockets, non-canonical layers, unknown blend modes. Same gate as autonomous_modeler.run."
+    },
+    {
+      "id": "apply_in_blender",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::material.set",
+      "engine": "blender",
+      "in": ["input_mesh_path", "validated_spec"],
+      "out": "applied_object_name",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "mesh.import → per-layer material.set with socket + blend. No bake; the spec is the source of truth, textures are referenced not flattened."
+    },
+    {
+      "id": "export",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::mesh.export_gltf",
+      "engine": "blender",
+      "in": ["applied_object_name", "export_format"],
+      "out": "exported_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "preserve_pbr=true. GLB preserves the texture references; nothing flattened."
+    },
+    {
+      "id": "anchor",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["validated_spec", "exported_path"],
+      "out": "asset_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='shader_graph', model='blender', scope='compose'. coords=[layer_count, blend_diversity, export_size_bytes]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "spec", "source": "pass:compose_spec", "blend": "base"},
+    {"name": "validated", "source": "pass:validate_spec", "blend": "alpha"},
+    {"name": "applied", "source": "pass:apply_in_blender", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "blender": {
+      "template": "templates/shader_graph_compose.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/shader_graph_compose.py"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/autonomous_modeler.py (_compose_shader_graph + validator)",
+    "core/lib/third_party/blender_mcp.py",
+    "core/lib/inference_logger.py",
+    "core/lib/workflow_generator.py (CANONICAL_LAYERS + CANONICAL_BLENDS)"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "_schema": "endpoint_config_v1",
+  "asset_id": "vm_mspc_001.rest.generic.api_gateway.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "kind": "rest",
+  "service": "generic",
+  "name": "api_gateway",
+  "state": "active",
+  "version": "v0",
+  "bind": {
+    "host": "0.0.0.0",
+    "port": 9001,
+    "path": "/api/v1",
+    "method": "POST"
+  },
+  "auth": {
+    "token_header": "Authorization",
+    "token_prefix": "Bearer ",
+    "whitelist_ips": ["127.0.0.1", "159.89.181.146"]
+  },
+  "routing": {
+    "default_tag": "api_inbound",
+    "priority": 1,
+    "fallback_service": ""
+  },
+  "limits": {
+    "max_body_mb": 5,
+    "rate_limit": 200,
+    "timeout_seconds": 15
+  },
+  "created_at": "2026-05-28T00:00:00Z"
+}

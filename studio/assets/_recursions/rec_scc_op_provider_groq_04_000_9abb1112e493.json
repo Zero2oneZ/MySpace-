@@ -1,0 +1,27 @@
+{
+  "crystal": "9abb1112e4931f2d454551692756cb10dea007dfe543f5acce86a8f209e56df3b57a556ee61b4f6f0a14f67633111d7bcebf421896b45fa50bbe959c0588b61c",
+  "description": "SCC of 4 nodes spanning APPS,DOCS,INFERENCE,PLATFORMS",
+  "edge_kinds_traversed": [
+    "feeds_back",
+    "feeds_into",
+    "ingests_from",
+    "produces"
+  ],
+  "has_self_loop": false,
+  "id": "rec_scc_op_provider_groq_04_000",
+  "kind": "scc",
+  "name": "groq \u2192 DAG-FLOW \u2192 discord-mcp...",
+  "nodes": [
+    "op_provider_groq",
+    "op_doc_dag_flow",
+    "op_discord_mcp",
+    "op_product_avatar_nft"
+  ],
+  "size": 4,
+  "sub_dags_touched": [
+    "APPS",
+    "DOCS",
+    "INFERENCE",
+    "PLATFORMS"
+  ]
+}

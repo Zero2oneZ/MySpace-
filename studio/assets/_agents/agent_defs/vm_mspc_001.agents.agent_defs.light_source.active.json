@@ -1,0 +1,59 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "light_source",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · DERIVED_LIGHT_FIELD",
+  "tier": "L0",
+  "module_path": "core/lib/light_source.py",
+  "summary": "Derived synthesis substrate — fuses SVG shape (geometry + RGB attribute_signature) + spatial_anchor (position) + frame_clock (active frame at canonical FPS) → LightSource(rgb, hsl, warmth, color_temp_k, intensity, falloff, direction, active_frames, crystal). Aggregates into WorldLightField at a (frame, fps) pair. Drops the EMISSION channel of the canonical layer_stack as a first-class queryable substrate — every harvested shape is now a candidate light.",
+  "engine_pattern": "stateless synthesis. RGB→HSL pure math. McCamy-ish CCT estimation. Warmth = (r − b) modulated by green. Intensity derived from opacity × gradient_factor × stroke_boost. All crystals BLAKE3-canonical.",
+  "the_synthesis_chain": "SVG shape (svg_vector_embed) + position (spatial_anchor) + frame (frame_clock) → LightSource. Adds NOTHING new to disk; everything composes existing crystals. Queryable along 4 NEW axes: by_frame, by_hue, by_proximity, by_warmth.",
+  "exports": ["LightSource", "WorldLightField", "rgb_to_hsl", "rgb_to_warmth",
+              "estimated_color_temperature_k", "find_lights_at_frame",
+              "find_lights_by_hue", "find_lights_near", "find_lights_by_warmth"],
+  "substrate": "in-memory LightSource + WorldLightField objects (caller persists)",
+  "routing_connections": {
+    "inbound_callers": [
+      "svg_vector_embed.SvgPathRecord (provides shape + RGB attribute_signature)",
+      "spatial_anchor.SpatialAnchor (provides world position)",
+      "frame_clock.FrameClock (provides active_frames dict)",
+      "(planned) workflow_card.layer_stack[emission] auto-population",
+      "(planned) Godot material → emission slot bridge",
+      "(planned) Blender Principled BSDF → emission input"
+    ],
+    "outbound_calls": ["blake3 / blake2b for crystal", "stdlib math/json/hashlib/time"],
+    "substrate_reads": "callers provide all inputs",
+    "substrate_writes": "none (caller persists via inference_logger or workflow card)"
+  },
+  "smoke_test_results_2026_05_28": {
+    "synthesized":              "4 light sources from synthetic svg attribute signatures",
+    "warm_red_orange":          "warmth=+0.922  K=2988 (tungsten range)  band=red-orange",
+    "cool_blue":                "warmth=-1.000  K=40000 (clamp max)  band=blue",
+    "world_light_field_frame_60": "3 active  dominant_warmth=0.064 (near-neutral)",
+    "world_light_field_frame_120": "1 active  (red flash only)",
+    "find_by_hue_30deg":        "red-orange Δ3.33°  →  red Δ30°",
+    "find_near_origin_3m":      "3 lights ordered by distance (2.24m, 2.24m, 3.00m)",
+    "find_by_warmth_cool":      "1 result (blue, warmth=-1.0)"
+  },
+  "queryable_axes": [
+    "find_lights_at_frame(frame, fps, corpus)  — temporal slice",
+    "find_lights_by_hue(target_hue, k, max_delta)  — color hue match",
+    "find_lights_near(xyz, radius, k)  — spatial proximity",
+    "find_lights_by_warmth(min, max)  — color-temperature bucket"
+  ],
+  "the_layer_stack_link": "Canonical layer_stack (from workflow_card_v0 + morph_layer_polymorphism) includes 'emission'. light_source provides the queryable substrate for that channel. workflow_generator can now auto-populate emission layers from harvested shape colors + active frames.",
+  "guarantees": [
+    "Deterministic — same inputs → same crystal byte-exact",
+    "Composable — every output crystal links to source_geometry_crystal + source_spatial_crystal",
+    "Frame-aware — active_frames dict pins each light to specific frame indices",
+    "Pure stdlib — no numpy, no colorsys, no PIL"
+  ],
+  "usage_example": "from light_source import LightSource, WorldLightField, find_lights_near\\nls = LightSource.from_svg_attribute_signature(\\n    attribute_signature=[1.0, 0.5, 0.1, 0,0,0, 0.9, 0.2, 0, 0],\\n    position=(1.0, 0.0, 2.0),\\n    active_frames={60: 60, 30: 30}\\n)\\nfield = WorldLightField.at(60, 60, [ls])\\nprint(field.dominant_warmth(), field.color_palette())",
+  "chain_runs": ["moe_chain_router_v0"]
+}

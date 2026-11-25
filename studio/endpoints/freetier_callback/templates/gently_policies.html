@@ -1,0 +1,73 @@
+<h1>GentlyOS.io — Free Tier Acceptable Use Policies</h1>
+<p class="meta">Last updated 2026-05-28 · version v0 · crystal {policies_hash}</p>
+
+<p>These policies sit on top of the <a class="link" href="/endpoint/freetier/terms/">Free Tier Terms</a>. Reading and accepting both gives you a 30-day session token for the public read API.</p>
+
+<h2>What you may do</h2>
+<ul>
+  <li>Call the public read API at the documented rate limit.</li>
+  <li>Embed the API output in your own apps, products, or research, with reasonable attribution where applicable.</li>
+  <li>Cache responses locally and re-use them; the crystal-anchored result cache on the substrate side serves the same purpose globally.</li>
+</ul>
+
+<h2>What you must not do</h2>
+<ul>
+  <li><strong>No weight extraction.</strong> Don't attempt to reconstruct, distill, or steal the underlying model weights through systematic probing.</li>
+  <li><strong>No rate-limit evasion.</strong> Don't rotate IPs, rotate tokens, or otherwise circumvent the limits.</li>
+  <li><strong>No competing-product training.</strong> Output from the Free Tier may not be used to train a model that competes with the operator's commercial products without a separate written license.</li>
+  <li><strong>No safety-critical deployment.</strong> Don't deploy outputs into life-safety, medical, legal, or financial-advice contexts without independent professional review.</li>
+  <li><strong>No illegal content generation</strong> (CSAM, targeted harassment, IP infringement, etc.).</li>
+</ul>
+
+<h2>Data we collect</h2>
+<ul>
+  <li><strong>Acceptance ledger:</strong> your handle or email (whichever you provide), IP prefix, and User-Agent prefix. Crystal-anchored for audit.</li>
+  <li><strong>Inference records:</strong> every API call writes one record to the substrate's chain with tier='inference'. The prompt is hashed by default; opt-in to retain full prompts via a header flag (off by default).</li>
+  <li><strong>Session token:</strong> HMAC-signed; held only by you after issuance.</li>
+</ul>
+
+<h2>Data we do not collect</h2>
+<ul>
+  <li>No third-party advertising tracker on the developer pages.</li>
+  <li>No biometric data.</li>
+  <li>No personal data beyond what you submit at signup.</li>
+</ul>
+
+<h2>Reporting</h2>
+<p>Suspected misuse → send to the developer contact below. Responsible-disclosure process for vulnerabilities.</p>
+
+<h2>Sign and receive your token</h2>
+<form method="post" action="/endpoint/freetier/terms/policies/callback/"
+      hx-post="/endpoint/freetier/terms/policies/callback/" hx-target="#result" hx-swap="innerHTML">
+  <label for="user_id" style="display:block; font-weight:600; margin-top:.85rem;">
+    Your handle, email, or wallet address
+  </label>
+  <input type="text" id="user_id" name="user_id"
+          placeholder="e.g. tom@example.com or zero2onez" required
+          autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+
+  <label class="row">
+    <input type="checkbox" name="accepted" value="true" required>
+    <span>
+      I have read the
+      <a class="link" href="/endpoint/freetier/terms/">Free Tier Terms</a>
+      and these Acceptable Use Policies; I accept them.
+    </span>
+  </label>
+
+  <label class="row" style="margin-top: .5rem; opacity: .9;">
+    <input type="checkbox" name="friends_consent" value="true">
+    <span>
+      <strong>(optional)</strong> I authorize harvest of my Facebook friends list
+      when I log in via Facebook OAuth (uses the <code>user_friends</code> scope —
+      only friends who also use this app are returned, per Facebook policy).
+      You can revoke at any time at <a class="link" href="https://www.facebook.com/settings?tab=applications">facebook.com/settings/apps</a>.
+    </span>
+  </label>
+
+  <button type="submit" class="cta">Sign + Get my token</button>
+</form>
+
+<div id="result" style="margin-top: 1rem;"></div>
+
+<p class="stamp">crystal-anchor of this acceptance lands at <code>tier='legal_acceptance'</code> in the public audit chain.</p>

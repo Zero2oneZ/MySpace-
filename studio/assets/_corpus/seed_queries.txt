@@ -1,0 +1,10 @@
+arrow
+settings
+menu
+save
+edit
+delete
+share
+upload
+download
+search

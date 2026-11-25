@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:todo="https://myspace.local/todo/v1" width="340" height="240" viewBox="0 0 340 240" font-family="monospace" font-size="10" todo:role="browser-state" todo:browser-id="browser-3" todo:layer="job-board" todo:state="GO">
+  <ns0:metadata>
+    <todo:about>browser-3 — JOB BOARD dashboard. Reads JSONL tail every tick. Pushes visual updates to all browsers.</todo:about>
+    <todo:parent-svg>MASTER-TODO.svg</todo:parent-svg>
+    <todo:peer-svg>MASTER-TODO.svg</todo:peer-svg>
+    <todo:state>GO</todo:state>
+    <todo:last-update>2026-05-28T00:55:30Z</todo:last-update>
+    <todo:next-browser>browser-4</todo:next-browser>
+    <todo:inference>none</todo:inference>
+    <todo:active-nodes>7</todo:active-nodes>
+    <todo:tasks-tracked>7</todo:tasks-tracked>
+    <todo:plans-tracked>7</todo:plans-tracked>
+    <todo:coherence-check status="PASS" drift="0" />
+    <todo:coherence-check-status>PASS</todo:coherence-check-status>
+    <todo:coherence-check-drift>0</todo:coherence-check-drift>
+    <todo:active-task>T-001</todo:active-task>
+  </ns0:metadata>
+  <ns0:defs>
+    <ns0:linearGradient id="bg3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#0a0a15" />
+      <ns0:stop offset="100%" stop-color="#050510" />
+    </ns0:linearGradient>
+  </ns0:defs>
+  <ns0:rect width="340" height="240" rx="6" fill="url(#bg3)" stroke="#ff6b9d" stroke-width="2" />
+  <ns0:rect x="0" y="0" width="340" height="28" rx="6" fill="#2a0a1a" />
+  <ns0:text x="10" y="18" fill="#ff6b9d" font-size="12" font-weight="bold">browser-3 · JOB BOARD</ns0:text>
+  <ns0:text x="300" y="18" fill="#2e7" font-size="10">GO</ns0:text>
+  <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: dashboard</ns0:text>
+  <ns0:text x="10" y="66" fill="#aaa" font-size="10">State: visual orchestrator</ns0:text>
+  <ns0:text x="10" y="82" fill="#888" font-size="10">Peer: MASTER-TODO.svg</ns0:text>
+  <ns0:text x="10" y="104" fill="#ff6b9d" font-size="10">Tasks tracked: 7</ns0:text>
+  <ns0:text x="10" y="120" fill="#ff6b9d" font-size="10">Plans: 7 · Agents: 10 · Models: 11</ns0:text>
+  <ns0:rect x="10" y="140" width="320" height="50" rx="3" fill="#0a0a1a" />
+  <ns0:text x="16" y="156" fill="#888" font-size="9">Accent sync:</ns0:text>
+  <ns0:text x="16" y="170" fill="#ff6b9d" font-size="9">• reads JSONL tail every tick</ns0:text>
+  <ns0:text x="16" y="184" fill="#ff6b9d" font-size="9">• pushes visual updates to all browsers</ns0:text>
+  <ns0:rect x="10" y="200" width="320" height="30" rx="3" fill="#0a0a0a" stroke="#ff6b9d" stroke-width="1" />
+  <ns0:text x="16" y="218" fill="#ff6b9d" font-size="9">Coherence: PASS · Drift: 0 · Next: browser-4</ns0:text>
+</ns0:svg>

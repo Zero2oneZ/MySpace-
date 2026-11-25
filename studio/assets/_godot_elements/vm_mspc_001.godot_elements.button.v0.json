@@ -1,0 +1,38 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "button",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "Button",
+  "godot_inherits": "BaseButton < Control < CanvasItem < Node",
+  "summary": "Standard themed clickable Control. Use for any user-triggered action — submit, cancel, navigate, toggle (via toggle_mode). Inherits BaseButton signals (pressed, toggled, button_down, button_up). Supports icon + text + alignment; ideal first-class interactive widget. Pair with a VBoxContainer or HBoxContainer for vertical/horizontal button stacks. For chain_render_wall-style HUDs, use Button as an overlay action trigger above the 3D Sprite3D tiles.",
+  "exports": [
+    { "name": "text", "type": "String", "default": "\"\"" },
+    { "name": "icon", "type": "Texture2D", "default": "null" },
+    { "name": "disabled", "type": "bool", "default": "false" },
+    { "name": "toggle_mode", "type": "bool", "default": "false" },
+    { "name": "button_pressed", "type": "bool", "default": "false" },
+    { "name": "alignment", "type": "int", "default": "1", "hint": "HORIZONTAL_ALIGNMENT_CENTER" },
+    { "name": "icon_alignment", "type": "int", "default": "0", "hint": "HORIZONTAL_ALIGNMENT_LEFT" },
+    { "name": "expand_icon", "type": "bool", "default": "false" },
+    { "name": "flat", "type": "bool", "default": "false" }
+  ],
+  "signals": [
+    { "name": "pressed", "params": [] },
+    { "name": "button_down", "params": [] },
+    { "name": "button_up", "params": [] },
+    { "name": "toggled", "params": ["toggled_on: bool"] }
+  ],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "tint", "godot_property": "self_modulate" },
+    { "layer": "albedo", "godot_property": "theme_override_colors/font_color" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": true,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyBtn\" type=\"Button\" parent=\".\"]\noffset_right = 120.0\noffset_bottom = 32.0\ntext = \"Click\"\nflat = false\n",
+  "phase": "Atomic UI element"
+}

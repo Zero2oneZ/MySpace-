@@ -1,0 +1,153 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_visualizer_3d",
+  "state": "active",
+  "version": "v0",
+  "role": "ENGINE · WAVE_FIELD_RENDERER · PUMP_FUN_3D_VIZ",
+  "tier": "L0",
+  "module_path": "core/lib/pump_visualizer_3d.py",
+
+  "summary": "Python-side 3D wave field renderer that consumes pump.fun stream events (pump_stream_ingest JSONL) + per-wallet GMM/XGBoost gate decisions and emits a WaveFrame JSON consumable by the Godot pump_surf_godot_scene (sibling agent G). Each transaction becomes a 'ripple' in 3D space: X=time (newest right), Y=log(sol_amount) normalized to window, Z=bot_probability. Color is derived from the gate decision (bot=red, human=green, mid-band=green->red interpolation, surf_target=gold and always overrides). intensity is priority_fee normalized to the window's [min,max]. Every build_wave_frame call crystal-anchors via inference_logger (tier='visualization', model='pump_visualizer_3d', scope='wave_frame_built') and persists the WaveFrame JSON to ~/.cc/pump_waves/<crystal_short>.json. Stdlib only (json, math, dataclasses, pathlib, xml.etree.ElementTree for SVG preview). SVG preview is a top-down 2D projection (X-time x Y-amount, Z encoded as color) at 800x400 for dApp panels, emails, and audit.",
+
+  "engine_pattern": "Two-pass build over a [now-window_seconds, now] event window. Pass 1 collects log1p(sol_amount) and priority_fee ranges for normalization (handles flat windows + zero amounts with eps). Pass 2 emits one Ripple per in-window event: x = (ts - t_lo) / window, y = (log_amt - amt_min) / amt_span, z = clamp(bot_probability, 0, 1), color = _color_for(bp, is_surf), intensity = (fee - fee_min) / fee_span. Aggregate signals: bot_density_avg = mean(bot_probability), human_inflow_score = mean(human_inflow_score) over gate_decisions. surf_state derived from the locked truth table. crystal anchor + ~/.cc/pump_waves/<crystal_short>.json persisted as a side-effect of build_wave_frame.",
+
+  "api": {
+    "exports": [
+      "Ripple",
+      "WaveFrame",
+      "build_wave_frame",
+      "serialize_wave",
+      "render_svg_preview",
+      "COLOR_BOT",
+      "COLOR_HUMAN",
+      "COLOR_SURF",
+      "BP_BOT_THRESHOLD",
+      "BP_HUMAN_THRESHOLD",
+      "ABORT_BOT_DENSITY",
+      "ABORT_HUMAN_INFLOW",
+      "CANDIDATE_BOT_DENSITY",
+      "CANDIDATE_HUMAN_INFLOW",
+      "EXIT_HUMAN_INFLOW"
+    ],
+    "main_function": "build_wave_frame(events: list[dict], gate_decisions: dict[str, dict], window_seconds: int = 60, active_position: bool = False, now: float | None = None) -> WaveFrame",
+    "serialize": "serialize_wave(wave: WaveFrame, output_path: Path | None = None) -> str",
+    "preview": "render_svg_preview(wave: WaveFrame, output_path: Path | None = None, width: int = 800, height: int = 400) -> Path"
+  },
+
+  "dataclasses": {
+    "Ripple": {
+      "ts": "float - original event unix timestamp",
+      "x": "float in [0,1] - normalized time position (0=oldest, 1=newest)",
+      "y": "float in [0,1] - normalized log(sol_amount) within window",
+      "z": "float in [0,1] - == bot_probability",
+      "color_rgba": "list[float] of length 4 - [r,g,b,a] in [0,1]",
+      "intensity": "float in [0,1] - priority_fee normalized to window's [min,max]",
+      "is_surf_target": "bool - true if gate decision == 'surf_candidate'",
+      "wallet": "str - payer pubkey",
+      "mint": "str - token mint",
+      "kind": "str - 'buy' or 'sell'"
+    },
+    "WaveFrame": {
+      "captured_at": "float - unix timestamp at build time",
+      "window_seconds": "int - width of the time window",
+      "ripples": "list[Ripple]",
+      "bot_density_avg": "float in [0,1] - mean(bot_probability) across gate_decisions",
+      "human_inflow_score": "float in [0,1] - mean(human_inflow_score) across gate_decisions",
+      "surf_state": "str - one of 'no_signal' | 'surf_candidate' | 'exit_imminent' | 'abort'",
+      "crystal": "str - inference_logger chain crystal id (empty if logger unavailable)"
+    }
+  },
+
+  "color_mapping": {
+    "bot_threshold": "bp >= 0.7 -> [1.0, 0.2, 0.2, 0.8] (red)",
+    "human_threshold": "bp <= 0.3 -> [0.2, 1.0, 0.4, 0.8] (green)",
+    "interp_band": "0.3 < bp < 0.7 -> linear interpolation green -> red across the band",
+    "surf_override": "gate.decision == 'surf_candidate' -> [1.0, 0.85, 0.0, 1.0] (gold). ALWAYS overrides bp band.",
+    "intensity": "priority_fee_lamports normalized to window's [min,max] (drives ripple size + glow in Godot)"
+  },
+
+  "surf_state_derivation": {
+    "_order": "abort first (most dangerous), then exit_imminent, then surf_candidate, else no_signal",
+    "abort": "bot_density_avg > 0.85 AND human_inflow_score < 0.20",
+    "exit_imminent": "active_position == True AND human_inflow_score < 0.10",
+    "surf_candidate": "bot_density_avg > 0.65 AND human_inflow_score > 0.35",
+    "no_signal": "otherwise",
+    "constants": {
+      "ABORT_BOT_DENSITY": 0.85,
+      "ABORT_HUMAN_INFLOW": 0.20,
+      "CANDIDATE_BOT_DENSITY": 0.65,
+      "CANDIDATE_HUMAN_INFLOW": 0.35,
+      "EXIT_HUMAN_INFLOW": 0.10
+    }
+  },
+
+  "godot_scene_json_contract": {
+    "endpoint": "GET /dapp/api/pump_wave (served by dapp; reads the latest WaveFrame JSON file from ~/.cc/pump_waves/)",
+    "shape": "{ captured_at: float, window_seconds: int, ripples: [Ripple...], bot_density_avg: float, human_inflow_score: float, surf_state: str, crystal: str }",
+    "godot_consumption_notes": [
+      "Godot pump_surf_godot_scene reads ripples[*] and maps {x,y,z} to world-space (with its own scale factor)",
+      "color_rgba is passed straight into the particle shader; alpha drives surface glow",
+      "intensity drives ripple radius + emission energy",
+      "is_surf_target ripples should render as anchor points (Godot can pin a Camera3D look-at on the brightest one)",
+      "surf_state drives the scene's overlay HUD (red=abort, gold=surf_candidate, orange=exit_imminent, neutral=no_signal)"
+    ]
+  },
+
+  "substrate": "~/.cc/pump_waves/<crystal_short>.json (one file per build_wave_frame call) + crystal anchor in ~/.cc/inference_master_chain.jsonl (tier='visualization', model='pump_visualizer_3d', scope='wave_frame_built'). When inference_logger is unavailable, files fall back to ~/.cc/pump_waves/nochain_<unix_ts>.json.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "dApp HTTP GET /dapp/api/pump_wave (serves the latest persisted WaveFrame)",
+      "Godot pump_surf_godot_scene (sibling agent G, reads via the dApp endpoint)",
+      "core/cc.sh::cmd_pump_wave_build (future CLI driver)",
+      "CLI: python3 core/lib/pump_visualizer_3d.py build --events <jsonl> --gates <json>"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (tier='visualization', model='pump_visualizer_3d', scope='wave_frame_built')"
+    ],
+    "substrate_reads": "events JSONL from pump_stream_ingest, gate decisions JSON from the GMM/XGBoost gate (per-wallet bot_probability + human_inflow_score + decision)",
+    "substrate_writes": "~/.cc/pump_waves/<crystal_short>.json + inference_master_chain.jsonl crystal entries"
+  },
+
+  "guarantees": [
+    "Stdlib only — json + math + dataclasses + pathlib + xml.etree.ElementTree + argparse + time",
+    "JSON contract is asdict(WaveFrame); each ripple is asdict(Ripple); stable field order (Python 3.7+ insertion order)",
+    "Color mapping is deterministic for a fixed (bp, is_surf) input — no RNG anywhere in the pipeline",
+    "surf_state derivation is a locked truth table (order: abort -> exit_imminent -> surf_candidate -> no_signal)",
+    "X axis: time, normalized to [0,1] across window; clamped on the edges",
+    "Y axis: log1p(sol_amount + eps) normalized to window's [min,max]; eps handles zero amounts",
+    "Z axis: clamp(bot_probability, 0, 1)",
+    "intensity is priority_fee normalized to window's [min,max]; flat windows degrade to 0.0",
+    "Crystal anchor is best-effort — failures log to stderr but do NOT block the WaveFrame return",
+    "Persistence is best-effort — file write failures log to stderr but do NOT raise",
+    "SVG preview is a 800x400 top-down 2D projection (stdlib xml.etree only); surf_target ripples render last so they sit on top with a white stroke"
+  ],
+
+  "cli": {
+    "build": "python3 core/lib/pump_visualizer_3d.py build --events <jsonl> --gates <json> --window 60 [--out wave.json] [--active-position]",
+    "preview": "python3 core/lib/pump_visualizer_3d.py preview <wave.json> [--out wave_preview.svg]",
+    "exit_codes": {
+      "0": "success",
+      "2": "missing input file"
+    }
+  },
+
+  "smoke_protocol": "python3 -c \"import ast; ast.parse(open('core/lib/pump_visualizer_3d.py').read())\" && python3 core/lib/pump_visualizer_3d.py build --events <synth.jsonl> --gates <synth.json> --window 60 --out /tmp/wave.json && python3 core/lib/pump_visualizer_3d.py preview /tmp/wave.json --out /tmp/wave.svg",
+
+  "future_v1_hooks": [
+    "WebSocket streaming variant (push ripples as they're classified instead of polling)",
+    "Heatmap overlay aggregating by mint (one color column per token)",
+    "Per-wallet trail mode (link a wallet's ripples across the window with a polyline)",
+    "Adaptive window (longer when activity sparse, shorter when storming)",
+    "GodotEngine native binary shape (eg. MessagePack) for the inner-loop HTTP path",
+    "Tighten the abort/candidate thresholds based on real run feedback from the surf executor"
+  ],
+
+  "chain_runs": ["pump_visualizer_3d_v0"],
+  "phase": "pump.fun surf sibling agents — Python-side viz (agent V)"
+}

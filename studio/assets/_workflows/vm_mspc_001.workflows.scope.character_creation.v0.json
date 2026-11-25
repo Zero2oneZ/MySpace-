@@ -1,0 +1,147 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "character_creation",
+  "category": "scope",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Character-creation scope. A scope_manifest that pre-wires the engine archetype (morph.engine for the head, blend.engine for the rig+pose+texture stack) and surfaces the 4 HF leaves relevant to character authoring (depth-estimation, pose-estimation, image-segmentation, text-to-3d). Mint-and-load: clicking this scope from the Loom shelf swaps the active card to morph.engine seeded with goo.primary, loads the leaves panel, and pins Blender + Unreal as terminal surfaces.",
+
+  "inputs": [
+    {"name": "seed_photo", "type": "image", "required": false,
+      "notes": "Optional reference photo. If provided, depth-estimation + pose-estimation seed the rig."},
+    {"name": "style_refs", "type": "list[image]", "required": false,
+      "notes": "Pinterest-style reference set; passed to FLUX via IPAdapter"},
+    {"name": "voice_clip", "type": "audio", "required": false,
+      "default": "", "notes": "For Kokoro/CosyVoice TTS leaf"},
+    {"name": "rig_target_glb", "type": "path", "required": false,
+      "default": "Mixamo_X_Bot_default.fbx"}
+  ],
+
+  "outputs": [
+    {"name": "scope_crystal", "type": "str"},
+    {"name": "morph_card_id", "type": "str"},
+    {"name": "rig_glb_path", "type": "path"},
+    {"name": "animation_crystal", "type": "str"},
+    {"name": "unreal_live_link_subject", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "scope_mint",
+      "agent": "loom",
+      "model_path": "core/lib/loom.py::mint",
+      "engine": "deterministic",
+      "in": ["seed_photo", "style_refs"],
+      "out": "scope_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Append row to ~/.cc/loom/scopes.jsonl. RAG-grounded against kernel_registry + morph_chain top-wheel."
+    },
+    {
+      "id": "spawn_morph_card",
+      "agent": "morph_chain",
+      "model_path": "core/lib/morph_chain.py::save",
+      "engine": "deterministic",
+      "in": ["scope_crystal"],
+      "out": "morph_card_id",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Creates a goo.primary-seeded morph.engine card for the head/blob. Opens in studio/loom/morph_engine.html."
+    },
+    {
+      "id": "depth_from_photo",
+      "agent": "apple_DepthPro",
+      "model_path": "/home/tom/models/apple_DepthPro",
+      "engine": "diffusers",
+      "in": ["seed_photo"],
+      "out": "depth_map",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "HF leaf: depth-estimation. Drives the head's morph stack via a Displace modifier referencing depth."
+    },
+    {
+      "id": "pose_from_photo",
+      "agent": "mediapipe_holistic",
+      "model_path": "core/lib/mocap_frame.py + mediapipe",
+      "engine": "diffusers",
+      "in": ["seed_photo"],
+      "out": "pose_frame",
+      "tier": "fast",
+      "status": "STUB",
+      "notes": "HF leaf: pose-estimation. Single MocapFrame per photo; later upgraded to video → pose stream."
+    },
+    {
+      "id": "rig_attach",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py",
+      "engine": "blender",
+      "in": ["morph_card_id", "rig_target_glb", "pose_frame"],
+      "out": "rig_glb_path",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "Blender headless: import_fbx the rig, parent the morph head to the head bone, bake to GLB."
+    },
+    {
+      "id": "verify_mocap",
+      "agent": "mocap_rig_anchor",
+      "model_path": "core/lib/mocap_rig_anchor.py::verify_alignment",
+      "engine": "deterministic",
+      "in": ["pose_frame", "rig_glb_path"],
+      "out": "animation_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Topology + rig-fit + anchor-proximity → deterministic alignment_crystal. ≥50% joint coverage + ≥80% rig-fit + Hip-to-anchor ≤ 0.5m."
+    },
+    {
+      "id": "live_link_to_ue5",
+      "agent": "unreal_live_link",
+      "model_path": "core/lib/third_party/unreal_live_link.py::stream",
+      "engine": "mcp",
+      "in": ["pose_frame", "rig_glb_path"],
+      "out": "unreal_live_link_subject",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "UDP stream to UE5 Live Link plugin. Subject auto-appears; MetaHuman or custom rig consumes via Animation Blueprint."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "base_mesh", "source": "pass:spawn_morph_card", "blend": "base"},
+    {"name": "depth", "source": "pass:depth_from_photo", "blend": "depth_uniform"},
+    {"name": "motion", "source": "pass:verify_mocap", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/character_creation_proto.py.j2",
+      "out_path": "studio/web/streamlit/character_creation.py"
+    },
+    "godot": {
+      "language": "gd",
+      "scene": "templates/character_creation_scene.tscn.j2",
+      "out_scene": "studio/godot/project/scenes/character_creation.tscn"
+    },
+    "blender": {
+      "template": "templates/character_creation_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/character_creation_bake.py"
+    }
+  },
+
+  "leaves_surfaced": [
+    "depth-estimation",
+    "pose-estimation",
+    "image-segmentation",
+    "text-to-3d"
+  ],
+
+  "depends_on": [
+    "core/lib/loom.py (scope mint)",
+    "core/lib/morph_chain.py (card spawn)",
+    "core/lib/mocap_frame.py + mocap_rig_anchor.py (mocap verify)",
+    "core/lib/third_party/blender_mcp.py (rig attach + bake)",
+    "core/lib/third_party/unreal_live_link.py (UE5 streaming)"
+  ]
+}

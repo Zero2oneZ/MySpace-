@@ -1,0 +1,154 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_surf_scene",
+  "state": "active",
+  "version": "v0",
+  "role": "SCENE · 3D_PUMP_FUN_WAVE_VISUALIZATION",
+  "tier": "L0",
+  "module_path": "studio/godot/project/scenes/pump_surf.tscn",
+
+  "summary": "Godot 4.6.3 Node3D scene that consumes the WaveFrame JSON emitted by core/lib/pump_visualizer_3d.py (sibling agent F) and renders each Ripple as a 3D sphere positioned at its normalized (x, y, z) hex-grid coordinate. Bot ripples render red, human ripples green, and surf_target ripples gold with an emissive pulse plus a torus halo marker placed in a dedicated SurfTargetAnchors container. A CanvasLayer HUD reports surf_state (top-center, large), bot_density_avg (top-left red ProgressBar), and human_inflow_score (top-right green ProgressBar). When surf_state == 'abort', a full-screen red ColorRect overlays the viewport at 25% opacity. Pairs with the dapp_server `/dapp/api/pump_wave` route (provided by sibling agent H) and the freetier_gate token storage.",
+
+  "engine_pattern": "Two-node shell: PumpWaveFetcher owns the polling Timer + HTTPRequest pair and forwards each parsed JSON body via the wave_received signal; PumpSurfController is a per-scene Node3D that subscribes to that signal and rebuilds the WaveField + SurfTargetAnchors children every frame. Ripple meshes are imperatively constructed (SphereMesh + StandardMaterial3D per ripple). Previous ripples queue_free before the next batch spawns, so memory stays bounded. No per-frame physics; everything happens in response to one wave_received signal every 2 seconds.",
+
+  "scene_tree": {
+    "PumpSurf": "Node3D (root, script attached)",
+    "PumpSurf/Camera3D": "Camera3D — orbit position +12,+8,+12 looking toward origin, fov 60",
+    "PumpSurf/WorldEnvironment": "WorldEnvironment — deep cyberpunk sky (purple/black) + glow bloom",
+    "PumpSurf/DirectionalLight3D": "DirectionalLight3D — cool key light, shadows enabled",
+    "PumpSurf/WaveField": "Node3D — empty container; controller spawns Ripple sphere meshes",
+    "PumpSurf/SurfTargetAnchors": "Node3D — gold pulse torus markers for surf_target ripples",
+    "PumpSurf/HUD": "CanvasLayer — 2D overlay",
+    "PumpSurf/HUD/SurfStateLabel": "Label — top-center, 42pt gold; shows surf_state.to_upper()",
+    "PumpSurf/HUD/BotDensityBar": "ProgressBar — top-left red, 0-100, driven by wave.bot_density_avg*100",
+    "PumpSurf/HUD/BotDensityLabel": "Label — caption 'bot density' under the bar",
+    "PumpSurf/HUD/HumanInflowBar": "ProgressBar — top-right green, 0-100, driven by wave.human_inflow_score*100",
+    "PumpSurf/HUD/HumanInflowLabel": "Label — caption 'human inflow' under the bar",
+    "PumpSurf/HUD/AbortOverlay": "ColorRect — full-screen; only colored (red 25%) when surf_state == 'abort'"
+  },
+
+  "scripts": {
+    "controller": "studio/godot/project/src/pump_surf_controller.gd   (class_name PumpSurfController)",
+    "fetcher":    "studio/godot/project/src/pump_wave_fetcher.gd      (class_name PumpWaveFetcher)"
+  },
+
+  "coordinate_mapping": {
+    "rationale": "WaveFrame ripples carry normalized [0..1] hex-grid coords. The controller projects them into a wide, shallow 3D box so the camera at (+12,+8,+12) frames the whole field.",
+    "x_scene": "(r.x - 0.5) * 20.0   # ±10 units wide",
+    "y_scene": "(r.y - 0.5) * 8.0    # ±4 units vertical",
+    "z_scene": "(r.z - 0.5) * 12.0   # ±6 units deep",
+    "intensity_to_radius": "radius = 0.1 + 0.2 * intensity  (range [0.1 .. 0.3] for intensity in [0..1])",
+    "surf_target_extras": "TorusMesh halo at the same origin, scale 0.4, gold emissive (energy 4.0)"
+  },
+
+  "ripple_schema_v1": {
+    "x": "float [0..1] normalized hex-grid x",
+    "y": "float [0..1] normalized hex-grid y (vertical)",
+    "z": "float [0..1] normalized hex-grid z (depth)",
+    "intensity": "float [0..1] — drives sphere radius",
+    "color_rgba": "Array[float, 4] — albedo (red=bot, green=human, gold=surf_target)",
+    "is_surf_target": "bool — when true: emissive sphere + torus halo + gold tint"
+  },
+
+  "wave_schema_v1": {
+    "endpoint": "GET http://localhost:8520/dapp/api/pump_wave",
+    "auth": "Authorization: Bearer <freetier_token>  (falls back to no_signal empty wave when missing)",
+    "response_schema": "{ surf_state: String, bot_density_avg: float, human_inflow_score: float, ripples: [<ripple>...] }",
+    "surf_state_values": ["no_signal", "scout", "lineup", "drop", "ride", "abort"],
+    "status": "NOT YET IMPLEMENTED — sibling agent H owns the `/dapp/api/pump_wave` route. Until then, the fetcher polls but the HTTP code != 200 fallback emits a no_signal empty wave and the HUD reports 0/0 with no ripples.",
+    "owner_to_add_route": "dapp_server (route handler shipped by sibling agent H)"
+  },
+
+  "hud_bindings": {
+    "SurfStateLabel.text": "wave.surf_state.to_upper()",
+    "BotDensityBar.value": "wave.bot_density_avg * 100.0",
+    "HumanInflowBar.value": "wave.human_inflow_score * 100.0",
+    "AbortOverlay.color": "Color(1,0,0,0.25) when surf_state=='abort' else Color(0,0,0,0)"
+  },
+
+  "token_sources": {
+    "web_export":     "JavaScriptBridge.eval(localStorage.getItem('mspc_freetier_token')) — set by freetier_gate at login",
+    "native_export":  "user://freetier_token.txt — written by the freetier flow when the bearer is bound to a host"
+  },
+
+  "exports": [
+    "PumpSurfController",
+    "PumpWaveFetcher",
+    "wave_received",
+    "_ready",
+    "_on_wave",
+    "_clear_ripples",
+    "_spawn_ripple",
+    "_update_hud",
+    "start_polling",
+    "_fetch",
+    "_on_response",
+    "_read_token"
+  ],
+
+  "runtime_requirements": {
+    "godot": ">= 4.3 (4.6.3-stable target)",
+    "autoload_required": "false — both scripts attach inside the scene; no project.godot edit",
+    "http_dependency": "localhost:8520 must serve /dapp/api/pump_wave; offline boot uses the no_signal empty-wave fallback so the scene still renders",
+    "poll_interval": "2.0 seconds (configurable via start_polling)"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Top-level navigation (TBD) — main_controller.gd will add a 'Pump Surf' button that change_scene_to_file('res://scenes/pump_surf.tscn')",
+      "dapp_play_extension entry point — a 'play_trader' face_id mapping (planned) would route here from morphing_game shell"
+    ],
+    "outbound_calls": [
+      "PumpWaveFetcher.start_polling(2.0) — kicks off the polling Timer",
+      "HTTPClient GET http://localhost:8520/dapp/api/pump_wave (Authorization: Bearer <token>)",
+      "JSON.parse_string(body) on every successful response"
+    ],
+    "substrate_reads": "freetier token (web: localStorage 'mspc_freetier_token' / native: user://freetier_token.txt) and the dapp_server pump_wave route output",
+    "substrate_writes": "none (read-only viewer)"
+  },
+
+  "sibling_agents": {
+    "agent_F": "core/lib/pump_visualizer_3d.py — emits WaveFrame JSON from live pump.fun stream (data producer)",
+    "agent_H": "dapp_server route /dapp/api/pump_wave — surfaces the WaveFrame JSON over HTTP (data transport)",
+    "freetier_gate": "issues the bearer token used by the fetcher",
+    "morphing_game_scene": "sibling shell — may route a future play_trader face_id here"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "files_created": "ok — 3 new files (1 .tscn, 2 .gd) + this agent card",
+    "tscn_header":   "ok — gd_scene load_steps=7 format=3 uid present",
+    "class_name_controller": "ok — class_name PumpSurfController declared",
+    "class_name_fetcher":    "ok — class_name PumpWaveFetcher declared",
+    "no_project_godot_edit": "ok — no autoload added, no existing scene/script touched",
+    "godot_runtime": "PENDING — scene needs to be opened in Godot 4.6.3 editor for full parse validation; bash cannot validate gdscript syntax"
+  },
+
+  "guarantees": [
+    "Boots without backend — missing token or non-200 response short-circuits to a no_signal empty WaveFrame and the HUD shows 0/0",
+    "Zero project.godot mutation — both scripts are pure scene-attached nodes; no autoload, no input map, no new layer",
+    "Idempotent rebuild — _clear_ripples queue_frees every prior WaveField + SurfTargetAnchors child before _spawn_ripple runs",
+    "Bounded memory — ripple count == server-side ripple count; nothing accumulates across frames",
+    "All scripts cwd-scoped to res://src/ and res://scenes/ — no absolute paths",
+    "surf_state='abort' is visually unmistakable — full-viewport red ColorRect at 25% opacity"
+  ],
+
+  "blockers_phase_2": [
+    "dapp_server: add GET /dapp/api/pump_wave route that streams pump_visualizer_3d.py output as JSON (owned by sibling agent H)",
+    "core/lib/pump_visualizer_3d.py: confirm WaveFrame shape matches ripple_schema_v1 + wave_schema_v1 above (owned by sibling agent F)",
+    "Camera orbit controls: drag-to-rotate + scroll-to-zoom — currently a fixed isometric vantage",
+    "Per-ripple animation: smooth radius/position lerp between frames instead of hard rebuild (would require keying ripples by stable id)",
+    "Surf-target audio cue: trigger a chime when a new surf_target appears (subscribe to a derived 'new_target' signal)",
+    "Bot/human legend: small HUD legend explaining the color code",
+    "Tunable poll interval: expose start_polling argument via an exported var so the editor can adjust without code edits"
+  ],
+
+  "usage_example": "# From main_controller or any scene:\nget_tree().change_scene_to_file(\"res://scenes/pump_surf.tscn\")\n# Or load + instantiate inline:\nvar packed = load(\"res://scenes/pump_surf.tscn\")\nadd_child(packed.instantiate())",
+
+  "chain_runs": [],
+  "phase": "B.3 — first 3D financial-stream visualization in the studio. Pairs with sibling agent F (pump_visualizer_3d.py WaveFrame producer), sibling agent H (`/dapp/api/pump_wave` HTTP route), and freetier_gate (token issuer)."
+}

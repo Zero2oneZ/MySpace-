@@ -1,0 +1,106 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "snap_to_unreal",
+  "category": "mocap",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Real-time motion capture from a Snap Camera Kit lens (phone webcam → BodyTrack landmarks) → MocapFrame (Meta Body joint vocabulary) → verify_alignment → UE5 Live Link. Mobile-friendly alternative to Meta XR; the same MocapFrame contract feeds the same animation_registry, so character rigs animate identically whether the capture came from Quest or phone.",
+
+  "inputs": [
+    {"name": "snap_lens_id", "type": "str", "required": false,
+      "default": "mspc_mocap_relay",
+      "notes": "Snap Studio lens ID that posts pose frames to the local relay"},
+    {"name": "rig_target_glb", "type": "path", "required": false,
+      "default": "Mixamo_X_Bot_default.fbx"},
+    {"name": "subject_name", "type": "str", "required": false,
+      "default": "MspcSnapChar"},
+    {"name": "unreal_host", "type": "str", "required": false,
+      "default": "127.0.0.1"},
+    {"name": "unreal_port", "type": "int", "required": false, "default": 11111},
+    {"name": "duration_s", "type": "float", "required": false, "default": 30.0},
+    {"name": "fps", "type": "int", "required": false, "default": 30}
+  ],
+
+  "outputs": [
+    {"name": "mocap_sink_path", "type": "path"},
+    {"name": "pose_jsonl_path", "type": "path"},
+    {"name": "animation_crystal", "type": "str"},
+    {"name": "live_link_session", "type": "json"}
+  ],
+
+  "passes": [
+    {
+      "id": "lens_capture",
+      "agent": "snap_camera_kit",
+      "model_path": "core/lib/third_party/snap_camera_kit.py::live_mocap_stream",
+      "engine": "mcp",
+      "in": ["snap_lens_id"],
+      "out": "mocap_sink_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Snap Studio lens posts pose+face frames to local relay at http://127.0.0.1:7787/snap_mocap. Relay writes JSONL rows to ~/.cc/snap_lens_mocap.jsonl. Connector reads from the sink path env-overridable via SNAP_MOCAP_SINK."
+    },
+    {
+      "id": "remap_to_meta_body",
+      "agent": "mocap_frame",
+      "model_path": "core/lib/mocap_frame.py::frames_to_mocap",
+      "engine": "deterministic",
+      "in": ["mocap_sink_path"],
+      "out": "pose_jsonl_path",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Snap's 17-joint BodyTrack vocabulary → Meta Body 24-joint via SNAP_BODYTRACK_TO_META_BODY remap. Missing joints emitted as identity transforms so UE5 skeleton stays aligned. Output at ~/.cc/snap_lens_mocap.normalized.jsonl."
+    },
+    {
+      "id": "register_source",
+      "agent": "animation_registry",
+      "model_path": "core/lib/animation_registry.py::register_source",
+      "engine": "deterministic",
+      "in": ["snap_lens_id", "rig_target_glb"],
+      "out": "registry_entry",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Add source row to studio/assets/_animation_sources/snap_lens_<id>.json with watch=true verified_at=null. mark_source_verified after frame_count threshold."
+    },
+    {
+      "id": "verify_alignment",
+      "agent": "mocap_rig_anchor",
+      "model_path": "core/lib/mocap_rig_anchor.py::verify_alignment",
+      "engine": "deterministic",
+      "in": ["pose_jsonl_path", "rig_target_glb"],
+      "out": "animation_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Per-frame topology + rig-fit + anchor-proximity. Snap's sparse 17-joint sometimes fails the 50% threshold; threshold tunable per source via the registry."
+    },
+    {
+      "id": "stream_to_unreal",
+      "agent": "unreal_live_link",
+      "model_path": "core/lib/third_party/unreal_live_link.py::stream",
+      "engine": "mcp",
+      "in": ["pose_jsonl_path", "subject_name", "unreal_host", "unreal_port", "fps"],
+      "out": "live_link_session",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "UDP JSON datagrams at fps; UE5 Live Link subject auto-appears. Dry-run unless MSPC_UNREAL_LIVE=1."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "raw_pose", "source": "pass:lens_capture", "blend": "base"},
+    {"name": "normalized", "source": "pass:remap_to_meta_body", "blend": "additive"},
+    {"name": "verified", "source": "pass:verify_alignment", "blend": "alpha"}
+  ],
+
+  "depends_on": [
+    "Snap Studio Lens authored under SnapKit account (TEXT-PLACEHOLDER on Snap side)",
+    "Local relay at http://127.0.0.1:7787/snap_mocap (TEXT-PLACEHOLDER)",
+    "core/lib/third_party/snap_camera_kit.py",
+    "core/lib/mocap_frame.py",
+    "core/lib/mocap_rig_anchor.py",
+    "core/lib/animation_registry.py",
+    "core/lib/third_party/unreal_live_link.py"
+  ]
+}

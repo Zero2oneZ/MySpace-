@@ -13,6 +13,9 @@ fi
 source .venv/bin/activate
 pip install --disable-pip-version-check -r requirements.txt
 
+# Canonical layout — idempotent, runs in <1s after the first time.
+python3 bootstrap.py >/dev/null
+
 port_in_use() {
   ss -tln 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$1\$"
 }

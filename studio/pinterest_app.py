@@ -17,15 +17,18 @@ import streamlit as st
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import bootstrap, paths  # noqa: E402  -- canonical layout
+bootstrap.ensure()
+
 from auth.gate import require_login  # noqa: E402
 from pinterest.client import PinterestClient, PinResult  # noqa: E402
 
 # Sidecar tooling
-sys.path.insert(0, str(HERE / "media" / ".tools"))
+sys.path.insert(0, str(paths.TOOLS_DIR))
 import sidecar  # noqa: E402
 
-MEDIA_ROOT = HERE / "media"
-PROCESS_PY = MEDIA_ROOT / ".tools" / "process.py"
+MEDIA_ROOT = paths.MEDIA_ROOT
+PROCESS_PY = paths.TOOLS_DIR / "process.py"
 
 
 st.set_page_config(page_title="Pinterest Search", page_icon="📌", layout="wide")

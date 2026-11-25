@@ -1,0 +1,56 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "endpoints",
+  "state": "active",
+  "version": "v0",
+  "role": "INBOUND · LISTENER_FABRIC",
+  "tier": "L0",
+  "module_paths": [
+    "core/lib/endpoints/base.py",
+    "core/lib/endpoints/registry.py",
+    "core/lib/endpoints/router.py",
+    "core/lib/endpoints/rest_server.py",
+    "core/lib/endpoints/webhook.py",
+    "core/lib/endpoints/__init__.py",
+    "core/lib/endpoints_cli.py"
+  ],
+  "summary": "Inbound event fabric. REST listeners + webhook receivers ingest external events, EndpointRegistry catalogs them, RoutingOperator matches each event against rules and dispatches the right action (forward, reply, broadcast, log, notify, chain).",
+  "engine_pattern": "abstract base.Endpoint (start/stop/receive/health) + registry pattern mirroring model_registry. Rules evaluated in priority order; first match wins.",
+  "storage": {
+    "configs": "studio/endpoints/{kind}/vm_mspc_001.{kind}.{service}.{name}.{state}.{version}.json",
+    "registry": "studio/endpoints/registry.json",
+    "rules": "studio/endpoints/routes/<priority>.<name>.json"
+  },
+  "actions": ["forward", "reply", "broadcast", "log", "notify", "chain"],
+  "exports": ["EndpointConfig", "ReceiveEvent", "EndpointRegistry", "RoutingOperator", "RouteRule"],
+  "substrate": "studio/endpoints (configs + rules + runtime registry)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_endpoint_start / cmd_endpoint_stop / cmd_endpoint_list / cmd_endpoint_status / cmd_endpoint_sync",
+      "CLI: python3 endpoints_cli.py start | stop | list | status | sync | route-add | route-list | route-test | route-archive",
+      "External clients hitting REST endpoints / webhook URLs"
+    ],
+    "outbound_calls": [
+      "RoutingOperator → action=chain: invokes cc chat <prompt> (the MoE gateway)",
+      "RoutingOperator → action=reply | broadcast: invokes third_party.ThirdPartyManager.send",
+      "RoutingOperator → action=log: appends to crystal chain via inference_logger",
+      "RoutingOperator → action=forward: re-dispatches to another endpoint"
+    ],
+    "substrate_reads": "studio/endpoints/registry.json + studio/endpoints/routes/*",
+    "substrate_writes": "appends event logs; updates per-endpoint health JSONs"
+  },
+  "merge_with_moe_stack": "When a route action is 'chain', the inbound event becomes the prompt to cc chat full. That call flows through the entire MoE-by-retrieval pipeline (user_graph predict → MoE retrieve → enhance → route → project → log → record) just like any human-typed prompt. External webhooks effectively become first-class participants in the crystal chain.",
+  "guarantees": [
+    "Deterministic rule evaluation: same event + same ruleset → same action",
+    "Append-only event log per endpoint",
+    "Crystal-chained: action=chain or action=log writes through inference_logger",
+    "Disposable listeners: start/stop is idempotent; missing configs return clean errors"
+  ],
+  "usage_example": "python3 core/lib/endpoints_cli.py start --kind webhook --name github_push --port 8090\\npython3 core/lib/endpoints_cli.py route-add --name 'gh_to_chain' --priority 10 --match-kind webhook --match-service github_push --action chain --template 'review PR {payload.number}'",
+  "chain_runs": ["moe_chain_router_v0"]
+}

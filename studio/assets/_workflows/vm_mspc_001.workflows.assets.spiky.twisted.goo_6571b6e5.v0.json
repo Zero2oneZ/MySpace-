@@ -1,0 +1,114 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "spiky.twisted.goo_6571b6e5",
+  "category": "assets",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: spiky twisted goo with smooth top for a cabin walkthrough",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_twist",
+      "agent": "Twist",
+      "kernel_ref": "modifier:Twist",
+      "engine": "deterministic",
+      "in": [
+        "GEO"
+      ],
+      "out": "GEO",
+      "tier": "deterministic",
+      "status": "PLANNED"
+    },
+    {
+      "id": "p01_image_to_3d",
+      "agent": "Image-to-3D",
+      "kernel_ref": "hf:Image-to-3D",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED"
+    },
+    {
+      "id": "p02_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED"
+    },
+    {
+      "id": "p03_realestate_walkthrough_p",
+      "agent": "realestate_walkthrough_purchase",
+      "kernel_ref": "card:realestate_walkthrough_purchase",
+      "engine": "card",
+      "in": [
+        "STR",
+        "STR",
+        "INT",
+        "STR",
+        "STR",
+        "INT"
+      ],
+      "out": "STR",
+      "tier": "deterministic",
+      "status": "PLANNED"
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_twist",
+      "source": "pass:p00_twist",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_image_to_3d",
+      "source": "pass:p01_image_to_3d",
+      "blend": "additive"
+    },
+    {
+      "name": "p02_blender",
+      "source": "pass:p02_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "p03_realestate_walkthrough_p",
+      "source": "pass:p03_realestate_walkthrough_p",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:realestate_walkthrough_purchase",
+    "connector:blender",
+    "hf:Image-to-3D",
+    "modifier:Twist"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "3d",
+      "game"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-29T23:57:45Z"
+  }
+}

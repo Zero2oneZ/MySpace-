@@ -1,0 +1,85 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "chain_render_bridge",
+  "state": "active",
+  "version": "v0",
+  "role": "GODOT_AUTOLOAD · CHAIN_RENDER_HTTP_FEED",
+  "tier": "L0",
+  "module_path": "studio/godot/project/src/chain_render_bridge.gd",
+
+  "summary": "Godot 4 autoload that polls godot_ssot_proxy (:8766) every 3s, pulls /chain/renders/recent, downloads new PNGs to user://chain_render_cache/, and emits render_arrived(crystal_short, image_path, manifest) for scenes to consume. Also fans out chain events from /chain/events/recent and loads /chain/programs/watchset at startup. Pull-only — no SSE; HTTPRequest in Godot 4 doesn't stream cleanly. Bearer token resolved from @export var → MSPC_GODOT_BEARER env → ~/.cc/godot_dev_token.txt (issued via cc godot-issue-dev-token).",
+
+  "signals": {
+    "render_arrived": "(crystal_short: String, image_path: String, manifest: Dictionary)",
+    "event_arrived": "(event: Dictionary)  — fresh chain event from program_monitor",
+    "watchset_loaded": "(entries: Array)  — program registry watchset (one-shot at start)",
+    "bridge_offline": "(error: String)  — proxy unreachable"
+  },
+
+  "consumed_endpoints": [
+    "GET /healthz                              (public)",
+    "GET /chain/renders/recent?n=20            (bearer)",
+    "GET /chain/render/<crystal_short>/manifest (bearer)",
+    "GET /chain/render/<crystal_short>/image   (bearer; image/png)",
+    "GET /chain/render/<crystal_short>/video   (bearer; video/mp4)",
+    "GET /chain/programs/watchset              (bearer)",
+    "GET /chain/events/recent?n=N&program=X&category=Y (bearer)"
+  ],
+
+  "autoload_singleton_name": "ChainRenderBridge",
+  "project_godot_line": "ChainRenderBridge=\"*res://src/chain_render_bridge.gd\"",
+
+  "scene_consumer": {
+    "demo": "studio/godot/project/scenes/chain_render_wall.tscn (3D wall of textured Sprite3D tiles, color-modulated by dim_pack.rgba, with category+action+crystal labels, auto-orbit camera)",
+    "controller": "studio/godot/project/src/chain_render_wall.gd"
+  },
+
+  "smoke_test_2026_05_29": {
+    "proxy_up": true,
+    "watchset_count": 22,
+    "renders_count": 5,
+    "first_rendered_visible": "0e515ed41a670c44 (Pump.fun create — the real 474 KB PNG)",
+    "events_count": 3,
+    "all_endpoints_200": true,
+    "auth_path": "freetier token issued via cc godot-issue-dev-token, stored at ~/.cc/godot_dev_token.txt"
+  },
+
+  "five_canonical_frames_per_arrived_render": {
+    "vector": "manifest.dim.vec64 (SHA-256 of canonical chain event)",
+    "circle": "manifest.dim.circle (render:<category>:<action>)",
+    "hex": "crystal_short (truncated InferenceLogger crystal)",
+    "rgb": "manifest.dim.rgba — Sprite3D.modulate is set to Color(r,g,b,1.0)",
+    "fps": "manifest.dim.frame60 (timestamp quantized at 60fps)"
+  },
+
+  "ring_buffer_size": 50,
+  "image_cache_dir": "user://chain_render_cache (Godot persistent storage)",
+  "poll_interval_s": 3.0,
+
+  "routing_connections": {
+    "inbound_callers": [
+      "any Godot scene that connects to ChainRenderBridge.render_arrived",
+      "chain_render_wall.gd (demo wall consumer)",
+      "future: morph_game_runtime scenes can tint avatars by chain event color"
+    ],
+    "outbound_calls": [
+      "GET godot_ssot_proxy:8766 (the chain endpoints above)"
+    ],
+    "substrate_reads": "~/.cc/godot_dev_token.txt (fallback bearer source)",
+    "substrate_writes": "user://chain_render_cache/<crystal_short>.png (Godot user dir)"
+  },
+
+  "cc_dispatchers": [
+    "cc godot-issue-dev-token        — write 30-day freetier token to ~/.cc/godot_dev_token.txt",
+    "cc godot-chain-smoke             — curl the 4 new /chain/* endpoints (debug)",
+    "cc godot-chain-wall              — launch chain_render_wall.tscn in Godot (requires Godot binary)"
+  ],
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Godot bridge · chain render display"
+}

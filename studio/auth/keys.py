@@ -62,7 +62,7 @@ ENV_PATH = Path(os.environ.get(
 CLAUDE_INPUT_PRICE_PER_TOKEN  = 3.0  / 1_000_000
 CLAUDE_OUTPUT_PRICE_PER_TOKEN = 15.0 / 1_000_000
 
-KINDS = ("claude", "pinterest", "client")
+KINDS = ("claude", "pinterest", "client", "sui", "stripe", "tensorchain", "deepseek")
 
 
 # ----------------------------------------------------------------------------
@@ -83,13 +83,19 @@ def load_env() -> dict:
 
 
 def upstream_key(kind: str) -> Optional[str]:
-    """Look up the real (upstream) API key for a kind from .env."""
+    """Look up the real (upstream) API key for a kind from .env.
+    The .env is mirrored between ~/Projects/MySpace++/ and ~/Projects/gently/
+    so either repo can read the same keys."""
     env = load_env()
     return {
-        "claude":    env.get("claude_guest") or env.get("CLAUDE_GUEST"),
-        "pinterest": env.get("pintrest_api") or env.get("PINTEREST_API")
-                     or env.get("PINTREST_API"),
-        "client":    env.get("client_api")   or env.get("CLIENT_API"),
+        "claude":      env.get("claude_guest") or env.get("CLAUDE_GUEST"),
+        "pinterest":   env.get("pintrest_api") or env.get("PINTEREST_API")
+                       or env.get("PINTREST_API"),
+        "client":      env.get("client_api")   or env.get("CLIENT_API"),
+        "sui":         env.get("SUI_WALLET")   or env.get("sui_wallet"),
+        "stripe":      env.get("STRIPE_SECRET_KEY") or env.get("STRIPE_API_KEY"),
+        "tensorchain": env.get("TENSORCHAIN_RPC")   or env.get("SUI_WALLET"),
+        "deepseek":    env.get("DEEPSEEK_API_KEY")  or env.get("INFERENCE_API_KEY"),
     }.get(kind)
 
 

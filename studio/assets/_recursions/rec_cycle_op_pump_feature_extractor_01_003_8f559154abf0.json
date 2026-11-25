@@ -1,0 +1,18 @@
+{
+  "crystal": "8f559154abf05cdeb03ac7577b98673bc59ba769f45431eaedc59e0515a9b2515c8ba6daff6813eb8086889c2074f02318f5fe3291e57207b95382b957df1d1f",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_pump_feature_extractor_01_003",
+  "kind": "simple_cycle",
+  "name": "pump_feature_extra",
+  "nodes": [
+    "op_pump_feature_extractor"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

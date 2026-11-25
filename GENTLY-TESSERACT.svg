@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:gently="https://gently.dev/svg-layers/v1"
+     xmlns:tesseract="https://gently.dev/tesseract/v1"
+     width="2400" height="1800"
+     viewBox="0 0 2400 1800"
+     font-family="monospace" font-size="13"
+     gently:schema="tesseract.v1">
+
+  <metadata id="meta-block">
+    <tesseract:about>
+      Tesseract Renderer — Master DAG
+      The single file that is the project. Edit me to reshape the system.
+      Agents read this file to know their next move. Subsystems toggle on/off
+      by editing my child `&lt;g&gt;` elements. See RUN20_TESSERACT_RENDERER_SPEC.md
+      for the full architecture contract.
+    </tesseract:about>
+    <tesseract:version>v1.0.0</tesseract:version>
+    <tesseract:created>2026-05-26</tesseract:created>
+  </metadata>
+
+  <defs>
+    <linearGradient id="active-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f4d2e"/>
+      <stop offset="100%" stop-color="#0d2e1c"/>
+    </linearGradient>
+    <linearGradient id="lazy-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4d4520"/>
+      <stop offset="100%" stop-color="#2a240c"/>
+    </linearGradient>
+    <linearGradient id="placeholder-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2c2c3a"/>
+      <stop offset="100%" stop-color="#1a1a24"/>
+    </linearGradient>
+    <style>
+      .label-h1 { fill: #ffeebb; font-size: 22px; font-weight: bold; }
+      .label-h2 { fill: #fff; font-size: 16px; font-weight: bold; }
+      .label-h3 { fill: #ddd; font-size: 13px; }
+      .label-mono { fill: #aacced; font-size: 11px; }
+      .label-note { fill: #888; font-size: 11px; font-style: italic; }
+      .cell-border { stroke: #444; stroke-width: 2; fill: none; }
+      .arrow { stroke: #aacced; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#aacced"/>
+    </marker>
+  </defs>
+
+  <!-- Page background -->
+  <rect width="100%" height="100%" fill="#0c1018"/>
+
+  <!-- ============================================================================ -->
+  <!-- TITLE BLOCK -->
+  <!-- ============================================================================ -->
+  <g id="title">
+    <text x="40" y="55" class="label-h1">⌬ Tesseract Renderer — Master DAG</text>
+    <text x="40" y="80" class="label-h3">project orchestrator · agent traversal map · subsystem registry · render scheduler</text>
+    <text x="40" y="100" class="label-note">edit any cell to reshape the system · agents read this file to know their next move</text>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 0: INSTRUCTIONS (how to use this file) -->
+  <!-- ============================================================================ -->
+  <g id="instructions" gently:pass="docs" gently:layer="0" transform="translate(40, 130)">
+    <rect width="2320" height="170" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 0 — how to use this file</text>
+    <text x="20" y="58" class="label-h3">FOR AGENTS:</text>
+    <text x="40" y="78" class="label-mono">1. Parse all &lt;g&gt; with gently:pass attribute. 2. Filter to nodes where every upstream has &lt;visit result="ok"/&gt;.</text>
+    <text x="40" y="96" class="label-mono">3. Pick one eligible. 4. Do its work. 5. Append &lt;visit agent="..." at="..." result="..." crystal="..."/&gt; inside the &lt;g&gt;.</text>
+    <text x="20" y="124" class="label-h3">FOR USERS:</text>
+    <text x="40" y="144" class="label-mono">Toggle subsystems by editing gently:status. Disable passes via gently:enabled="false". Override per-project via gently:extends.</text>
+    <text x="20" y="164" class="label-note">Full contract: /home/tom/Datasets/_intake/RUN20_TESSERACT_RENDERER_SPEC.md</text>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 1: OPERATIONS PASS (project init + activation) -->
+  <!-- ============================================================================ -->
+  <g id="operations" gently:pass="bootstrap" gently:layer="1" gently:role="orchestrator" transform="translate(40, 330)">
+    <rect width="2320" height="140" rx="8" fill="url(#active-bg)" class="cell-border"/>
+    <text x="20" y="28" class="label-h2">Layer 1 — Operations Pass (boot)</text>
+
+    <g id="op:project-type" transform="translate(20, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:project-type</text>
+      <text x="10" y="40" class="label-mono">avatar-chat | game | video-edit |</text>
+      <text x="10" y="56" class="label-mono">app-with-3d | cinematic | live</text>
+    </g>
+
+    <g id="op:file-types" transform="translate(360, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:file-types</text>
+      <text x="10" y="40" class="label-mono">fbx/glb/svg/mp4/wav/png/json/...</text>
+      <text x="10" y="56" class="label-mono">decides ingest pipelines</text>
+    </g>
+
+    <g id="op:subsystem-activation" gently:input="op:project-type" transform="translate(700, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:subsystem-activation</text>
+      <text x="10" y="40" class="label-mono">project-type → which subsystems</text>
+      <text x="10" y="56" class="label-mono">are active / lazy / placeholder</text>
+    </g>
+
+    <g id="op:budget-allocation" gently:input="op:project-type" transform="translate(1040, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:budget-allocation</text>
+      <text x="10" y="40" class="label-mono">inference_ms / render_ms /</text>
+      <text x="10" y="56" class="label-mono">network_ms / tweak_ms per tick</text>
+    </g>
+
+    <g id="op:identity" transform="translate(1380, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:identity</text>
+      <text x="10" y="40" class="label-mono">project_id + version + signature</text>
+      <text x="10" y="56" class="label-mono">= tesseract crystal</text>
+    </g>
+
+    <g id="op:asset-triplet" gently:input="op:file-types" transform="translate(1720, 50)">
+      <rect width="320" height="70" rx="6" fill="#0d2e1c" stroke="#555"/>
+      <text x="10" y="20" class="label-h3">op:asset-triplet</text>
+      <text x="10" y="40" class="label-mono">Meta / Blender / Unreal variants</text>
+      <text x="10" y="56" class="label-mono">per target engine (auto-export)</text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 2: 4 DAG CYCLES we already walked -->
+  <!-- ============================================================================ -->
+  <g id="dag-cycles" gently:pass="dag-container" gently:layer="2" transform="translate(40, 500)">
+    <rect width="2320" height="180" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 2 — The 4 DAG cycles already walked (referenced as data)</text>
+
+    <g id="dag:substrate" gently:pass="dag" gently:ref="/home/tom/Datasets/_intake/dag_nodes.csv"
+       transform="translate(20, 50)">
+      <rect width="560" height="110" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="20" class="label-h3">dag:substrate</text>
+      <text x="10" y="38" class="label-mono">51 nodes · pure-Rust deterministic substrate</text>
+      <text x="10" y="56" class="label-mono">root + derived + lensed + composition + output</text>
+      <text x="10" y="76" class="label-mono">→ dag_nodes.csv</text>
+      <text x="10" y="96" class="label-note">covers spatial probes, multi_modal, painter, capsule, lighting, scene_circle, god_box</text>
+    </g>
+
+    <g id="dag:traditional" gently:pass="dag"
+       gently:ref="/home/tom/Datasets/_intake/dag_traditional_alternatives.csv"
+       transform="translate(600, 50)">
+      <rect width="560" height="110" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="20" class="label-h3">dag:traditional</text>
+      <text x="10" y="38" class="label-mono">51 ML model alternatives mapped</text>
+      <text x="10" y="56" class="label-mono">Sapiens / DepthPro / VGGT / CoTracker / FLUX / Kimi / Wav2Lip</text>
+      <text x="10" y="76" class="label-mono">→ dag_traditional_alternatives.csv</text>
+      <text x="10" y="96" class="label-note">analysis-mode counterpart; HF dispatch via gently-hf-dispatch</text>
+    </g>
+
+    <g id="dag:fallbacks" gently:pass="dag"
+       gently:ref="/home/tom/Datasets/_intake/dag_fallbacks.csv"
+       transform="translate(1180, 50)">
+      <rect width="560" height="110" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="20" class="label-h3">dag:fallbacks</text>
+      <text x="10" y="38" class="label-mono">111 compensation rows</text>
+      <text x="10" y="56" class="label-mono">when X is missing → use Y</text>
+      <text x="10" y="76" class="label-mono">→ dag_fallbacks.csv</text>
+      <text x="10" y="96" class="label-note">quality: exact / degraded / approximation / trivial floor</text>
+    </g>
+
+    <g id="dag:mutability" gently:pass="dag"
+       gently:ref="/home/tom/Datasets/_intake/dag_mutability_map.csv"
+       transform="translate(1760, 50)">
+      <rect width="540" height="110" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="20" class="label-h3">dag:mutability</text>
+      <text x="10" y="38" class="label-mono">9 swappable components</text>
+      <text x="10" y="56" class="label-mono">risk-tiered (low/medium/high)</text>
+      <text x="10" y="76" class="label-mono">→ dag_mutability_map.csv</text>
+      <text x="10" y="96" class="label-note">runtime hot-swap matrix</text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 3: SUBSYSTEMS (10 of them) -->
+  <!-- ============================================================================ -->
+  <g id="subsystems" gently:pass="subsystem-container" gently:layer="3" transform="translate(40, 710)">
+    <rect width="2320" height="330" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 3 — Subsystems (4 active · 1 lazy · 5 placeholders)</text>
+
+    <!-- Row 1: ACTIVE subsystems -->
+    <g id="sys:3d-scene" gently:pass="subsystem" gently:status="active" transform="translate(20, 50)">
+      <rect width="450" height="80" rx="6" fill="url(#active-bg)" stroke="#5a7"/>
+      <text x="10" y="22" class="label-h3">sys:3d-scene  [active]</text>
+      <text x="10" y="42" class="label-mono">SceneCircle · GodBox · CapsuleRig · ScenePCG</text>
+      <text x="10" y="60" class="label-mono">crates: gently-probe (scene_circle, god_box, capsule)</text>
+      <text x="10" y="76" class="label-mono">+ gently-floorplan</text>
+    </g>
+
+    <g id="sys:texture" gently:pass="subsystem" gently:status="active" transform="translate(490, 50)">
+      <rect width="450" height="80" rx="6" fill="url(#active-bg)" stroke="#5a7"/>
+      <text x="10" y="22" class="label-h3">sys:texture  [active]</text>
+      <text x="10" y="42" class="label-mono">painter · multi_modal_hex (palette) · bw-patterns</text>
+      <text x="10" y="60" class="label-mono">crates: gently-probe (painter, multi_modal)</text>
+      <text x="10" y="76" class="label-mono">+ gently-bw-patterns</text>
+    </g>
+
+    <g id="sys:inference" gently:pass="subsystem" gently:status="active" transform="translate(960, 50)">
+      <rect width="450" height="80" rx="6" fill="url(#active-bg)" stroke="#5a7"/>
+      <text x="10" y="22" class="label-h3">sys:inference  [active]</text>
+      <text x="10" y="42" class="label-mono">budget router · hf-dispatch · TinyTransformer probe</text>
+      <text x="10" y="60" class="label-mono">crates: gently-inference-budget · gently-hf-dispatch</text>
+      <text x="10" y="76" class="label-mono">+ gently-probe (spatial, multi_modal)</text>
+    </g>
+
+    <g id="sys:render" gently:pass="subsystem" gently:status="active" transform="translate(1430, 50)">
+      <rect width="450" height="80" rx="6" fill="url(#active-bg)" stroke="#5a7"/>
+      <text x="10" y="22" class="label-h3">sys:render  [active]</text>
+      <text x="10" y="42" class="label-mono">lighting orbit · paint + composite · ffmpeg encode</text>
+      <text x="10" y="60" class="label-mono">crates: gently-probe (lighting, painter)</text>
+      <text x="10" y="76" class="label-mono">+ ffmpeg subprocess (frame → MP4)</text>
+    </g>
+
+    <g id="sys:youtube-import" gently:pass="subsystem" gently:status="lazy" transform="translate(1900, 50)">
+      <rect width="400" height="80" rx="6" fill="url(#lazy-bg)" stroke="#aa6"/>
+      <text x="10" y="22" class="label-h3">sys:youtube-import  [lazy]</text>
+      <text x="10" y="42" class="label-mono">yt-dlp · ffmpeg av-split · Vocal-Isolator</text>
+      <text x="10" y="60" class="label-mono">crate: gently-youtube-import</text>
+      <text x="10" y="76" class="label-mono">+ whisper STT (pip install required)</text>
+    </g>
+
+    <!-- Row 2: PLACEHOLDER subsystems (not yet implemented) -->
+    <g id="sys:makeup" gently:pass="subsystem" gently:status="placeholder" transform="translate(20, 140)">
+      <rect width="370" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:makeup  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">face-region editor + per-zone style transfer</text>
+      <text x="10" y="60" class="label-mono">candidate: Flux2-Klein-Face-Swap</text>
+      <text x="10" y="76" class="label-mono">+ user-curated lookbook</text>
+    </g>
+
+    <g id="sys:furniture" gently:pass="subsystem" gently:status="placeholder" transform="translate(410, 140)">
+      <rect width="370" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:furniture  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">PCG via kit-bashing + WFC + floorplan</text>
+      <text x="10" y="60" class="label-mono">candidate: Kenney CC0 kits + gently-floorplan</text>
+      <text x="10" y="76" class="label-mono">+ instancing pass</text>
+    </g>
+
+    <g id="sys:search" gently:pass="subsystem" gently:status="placeholder" transform="translate(800, 140)">
+      <rect width="370" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:search  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">semantic index of assets / projects / models</text>
+      <text x="10" y="60" class="label-mono">candidate: gently-bb-struct + CLIP embeddings</text>
+      <text x="10" y="76" class="label-mono">+ chain-traced disambiguation</text>
+    </g>
+
+    <g id="sys:business" gently:pass="subsystem" gently:status="placeholder" transform="translate(1190, 140)">
+      <rect width="370" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:business  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">licensing · billing · usage tracking</text>
+      <text x="10" y="60" class="label-mono">candidate: BTC anchor + block-height clock</text>
+      <text x="10" y="76" class="label-mono">+ per-asset usage crystal</text>
+    </g>
+
+    <g id="sys:app-builder" gently:pass="subsystem" gently:status="placeholder" transform="translate(1580, 140)">
+      <rect width="370" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:app-builder  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">project SVG → web/app/static-site scaffolds</text>
+      <text x="10" y="60" class="label-mono">candidate: bb-emit / next.js / Tauri</text>
+      <text x="10" y="76" class="label-mono">+ deploy chain</text>
+    </g>
+
+    <g id="sys:communications" gently:pass="subsystem" gently:status="placeholder" transform="translate(1970, 140)">
+      <rect width="330" height="80" rx="6" fill="url(#placeholder-bg)" stroke="#666"/>
+      <text x="10" y="22" class="label-h3">sys:communications  [placeholder]</text>
+      <text x="10" y="42" class="label-mono">Slack / Discord / email / webhooks</text>
+      <text x="10" y="60" class="label-mono">candidate: gently-cc embed bridge</text>
+      <text x="10" y="76" class="label-mono">+ project-status broadcaster</text>
+    </g>
+
+    <!-- Subsystem activation matrix preview -->
+    <g id="activation-matrix" transform="translate(20, 240)">
+      <rect width="2280" height="70" rx="4" fill="#11161f" stroke="#333"/>
+      <text x="10" y="20" class="label-h3">activation matrix preview (op:project-type → subsystem state)</text>
+      <text x="10" y="40" class="label-mono">avatar-chat  →  3d=A · texture=A · inference=A · render=A · youtube=L · comms=L · makeup=P · furniture=P · search=P · business=P · app-builder=P</text>
+      <text x="10" y="58" class="label-mono">game         →  3d=A · texture=A · render=A · inference=A · app-builder=A · search=L · business=L · others=P</text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 4: CROSS-CUTTING CONCERNS -->
+  <!-- ============================================================================ -->
+  <g id="cross-cutting" gently:pass="concerns" gently:layer="4" transform="translate(40, 1070)">
+    <rect width="2320" height="160" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 4 — Cross-cutting concerns (cut across every subsystem)</text>
+
+    <g id="cc:budget" transform="translate(20, 50)">
+      <rect width="450" height="100" rx="6" fill="#1d2434" stroke="#48a"/>
+      <text x="10" y="22" class="label-h3">cc:budget</text>
+      <text x="10" y="42" class="label-mono">crate: gently-inference-budget</text>
+      <text x="10" y="60" class="label-mono">Realtime / Draft / Standard / Cinematic</text>
+      <text x="10" y="78" class="label-mono">pick_pipeline(passes, quality, max_vram)</text>
+      <text x="10" y="94" class="label-note">per-pass: picked + alternates for tweak UI</text>
+    </g>
+
+    <g id="cc:scheduling" transform="translate(490, 50)">
+      <rect width="450" height="100" rx="6" fill="#1d2434" stroke="#48a"/>
+      <text x="10" y="22" class="label-h3">cc:scheduling</text>
+      <text x="10" y="42" class="label-mono">crate: gently-scheduler (Run #16)</text>
+      <text x="10" y="60" class="label-mono">activation_hex (multi-modal address)</text>
+      <text x="10" y="78" class="label-mono">204-entry calibration (probe × layer)</text>
+      <text x="10" y="94" class="label-note">layer-multiplexed dispatch via TinyTransformer</text>
+    </g>
+
+    <g id="cc:caching" transform="translate(960, 50)">
+      <rect width="450" height="100" rx="6" fill="#1d2434" stroke="#48a"/>
+      <text x="10" y="22" class="label-h3">cc:caching</text>
+      <text x="10" y="42" class="label-mono">crate: gently-crystal + gently-content-hash</text>
+      <text x="10" y="60" class="label-mono">gently:cache-key per pass; topo-cached</text>
+      <text x="10" y="78" class="label-mono">cross-project artifact sharing</text>
+      <text x="10" y="94" class="label-note">blake3-FNV-interleave; deterministic</text>
+    </g>
+
+    <g id="cc:identity" transform="translate(1430, 50)">
+      <rect width="450" height="100" rx="6" fill="#1d2434" stroke="#48a"/>
+      <text x="10" y="22" class="label-h3">cc:identity</text>
+      <text x="10" y="42" class="label-mono">crate: gently-probe (multi_modal hex)</text>
+      <text x="10" y="60" class="label-mono">character_id = hash(lighting_cache)</text>
+      <text x="10" y="78" class="label-mono">project_id = tesseract crystal</text>
+      <text x="10" y="94" class="label-note">N5 of novel triangulations (identity from lighting)</text>
+    </g>
+
+    <g id="cc:asset-triplet" transform="translate(1900, 50)">
+      <rect width="400" height="100" rx="6" fill="#1d2434" stroke="#48a"/>
+      <text x="10" y="22" class="label-h3">cc:asset-triplet</text>
+      <text x="10" y="42" class="label-mono">crate: gently-probe (asset_target)</text>
+      <text x="10" y="60" class="label-mono">meta.glb · blender.fbx · unreal.fbx</text>
+      <text x="10" y="78" class="label-mono">runtime convert via coordinate_system</text>
+      <text x="10" y="94" class="label-note">Meta-XR is canonical</text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 5: AGENT VISIT LOG -->
+  <!-- ============================================================================ -->
+  <g id="agent-log" gently:pass="meta" gently:layer="5" transform="translate(40, 1260)">
+    <rect width="2320" height="140" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 5 — Agent visit log (append-only, one &lt;visit/&gt; per node-work)</text>
+    <text x="20" y="56" class="label-mono">Agents append: &lt;visit agent="..." at="ISO8601" result="ok|failed" took_ms="..." crystal="..." /&gt;</text>
+    <text x="20" y="76" class="label-note">Open this SVG in a browser while agents work — each visit adds a coloured chip below.</text>
+
+    <g id="visit-history">
+      <!-- Bootstrap visit -->
+      <visit agent="claude-bootstrap" at="2026-05-26T13:00:00Z" result="ok" took_ms="0"
+             crystal="0000000000000000" node="title"/>
+      <text x="40" y="110" class="label-mono">
+        ● 2026-05-26T13:00Z  claude-bootstrap  title  ok  0ms  crystal=0000...
+      </text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- LAYER 6: TESSERACT META (project crystal + global state) -->
+  <!-- ============================================================================ -->
+  <g id="tesseract-meta" gently:pass="meta" gently:layer="6" transform="translate(40, 1430)">
+    <rect width="2320" height="120" rx="8" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="28" class="label-h2">Layer 6 — Tesseract crystal + global state</text>
+
+    <g id="tesseract-crystal">
+      <text x="20" y="56" class="label-h3">tesseract-crystal:</text>
+      <text x="200" y="56" class="label-mono" id="crystal-value">computed at runtime via blake3(canonical_xml_bytes)</text>
+    </g>
+    <g id="last-tick">
+      <text x="20" y="80" class="label-h3">last-tick:</text>
+      <text x="200" y="80" class="label-mono">no agent has visited yet · run gently_tesseract_walk to start</text>
+    </g>
+    <g id="render-stats">
+      <text x="20" y="104" class="label-h3">render-stats:</text>
+      <text x="200" y="104" class="label-mono">0 ticks · 0 cached artifacts · 0 ms inference · 0 KB on disk</text>
+    </g>
+  </g>
+
+  <!-- ============================================================================ -->
+  <!-- FOOTER -->
+  <!-- ============================================================================ -->
+  <g id="footer" transform="translate(40, 1580)">
+    <text x="0" y="20" class="label-note">Tesseract Renderer v1.0.0 · Run #20 keystone · edit me, agents will follow</text>
+    <text x="0" y="40" class="label-note">spec: /home/tom/Datasets/_intake/RUN20_TESSERACT_RENDERER_SPEC.md</text>
+    <text x="0" y="60" class="label-note">to extend: create a child SVG with gently:extends="templates/tesseract/master.svg"</text>
+  </g>
+
+</svg>

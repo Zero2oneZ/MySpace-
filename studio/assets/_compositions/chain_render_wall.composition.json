@@ -1,0 +1,34 @@
+{
+  "_schema": "godot_composition_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "chain_render_wall_compiled",
+  "root_class": "Node3D",
+  "script_path": "res://src/chain_render_wall.gd",
+  "summary": "Compiled-from-composition variant of chain_render_wall.tscn — same behavior, declarative source. Procedural children (tiles, sun, env, orbit camera) are still built at runtime by chain_render_wall.gd; this composition provides static scene anchors for editor preview + deterministic load order.",
+  "children": [
+    {
+      "element": "camera3d",
+      "name": "OrbitCamera",
+      "exports": {
+        "position": "Vector3(0, 2.5, 8.0)",
+        "fov": "75.0",
+        "current": "true"
+      }
+    },
+    {
+      "element": "directional_light3d",
+      "name": "Sun",
+      "exports": {
+        "rotation_degrees": "Vector3(-45, -45, 0)",
+        "light_energy": "1.0"
+      }
+    },
+    {
+      "element": "world_environment",
+      "name": "WorldEnv",
+      "exports": {}
+    }
+  ],
+  "depends_on": ["chain_render_bridge.gd autoload"],
+  "phase": "Composition proof"
+}

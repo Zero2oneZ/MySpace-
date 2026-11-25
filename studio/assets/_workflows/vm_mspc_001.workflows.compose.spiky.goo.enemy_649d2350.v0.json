@@ -1,0 +1,121 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "spiky.goo.enemy_649d2350",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: spiky goo enemy with hue shift on damage",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_godot",
+      "agent": "godot",
+      "kernel_ref": "connector:godot",
+      "engine": "godot",
+      "in": [
+        "3D"
+      ],
+      "out": "SCENE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    },
+    {
+      "id": "p01_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    },
+    {
+      "id": "p02_depth_estimation",
+      "agent": "Depth Estimation",
+      "kernel_ref": "hf:Depth Estimation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "DEPTH_MAP",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    },
+    {
+      "id": "p03_image_to_3d",
+      "agent": "Image-to-3D",
+      "kernel_ref": "hf:Image-to-3D",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_godot",
+      "source": "pass:p00_godot",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_blender",
+      "source": "pass:p01_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "p02_depth_estimation",
+      "source": "pass:p02_depth_estimation",
+      "blend": "additive"
+    },
+    {
+      "name": "p03_image_to_3d",
+      "source": "pass:p03_image_to_3d",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "connector:blender",
+    "connector:godot",
+    "hf:Depth Estimation",
+    "hf:Image-to-3D"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "game",
+      "3d"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:39:01Z"
+  }
+}

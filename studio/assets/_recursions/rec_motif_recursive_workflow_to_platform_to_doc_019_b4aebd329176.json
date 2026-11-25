@@ -1,0 +1,29 @@
+{
+  "crystal": "b4aebd3291767c4463daf0e262823d4c94b764cfe2ede328280e9923581f37c297655ed8f7dcdca92cc4895f255cd298c03a1a105729b19accc7f07dbdb15657",
+  "description": "Pattern 'recursive_workflow\u2192platform\u2192doc' appears 10 times across DOCS,PLATFORMS,RECURSIVE_WORKFLOWS",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_recursive_workflow_to_platform_to_doc_019",
+  "kind": "motif",
+  "name": "motif: recursive_workflow\u2192platform\u2192doc",
+  "nodes": [
+    "op_discord_mcp",
+    "op_doc_agent_audit_2026_05_28",
+    "rec_cycle_op_discord_mcp_02_000",
+    "rec_cycle_op_discord_mcp_04_001",
+    "rec_motif_agent_to_app_to_platform_013",
+    "rec_motif_doc_to_app_to_platform_005",
+    "rec_motif_doc_to_app_to_platform_014",
+    "rec_motif_platform_to_app_to_platform_006",
+    "rec_motif_recursive_workflow_to_app_to_platform_011",
+    "rec_motif_recursive_workflow_to_platform_to_app_009",
+    "rec_motif_recursive_workflow_to_platform_to_doc_012",
+    "rec_scc_op_provider_groq_04_000"
+  ],
+  "size": 10,
+  "sub_dags_touched": [
+    "DOCS",
+    "PLATFORMS",
+    "RECURSIVE_WORKFLOWS"
+  ]
+}

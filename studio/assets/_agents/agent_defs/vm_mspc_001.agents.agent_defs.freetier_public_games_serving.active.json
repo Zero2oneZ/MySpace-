@@ -1,0 +1,103 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "freetier_public_games_serving",
+  "state": "active",
+  "version": "v0",
+  "role": "DEPLOY · GODOT_INSTANT_GAMES_STATIC_HOSTING",
+  "tier": "L0",
+  "module_paths": [
+    "studio/deploy/freetier_public/Caddyfile.droplet",
+    "studio/deploy/freetier_public/sync-games-build.sh",
+    "studio/deploy/freetier_public/README_games.md"
+  ],
+
+  "_sidecar_of": "vm_mspc_001.agents.agent_defs.freetier_public_deploy",
+  "_sidecar_rationale": "Documents JUST the games-static-serving additions (Caddy /play/* blocks + sync-games-build.sh + README_games.md). Kept separate from freetier_public_deploy.active.json to avoid edit-collision with parallel agents touching the deploy card.",
+
+  "summary": "Adds Facebook Instant Games-compliant static hosting of Godot Web HTML5 builds at https://trollz.fun/play/<game_slug>/ and https://GentlyOS.io/play/<game_slug>/. The Caddyfile fragment grows two new (games_headers) and (games_mime) snippets plus a handle_path /play/* block inside EACH of the trollz.fun and GentlyOS.io server blocks (BEFORE their catch-all). The sync-games-build.sh script ships a freshly-exported Godot build from studio/godot/builds/web_instant_games/ to /opt/mspc-public/games/<game_slug>/ via rsync+ssh, DRY_RUN=1 by default. README_games.md documents the build -> dry-run -> push -> rollback flow.",
+
+  "engine_pattern": "Caddy file_server serves /opt/mspc-public/games/<game_slug>/index.html with COEP=require-corp + COOP=same-origin (needed for Godot 4 threaded WASM SharedArrayBuffer), CORP=cross-origin + CSP frame-ancestors allowing facebook.com / messenger.com (so FB can iframe the game). MIME overrides force application/wasm on *.wasm, application/octet-stream on *.pck / *.data. sync-games-build.sh is a standalone script (NOT chained into deploy.sh) — it runs pre-flight (slug regex, build dir + index.html present, rsync local, droplet SSH probe) and only rsyncs static files; never touches systemd or Caddy.",
+
+  "components": {
+    "Caddyfile.droplet (additions)": "Two shared snippets at top: (games_headers) sets COEP/COOP/CORP/CSP/X-Content-Type-Options/Referrer-Policy/Cache-Control; (games_mime) maps *.wasm to application/wasm and *.pck / *.data to application/octet-stream. Inside each domain block (trollz.fun, GentlyOS.io), a new `handle_path /play/* { root * /opt/mspc-public/games; import games_headers; import games_mime; file_server { index index.html } }` placed BEFORE the catch-all. Existing /terms*, /endpoint/freetier/*, /v1/*, /healthz blocks untouched.",
+    "sync-games-build.sh": "Bash, set -euo pipefail. Args: game_slug (default 'myspace_pp'), local_build_dir (default '/data/Projects/MySpace++/studio/godot/builds/web_instant_games'). Env: DROPLET_HOST, REMOTE_GAMES_ROOT, SSH_KEY, DRY_RUN (default 1). Pre-flight: validates slug ^[a-z0-9_-]+$, verifies BUILD_DIR exists + has index.html, rsync installed locally, SSH BatchMode probe to droplet. Then mkdir + chown on droplet, rsync --delete-after with chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r, post-rsync chown -R mspc:mspc + find chmod 755/644.",
+    "README_games.md": "Operator docs: cc godot-export web_instant_games to build; bash sync-games-build.sh <slug> to dry-run; DRY_RUN=0 ... to push; FB Instant Games header rationale table; manual rollback via mv /opt/mspc-public/games/<slug>{,.broken}; explicit note that the script does NOT touch systemd / Caddy / FB registration."
+  },
+
+  "ports_and_paths": {
+    "laptop_source": {
+      "godot_build_dir": "studio/godot/builds/web_instant_games/  (output of `cc godot-export web_instant_games`)",
+      "caddy_fragment": "studio/deploy/freetier_public/Caddyfile.droplet (shipped by deploy.sh)",
+      "sync_script":    "studio/deploy/freetier_public/sync-games-build.sh"
+    },
+    "droplet_layout": {
+      "games_root":     "/opt/mspc-public/games/",
+      "per_game_slug":  "/opt/mspc-public/games/<game_slug>/index.html + *.wasm + *.pck + *.js",
+      "caddy_fragment": "/etc/caddy/Caddyfile.d/mspc-freetier-public  (same path as freetier_public_deploy)",
+      "owner":          "mspc:mspc (created by freetier_public_deploy)"
+    },
+    "public_surface": {
+      "trollz.fun":     "/play/<game_slug>/* (added — was 404 before)",
+      "GentlyOS.io":    "/play/<game_slug>/* (added — was 404 before)"
+    }
+  },
+
+  "headers_applied": {
+    "Cross-Origin-Embedder-Policy":   "require-corp  — needed for SharedArrayBuffer (Godot 4 threaded WASM)",
+    "Cross-Origin-Opener-Policy":     "same-origin   — pair with COEP for cross-origin isolation",
+    "Cross-Origin-Resource-Policy":   "cross-origin  — lets Facebook fetch our assets from inside its iframe",
+    "Content-Security-Policy":        "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com https://www.messenger.com — whitelists FB / Messenger as embedders",
+    "X-Content-Type-Options":         "nosniff",
+    "Referrer-Policy":                "no-referrer-when-downgrade",
+    "Cache-Control":                  "public, max-age=3600 (short — exact-hash filenames are safer for long caching)",
+    "Content-Type *.wasm":            "application/wasm (required for WebAssembly.instantiateStreaming)"
+  },
+
+  "user_prerequisites_before_first_push": [
+    "freetier_public_deploy has already run at least once with DRY_RUN=0 so the mspc user, /opt/mspc-public/ tree, and Caddy are in place",
+    "The updated Caddyfile.droplet has been shipped (re-run deploy.sh OR manually scp + caddy reload — see README_games.md)",
+    "Godot project exports a Web preset named 'web_instant_games' that writes to studio/godot/builds/web_instant_games/",
+    "cc godot-export web_instant_games has produced an index.html + *.wasm + *.pck in the build dir",
+    "Same DNS + SSH key prereqs as freetier_public_deploy (A records, root@159.89.181.146 reachable)"
+  ],
+
+  "substrate": "studio/deploy/freetier_public/ — adds 3 deltas (Caddyfile additions + sync-games-build.sh + README_games.md) on top of the existing 5-file bundle owned by freetier_public_deploy.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Tom runs sync-games-build.sh manually from laptop after exporting a Godot Web build",
+      "Public HTTPS clients hit https://trollz.fun/play/<slug>/ or https://GentlyOS.io/play/<slug>/",
+      "Facebook Instant Games iframe embeds https://www.facebook.com/instantgames/ -> https://trollz.fun/play/<slug>/"
+    ],
+    "outbound_calls": [
+      "rsync over ssh to root@159.89.181.146",
+      "ssh mkdir + chown on droplet (only when DRY_RUN=0)"
+    ],
+    "substrate_reads": [
+      "studio/godot/builds/web_instant_games/ (the local build dir)"
+    ],
+    "substrate_writes": "none locally; on droplet writes /opt/mspc-public/games/<game_slug>/ tree"
+  },
+
+  "guarantees": [
+    "DRY_RUN=1 by default — accidental invocation never modifies droplet state",
+    "Pre-flight fails fast before any SSH call if build dir or index.html missing, or slug shape invalid",
+    "Slug regex ^[a-z0-9_-]+$ prevents path traversal into REMOTE_GAMES_ROOT",
+    "Existing freetier surfaces (/terms*, /endpoint/freetier/*, /v1/*, /healthz) untouched — only NEW handle_path /play/* blocks added",
+    "Does NOT modify deploy.sh or any systemd unit — separation of concerns from freetier_public_deploy",
+    "Does NOT register the game with Facebook — that is facebook_games_sdk's role (register_instant_game tool)",
+    "Does NOT call cc godot-export — Tom runs that explicitly before invoking this script",
+    "Idempotent — re-running upgrades in place via rsync --delete-after"
+  ],
+
+  "usage_example": "cd studio/deploy/freetier_public/\\n# Build:\\ncc godot-export web_instant_games\\n# Dry-run sync:\\nbash sync-games-build.sh myspace_pp\\n# Real push:\\nDRY_RUN=0 bash sync-games-build.sh myspace_pp\\n# Verify:\\ncurl -I https://trollz.fun/play/myspace_pp/\\ncurl -I https://GentlyOS.io/play/myspace_pp/  # both expect COEP / COOP / CSP headers",
+
+  "rollback": "ssh root@159.89.181.146 'mv /opt/mspc-public/games/<slug>{,.broken}' — Caddy will start 404ing /play/<slug>/ immediately (file_server). Re-push a known-good build with DRY_RUN=0 bash sync-games-build.sh <slug> /path/to/good/build. To take the games surface fully offline, comment the handle_path /play/* blocks in Caddyfile.droplet and reload caddy — other freetier routes keep serving.",
+
+  "phase": "production hand-off bundle for Godot Instant Games static surface — sidecar of freetier_public_deploy (D.7+)"
+}

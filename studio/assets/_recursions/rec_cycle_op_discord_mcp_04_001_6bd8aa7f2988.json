@@ -1,0 +1,26 @@
+{
+  "crystal": "6bd8aa7f2988e1fd431b35cc2a7f143ac8ea5963bb3eb0584ab8b9373a0a4e2e078017ca6b872e5f7cdf36c10aca77b76f619af60f4c4d5e7664e26486b45c9c",
+  "description": "Simple cycle of length 4 spanning APPS,DOCS,INFERENCE,PLATFORMS",
+  "edge_kinds_traversed": [
+    "feeds_back",
+    "feeds_into",
+    "produces"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_discord_mcp_04_001",
+  "kind": "simple_cycle",
+  "name": "discord-mcp \u2192 DAG-FLOW \u2192 groq...",
+  "nodes": [
+    "op_discord_mcp",
+    "op_doc_dag_flow",
+    "op_provider_groq",
+    "op_product_avatar_nft"
+  ],
+  "size": 4,
+  "sub_dags_touched": [
+    "APPS",
+    "DOCS",
+    "INFERENCE",
+    "PLATFORMS"
+  ]
+}

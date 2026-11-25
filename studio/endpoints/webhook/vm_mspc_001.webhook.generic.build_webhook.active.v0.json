@@ -1,0 +1,32 @@
+{
+  "_schema": "endpoint_config_v1",
+  "asset_id": "vm_mspc_001.webhook.generic.build_webhook.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "kind": "webhook",
+  "service": "generic",
+  "name": "build_webhook",
+  "state": "active",
+  "version": "v0",
+  "bind": {
+    "host": "0.0.0.0",
+    "port": 9000,
+    "path": "/webhook/build",
+    "method": "POST"
+  },
+  "auth": {
+    "secret_header": "X-Webhook-Secret",
+    "secret_value": "REPLACE_ME"
+  },
+  "routing": {
+    "default_tag": "build_complete",
+    "priority": 0,
+    "fallback_service": "telegram"
+  },
+  "limits": {
+    "max_body_mb": 10,
+    "rate_limit": 100,
+    "timeout_seconds": 30
+  },
+  "created_at": "2026-05-28T00:00:00Z"
+}

@@ -1,0 +1,126 @@
+{
+  "_schema": "text_placeholder_ops_v1",
+  "_purpose": "Forward-compatible placeholders for the wider Hugging Face surface beyond hf_hub. Each is a named OpKind reservation; when the corresponding substrate lands we activate the op without renaming. Cards that reference these by id keep working across the activation switch.",
+  "_anchor": "hf_hub (core/lib/hf_hub.py) is the live umbrella; the entries below are the long-tail HF ecosystem.",
+
+  "operations": [
+    {
+      "id": "op_hf_transformers_inference",
+      "summary": "Local transformers pipeline call — when local GPU is available, run inference through `transformers.pipeline(task, model=...)` instead of routing to cloud providers.",
+      "engine": "transformers",
+      "agent": "hf_transformers_local",
+      "expected_module": "core/lib/transformers_local.py (placeholder)",
+      "links_to_substrate": "task_queue.GPU pool; complements hf_hub.inference (cloud) with on-device path",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_diffusers_local",
+      "summary": "Local diffusers run for image/video/audio generation. Wraps StableDiffusionPipeline / FluxPipeline / HunyuanVideoPipeline. Mounts via model_installer's existing flux_2_klein lora.",
+      "engine": "diffusers",
+      "agent": "hf_diffusers_local",
+      "expected_module": "core/lib/diffusers_local.py (placeholder)",
+      "links_to_substrate": "task_queue.GPU pool + lora_swap (peft); studio_runtime._dispatch_diffusers wires here when activated",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_peft_lora_swap",
+      "summary": "Hot-swap a LoRA / adapter onto an already-loaded base model. Routes through peft for parameter-efficient inference deltas without reloading 9B weights.",
+      "engine": "peft",
+      "agent": "hf_peft_lora",
+      "expected_module": "core/lib/peft_lora.py (placeholder)",
+      "links_to_substrate": "diffusers_local; workflow_card.layer_stack 'lora_delta' entry",
+      "examples": "FLUX.2-klein-9B base + flux_2_klein_face_swap LoRA (already on disk)",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_accelerate_launch",
+      "summary": "Multi-GPU / FSDP / DeepSpeed launch wrapper. When a card pass needs distributed compute across our 2× RTX 3090 Ti, route through accelerate.",
+      "engine": "accelerate",
+      "agent": "hf_accelerate",
+      "expected_module": "core/lib/accelerate_launch.py (placeholder)",
+      "links_to_substrate": "task_queue.GPU pool; gpu_router selects which device + accelerate config",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_optimum_quantize",
+      "summary": "Apply optimum's quantization / pruning / distillation to a base model on-disk; produces a smaller variant in /home/tom/models/optimum/.",
+      "engine": "optimum",
+      "agent": "hf_optimum",
+      "expected_module": "core/lib/optimum_compress.py (placeholder)",
+      "links_to_substrate": "model_installer (writes the quantized variant); ops_dag (cheap tier)",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_candle_rust_inference",
+      "summary": "Rust-side inference via candle — when the gently/ Rust chain needs ML inference and we don't want to cross the Python boundary, route through candle's GGUF / safetensors backends. Pairs with telos-ml-tools MCP on the gently side.",
+      "engine": "candle",
+      "agent": "hf_candle",
+      "expected_module": "gently/crates/telos-ml-tools/candle_runner.rs (placeholder)",
+      "links_to_substrate": "gently chain side; this entry exists for cross-half awareness via NOTES-FOR-INFERANCE.md",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_kernels_load",
+      "summary": "Load a compute kernel from kernels-community via the kernels Python lib. For when a card pass needs a specific CUDA op not in upstream torch.",
+      "engine": "kernels",
+      "agent": "hf_kernels",
+      "expected_module": "core/lib/hf_kernels.py (placeholder)",
+      "links_to_substrate": "diffusers_local / transformers_local — drop-in kernel replacement",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_lerobot_train",
+      "summary": "lerobot end-to-end learning pipeline for robotics policies. Cross-pollinates with spatial_anchor: the same coord_graph that anchors a real room can serve as the manipulation frame for a policy. Future humanoid-avatar control loop.",
+      "engine": "lerobot",
+      "agent": "hf_lerobot",
+      "expected_module": "core/lib/lerobot_bridge.py (placeholder)",
+      "links_to_substrate": "spatial_anchor (room frame); workflow_card 'engine: lerobot' passes",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_mount_fs",
+      "summary": "Mount a HF model/dataset bucket as a local filesystem via hf-mount (Rust). No download — direct read from S3-style backing. Lets ComfyUI / diffusers / model_installer treat the entire Hub as if it were /mnt/hf/.",
+      "engine": "hf_mount",
+      "agent": "hf_mount_fs",
+      "expected_module": "scripts/hf-mount.sh wrapper (placeholder)",
+      "links_to_substrate": "model_installer (extends model_path resolution to /mnt/hf/...); task_queue.CLOUD (zero-copy paths)",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_datasets_stream",
+      "summary": "Stream HF datasets via the hf_hub.stream_dataset() helper. Wraps the datasets-server rows API so training/eval loops can iterate without parquet download.",
+      "engine": "hf",
+      "agent": "hf_datasets_stream",
+      "expected_module": "core/lib/hf_hub.py::stream_dataset (LIVE)",
+      "links_to_substrate": "datasets_index (extends local dataset catalog to cloud); workflow_card data-feed passes",
+      "state": "ACTIVE"
+    },
+    {
+      "id": "op_hf_trl_rlhf",
+      "summary": "TRL — train transformer language models with reinforcement learning. When we want to fine-tune a router/classifier on our own crystal-chain feedback loop, route through trl. Pairs with codie-oracle on the gently side.",
+      "engine": "trl",
+      "agent": "hf_trl",
+      "expected_module": "core/lib/trl_train.py (placeholder)",
+      "links_to_substrate": "moe_router (training data via crystal chain); dialectic_walker (IS-NOT signal as reward)",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_timm_image_encode",
+      "summary": "Image encoder/backbone via pytorch-image-models (timm). Drop-in for the 'embed an image' lane that we currently lack — pairs the SVG vector embedder with a pixel embedder for the same hypersphere.",
+      "engine": "timm",
+      "agent": "hf_timm_encoder",
+      "expected_module": "core/lib/timm_encode.py (placeholder)",
+      "links_to_substrate": "svg_vector_embed (joins the same 64-d L2-normalized space); moe_router 6th retrieval axis",
+      "state": "TEXT-PLACEHOLDER"
+    },
+    {
+      "id": "op_hf_speech_to_speech",
+      "summary": "Local voice agent loop — STT → LLM → TTS via the speech-to-speech repo. Pairs with our existing vocal_separator + wardrobe_studio audio paths.",
+      "engine": "hf_s2s",
+      "agent": "hf_speech_to_speech",
+      "expected_module": "core/lib/speech_to_speech.py (placeholder)",
+      "links_to_substrate": "vocal_separator; AudioRecord schema in cc.db",
+      "state": "TEXT-PLACEHOLDER"
+    }
+  ]
+}

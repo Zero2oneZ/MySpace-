@@ -1,0 +1,109 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "generative_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "META-CONNECTOR · GENERATIVE_FANOUT",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/generative_mcp.py",
+
+  "summary": "Single front-door meta-connector for every generative modality. Does NOT call external services itself — every tool fans out to a sibling substrate connector that is already wired (ModelAPI, DeepSeek MCP, ComfyUI MCP, Blender MCP, Replit bridge). Each successful call appends one InferenceRecord with tier='generative', model='generative_mcp', scope='generative_<tool>', and the subordinate's crystal_id is preserved in metadata.sub_crystal so the fan-out chain stays traceable end-to-end. Stdlib only — urllib for the HTTP hop to studio/mcp/replit-bridge on port 8765.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp / deepseek_mcp shape. SERVICE='generative_mcp'. Every subordinate is imported behind try/except so a missing sibling never breaks the whole connector; per-tool readiness is reported via which_tools_available(). Tool dispatch via send(recipient=tool_name, message=json_args). connect() is auth-free (the meta-connector has no key surface of its own) and always returns True; per-tool ability to fire is gated at call-time.",
+
+  "expected_tools": [
+    "generate_text",
+    "generate_code",
+    "generate_card",
+    "generate_image",
+    "generate_3d",
+    "generate_app"
+  ],
+
+  "tool_fanout": {
+    "generate_text":  "core/lib/model_api.py::ModelAPI.text(prompt, max_tokens, cost_class)",
+    "generate_code":  "core/lib/model_api.py::ModelAPI.code(prompt, language, max_tokens)",
+    "generate_card":  "ModelAPI.text(...) with strict-JSON system primer + JSON.loads validation + write to studio/assets/_workflows|_products|_agents/agent_defs/generated_<crystal_short>.json",
+    "generate_image": "core/lib/third_party/comfyui_mcp.py::ComfyUIMCPConnector.submit_workflow_and_wait('text_to_image', {'prompt': ...}) — falls back to .send('text_to_image', ...). Returns SendResult(success=False, error='comfyui_not_available') when the connector cannot be imported.",
+    "generate_3d":    "TEXT-PLACEHOLDER for v1 — autonomous_modeler arrives in Phase B.3. Returns SendResult(success=False, error='autonomous_modeler not yet built (Phase B.3)') with the prompt + max_iter preserved in metadata for future replay.",
+    "generate_app":   "POST http://localhost:8765/mcp/call with {tool: 'generate_app', args: {workflow_card_slug, target}} via stdlib urllib. Returns SendResult(success=False, error='replit_bridge_not_running') when the bridge is offline."
+  },
+
+  "subordinate_connectors": {
+    "model_api":  "core/lib/model_api.py::ModelAPI — unified text/code/embed rail, port 8521",
+    "deepseek":   "core/lib/third_party/deepseek_mcp.py::DeepSeekMCPConnector — cheap-tier inference, OpenAI-compat",
+    "comfyui":    "core/lib/third_party/comfyui_mcp.py::ComfyUIMCPConnector — image generation (workflow submit + wait)",
+    "blender":    "core/lib/third_party/blender_mcp.py::BlenderMCPConnector — 3D substrate (subprocess + stdio fallback)",
+    "pinterest":  "core/lib/third_party/pinterest.py::PinterestConnector — harvest images",
+    "hf_hub":     "core/lib/hf_hub.py::inference — HF router fallback (called via ModelAPI when DeepSeek misses)",
+    "replit_bridge": "studio/mcp/replit-bridge/server.py — Replit deploy bridge, FastAPI on port 8765 (POST /mcp/call)"
+  },
+
+  "env_vars": {
+    "REPLIT_BRIDGE_URL": "Override default http://localhost:8765/mcp/call (e.g. point at droplet)"
+  },
+
+  "convenience_wrappers": [
+    "generate_text(prompt, max_tokens=256, cost_class='cheap')",
+    "generate_code(prompt, language='python', max_tokens=400)",
+    "generate_card(prompt, kind='workflow'|'product'|'agent_def')",
+    "generate_image(prompt, size='1024x1024')",
+    "generate_3d(prompt, max_iter=2)",
+    "generate_app(card_slug, target='replit')",
+    "which_tools_available() → {subordinates: {...}, tools: {tool: bool}}"
+  ],
+
+  "exports": [
+    "GenerativeMCPConnector",
+    "EXPECTED_TOOLS",
+    "KIND_DIR",
+    "REPLIT_BRIDGE_URL"
+  ],
+
+  "substrate": "studio/third_party/generative_mcp/ (per-config persistence) + ~/.cc/third_party_logs/generative_mcp_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored generative records, tier='generative'). Successful generate_card calls also write studio/assets/_workflows|_products|_agents/agent_defs/generated_<crystal_short>.json.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio_runtime when pass.engine='generative'",
+      "core/cc.sh::cmd_generative_* (future)",
+      "Replit-deployed apps via the unified bridge",
+      "agents that want one single fan-out front door for all modalities"
+    ],
+    "outbound_calls": [
+      "core/lib/model_api.py::ModelAPI.text / .code  (generate_text, generate_code, generate_card)",
+      "core/lib/third_party/comfyui_mcp.py::ComfyUIMCPConnector.submit_workflow_and_wait  (generate_image)",
+      "http://localhost:8765/mcp/call  (generate_app via Replit bridge)",
+      "inference_logger.log (every success: tier='generative', model='generative_mcp', forward_chain_inline=<sub_crystal>)"
+    ],
+    "substrate_reads": "nothing directly — subordinate connectors read their own .env / keys",
+    "substrate_writes": "send_log entries + crystal_chain generative records + generated card JSON files"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "connect": "ok — True (always; no auth surface of its own)",
+    "which_tools_available": "all 6 subordinates imported clean (model_api, comfyui, deepseek, blender, pinterest, hf_hub)",
+    "generate_text": "ok — DeepSeek via ModelAPI returned 'Hi' for 1-word probe (cost_class='cheap')",
+    "generate_code": "ok — DeepSeek via ModelAPI returned working python lambda: 'max_of_two = lambda a, b: a if a > b else b'",
+    "generate_3d":   "expected_fail — emits 'autonomous_modeler not yet built (Phase B.3)' as designed",
+    "generate_app":  "untested in smoke — requires Replit bridge running on :8765",
+    "generate_card": "untested in smoke — requires online model"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful tool call has a deterministic InferenceRecord with tier='generative', model='generative_mcp', scope='generative_<tool>', and forward_chain_inline=<subordinate_crystal> for end-to-end traceability",
+    "Graceful — every subordinate import is wrapped in try/except; a missing sibling returns SendResult(success=False, error='<sub>_not_available') for that one tool but never breaks the whole connector",
+    "Stdlib-only — no third-party HTTP client; urllib handles the one outbound POST to the Replit bridge",
+    "Meta-only — fans out, never calls a model itself; tier='generative' records always reference a sub_crystal from the underlying provider",
+    "No duplicated infrastructure — every modality reuses ModelAPI / DeepSeek / ComfyUI / Replit bridge as the source of truth"
+  ],
+
+  "usage_example": "from core.lib.third_party.generative_mcp import GenerativeMCPConnector\\nc = GenerativeMCPConnector()\\nc.connect()\\nprint(c.which_tools_available())\\nr = c.send('generate_text', '{\"prompt\":\"hi\",\"max_tokens\":10}')\\nprint(r.message_preview, r.crystal_id, r.metadata['sub_crystal'])",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.4 of plan — meta-MCP fan-out front door"
+}

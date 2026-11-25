@@ -1,0 +1,13 @@
+[Unit]
+Description=MySpace++ Replit Data Dump + Code Generation Sync
+
+[Service]
+Type=oneshot
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/replit_sync.py --data-dir /opt/mspc-public/solana/feed --replit-project zero2onez-solana-sync
+StandardOutput=append:/var/log/mspc/replit-sync.log
+StandardError=append:/var/log/mspc/replit-sync.log

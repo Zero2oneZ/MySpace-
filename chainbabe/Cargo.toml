@@ -1,0 +1,32 @@
+[package]
+name = "chainbabe"
+version = "0.1.0"
+edition = "2021"
+description = "chainbabe — Semantic instruction compiler with dual-model orchestration"
+license = "MIT"
+
+[[bin]]
+name = "chainbabe"
+path = "src/main.rs"
+
+[dependencies]
+blake3 = "1.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+dirs = "5"
+rusqlite = { version = "0.32", features = ["bundled"] }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+futures = "0.3"
+tokio-stream = "0.1"
+
+[profile.release]
+opt-level = 2
+lto = true

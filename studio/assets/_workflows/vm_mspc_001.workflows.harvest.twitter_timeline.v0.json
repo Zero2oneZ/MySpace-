@@ -1,0 +1,145 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "twitter_timeline",
+  "category": "harvest",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Tweepy timeline harvest (Phase D.3). Pull recent tweets from a handle (or search query, or follower list), record each as InferenceRecord(tier='social_event'), feed into stream_encoder for CLIP embedding so tweets become retrievable + correlatable against chain events + mocap + DOM. The social-signal feeder layer.",
+
+  "inputs": [
+    {"name": "harvest_mode", "type": "str", "required": true,
+      "notes": "timeline | search | followers"},
+    {"name": "target", "type": "str", "required": true,
+      "notes": "handle (timeline/followers) or query string (search)"},
+    {"name": "limit", "type": "int", "required": false, "default": 50},
+    {"name": "since_id", "type": "str", "required": false,
+      "notes": "Cursor pagination; idempotent re-runs supply last seen tweet_id"},
+    {"name": "lang", "type": "str", "required": false, "default": "en",
+      "notes": "Search mode only"}
+  ],
+
+  "outputs": [
+    {"name": "harvested_count", "type": "int"},
+    {"name": "tweet_jsonl_path", "type": "path"},
+    {"name": "next_since_id", "type": "str"},
+    {"name": "harvest_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "check_credentials",
+      "agent": "keys",
+      "model_path": "studio/auth/keys.py::upstream_key",
+      "engine": "deterministic",
+      "in": [],
+      "out": "creds_ok",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Require TWITTER_BEARER_TOKEN + (TWITTER_CONSUMER_KEY for write actions). When missing → twitter.py emits stub records to keep the pipeline alive; harvest_count=0."
+    },
+    {
+      "id": "harvest_timeline",
+      "agent": "twitter_mcp",
+      "model_path": "core/lib/third_party/twitter.py::harvest_timeline",
+      "engine": "tweepy",
+      "in": ["target", "limit", "since_id"],
+      "out": "tweet_rows",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on harvest_mode=='timeline'. client.get_users_tweets(handle, max_results=limit, since_id=since_id)."
+    },
+    {
+      "id": "harvest_search",
+      "agent": "twitter_mcp",
+      "model_path": "core/lib/third_party/twitter.py::search_tweets",
+      "engine": "tweepy",
+      "in": ["target", "lang", "limit"],
+      "out": "tweet_rows",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on harvest_mode=='search'. client.search_recent_tweets(query, max_results=limit, lang=lang)."
+    },
+    {
+      "id": "harvest_followers",
+      "agent": "twitter_mcp",
+      "model_path": "core/lib/third_party/twitter.py::list_followers",
+      "engine": "tweepy",
+      "in": ["target", "limit"],
+      "out": "follower_rows",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on harvest_mode=='followers'. client.get_users_followers(handle, max_results=limit). Output schema differs from tweets — separate jsonl path."
+    },
+    {
+      "id": "write_jsonl",
+      "agent": "twitter_mcp",
+      "model_path": "core/lib/third_party/twitter.py::write_harvest_jsonl",
+      "engine": "deterministic",
+      "in": ["tweet_rows", "harvest_mode", "target"],
+      "out": "tweet_jsonl_path",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Append to ~/.cc/twitter_harvest/<mode>_<sha8>/<date>.jsonl. stream_encoder.tail_sinks should pick this up (add to its sink list)."
+    },
+    {
+      "id": "anchor_events",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log_batch",
+      "engine": "deterministic",
+      "in": ["tweet_rows"],
+      "out": "harvest_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Per-tweet: tier='social_event', model='twitter', chain_context='tweet_harvested'. Batch crystal links them by correlation_id. Enables 'cc inference-chain --tier social_event' as the social signal log."
+    },
+    {
+      "id": "ingest_to_index",
+      "agent": "embedding_index",
+      "model_path": "core/lib/embedding_index.py::ingest_jsonl",
+      "engine": "deterministic",
+      "in": ["tweet_jsonl_path"],
+      "out": "indexed_count",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "If continuous_clip_encoder daemon is running, it auto-ingests via tail_sinks. Otherwise this pass does the deferred load."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "harvest", "source": "pass:harvest_timeline", "blend": "base"},
+    {"name": "search", "source": "pass:harvest_search", "blend": "additive"},
+    {"name": "followers", "source": "pass:harvest_followers", "blend": "additive"},
+    {"name": "embeddings", "source": "pass:ingest_to_index", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "cc": {
+      "dispatchers": [
+        "cc twitter-harvest \"@handle\" --limit 50",
+        "cc twitter-search \"mocap quest\" --limit 100",
+        "cc twitter-followers \"@handle\" --limit 200"
+      ]
+    },
+    "mcp": {
+      "transport": "stdio",
+      "tools": [
+        "harvest_timeline",
+        "search_tweets",
+        "list_followers",
+        "engage",
+        "create_tweet",
+        "send_direct_message"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/third_party/twitter.py (existing live tweepy connector — extend with 4 new tools per D.3)",
+    "TWITTER_BEARER_TOKEN + TWITTER_CONSUMER_KEY + TWITTER_CONSUMER_SECRET + TWITTER_ACCESS_TOKEN + TWITTER_ACCESS_TOKEN_SECRET (user-provisioned)",
+    "core/lib/embedding_index.py (existing — task #98)",
+    "core/lib/stream_encoder.py (existing — task #98)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "facebook_games_sdk",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · FACEBOOK_GAMES_SDK_REST",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/facebook_games_sdk.py",
+
+  "summary": "Facebook Games SDK REST connector scoped to https://developers.facebook.com/docs/games/. Covers Login (debug_token), App Events (send_app_event), Instant Games (register_instant_game, leaderboard_get, notification_send), and limited Graph (graph_get_me, app_secret_proof_compute). Stdlib-only (no `facebook-sdk` python package). Auth model: app access token computed via /oauth/access_token client_credentials grant (cached for the lifetime of the connector instance), with `<app_id>|<app_secret>` fallback. User-context endpoints require FB_USER_ACCESS_TOKEN; appsecret_proof auto-attached to /me when both app secret + user token are present. Every successful HTTP call appends one InferenceRecord with tier='social_event', model='facebook_games', scope=f'fb_<tool>'. Graceful degrade: missing FB_APP_ID + FB_APP_SECRET → connect() returns False and every send() returns SendResult(success=False, error='facebook_games_keys not configured') without making any network requests.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp + deepseek_mcp shape exactly. SERVICE='facebook_games'. Form-encoded urllib POSTs to graph.facebook.com/<version>/* for write endpoints, GETs for reads. Tool dispatch via send(recipient=tool_name, message=json_args). connect() probes /oauth/access_token grant_type=client_credentials and caches the app token. app_secret_proof_compute is purely local (hmac/hashlib) and bypasses the connect gate, returning a graceful 'missing FB_APP_SECRET' error if the secret is absent.",
+
+  "expected_tools": [
+    "debug_token",
+    "send_app_event",
+    "register_instant_game",
+    "leaderboard_get",
+    "notification_send",
+    "graph_get_me",
+    "app_secret_proof_compute",
+    "verify_credentials"
+  ],
+
+  "env_vars": {
+    "FB_APP_ID":             "Facebook App ID (developers.facebook.com/apps → App Settings → Basic)",
+    "FB_APP_SECRET":         "Facebook App Secret (same dashboard; treat as bearer-equivalent)",
+    "FB_USER_ACCESS_TOKEN":  "Optional user-OAuth token for /me + appsecret_proof flows",
+    "FB_GRAPH_API_VERSION":  "Override default v18.0 (e.g. v19.0, v20.0)",
+    "FB_GRAPH_API_BASE":     "Full base URL override (skips version composition)"
+  },
+
+  "user_provisioning_required": {
+    "status": "NOT YET PROVISIONED",
+    "rationale": "FB_APP_ID and FB_APP_SECRET are user-issued credentials tied to a Meta developer account. They are NOT included in the shared .env today. Until Tom provisions them the connector will graceful-fail every send() call without making any network requests.",
+    "vars_to_set_in_env": [
+      "FB_APP_ID",
+      "FB_APP_SECRET",
+      "FB_USER_ACCESS_TOKEN"
+    ],
+    "how_to_obtain": [
+      "1. Visit https://developers.facebook.com/apps and create or select an App.",
+      "2. From the App Dashboard → Settings → Basic, copy 'App ID' → FB_APP_ID.",
+      "3. From the same panel, click 'Show' on 'App Secret' → FB_APP_SECRET.",
+      "4. For FB_USER_ACCESS_TOKEN: use the Graph API Explorer (https://developers.facebook.com/tools/explorer/) — select your app, generate a User Access Token with the scopes you need (e.g. 'public_profile', 'email', 'user_friends', or 'gaming_user_picture' / 'gaming_profile' for Instant Games).",
+      "5. To register an Instant Game or send notifications, Meta requires the app to pass App Review for the relevant permissions; 4xx from register_instant_game is expected until review completes.",
+      "6. Append these lines to /data/Projects/MySpace++/.env (mirrored to /data/Projects/gently/.env):",
+      "     FB_APP_ID=<your-app-id>",
+      "     FB_APP_SECRET=<your-app-secret>",
+      "     FB_USER_ACCESS_TOKEN=<optional-user-token>"
+    ],
+    "docs_link": "https://developers.facebook.com/docs/games/"
+  },
+
+  "convenience_wrappers": [
+    "verify_credentials()  — read-only smoke; fetches app token then GET /<app_id>?fields=name,namespace,category",
+    "debug_token(input_token)  — GET /debug_token?input_token=<t>&access_token=<app_token>; unwraps data envelope",
+    "send_app_event(event_name, custom_data={}, event_id='')  — POST /<app_id>/activities with CUSTOM_APP_EVENTS shape",
+    "register_instant_game(name, category, namespace, asset_urls)  — POST /<app_id>/instant_games (likely needs Meta review → 4xx documented as expected)",
+    "leaderboard_get(leaderboard_api_name, limit=10)  — GET /<leaderboard>/scores?limit=<n>",
+    "notification_send(recipient_id, template_name)  — POST /<app_id>/notifications",
+    "graph_get_me(user_access_token)  — GET /me?access_token=<uat>&fields=id,name,email&appsecret_proof=<hmac>",
+    "app_secret_proof_compute(user_access_token)  — local HMAC SHA-256; no HTTP, no connect required"
+  ],
+
+  "exports": [
+    "FacebookGamesSDKConnector",
+    "EXPECTED_TOOLS",
+    "DEFAULT_GRAPH_VERSION",
+    "DEFAULT_GRAPH_HOST"
+  ],
+
+  "substrate": "studio/third_party/facebook_games/ (per-config persistence) + ~/.cc/third_party_logs/facebook_games_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored social_event records, tier='social_event')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh (future: cmd_fb_games_test / cmd_fb_event / cmd_fb_leaderboard)",
+      "studio/dapp/server.py (future: /dapp/api/fb_event for game telemetry)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='facebook_games')"
+    ],
+    "outbound_calls": [
+      "https://graph.facebook.com/<version>/oauth/access_token   (connect probe)",
+      "https://graph.facebook.com/<version>/debug_token          (validate token)",
+      "https://graph.facebook.com/<version>/<app_id>/activities  (App Events)",
+      "https://graph.facebook.com/<version>/<app_id>/instant_games",
+      "https://graph.facebook.com/<version>/<leaderboard>/scores",
+      "https://graph.facebook.com/<version>/<app_id>/notifications",
+      "https://graph.facebook.com/<version>/me                   (OAuth user)",
+      "inference_logger.log (every success: tier='social_event', model='facebook_games')"
+    ],
+    "substrate_reads": "FB_APP_ID + FB_APP_SECRET + FB_USER_ACCESS_TOKEN + FB_GRAPH_API_VERSION + FB_GRAPH_API_BASE via studio/auth/keys.load_env",
+    "substrate_writes": "send_log entries + crystal_chain social_event records (only when keys present + call succeeds)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "connect": "expected_false — FB_APP_ID + FB_APP_SECRET absent from .env (user provisioning pending)",
+    "verify_credentials": "expected_graceful_fail — SendResult(success=False, error='facebook_games_keys not configured')",
+    "no_network_calls": "verified — every send() returns the graceful error before any urllib request when keys are absent",
+    "syntax": "ok — python ast.parse succeeds"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful HTTP tool call has a deterministic InferenceRecord with tier='social_event', model='facebook_games', scope='fb_<tool>'",
+    "Stdlib-only — no `facebook-sdk` or `requests` package required; uses urllib (form-encoded POST + GET)",
+    "Graceful — missing FB_APP_ID/FB_APP_SECRET → connect() returns False and send() returns SendResult(success=False, error='facebook_games_keys not configured') WITHOUT any network call",
+    "Redacted logs — access_token, input_token, user_access_token, appsecret_proof, app_secret are stripped from the crystal-anchor payload",
+    "appsecret_proof local — app_secret_proof_compute is a pure HMAC SHA-256 computation; no HTTP, available even without a working connect",
+    "Auto-proof — graph_get_me auto-appends appsecret_proof when both FB_APP_SECRET and a user token are available (FB server-call best practice)",
+    "Versioned — FB_GRAPH_API_VERSION env-controlled (default v18.0); FB_GRAPH_API_BASE for full overrides"
+  ],
+
+  "usage_example": "from core.lib.third_party.facebook_games_sdk import FacebookGamesSDKConnector\\nc = FacebookGamesSDKConnector()\\nif c.connect():\\n    r = c.send('verify_credentials', '')\\n    print(r.metadata.get('name'), r.crystal_id)\\n    r2 = c.send('send_app_event', json.dumps({'event_name':'level_completed','custom_data':{'level':3,'score':1250}}))\\n    print(r2.success, r2.crystal_id)\\nelse:\\n    print('no FB_APP_ID/FB_APP_SECRET — set in .env to enable')",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "third_party connector expansion — Facebook Games SDK surface"
+}

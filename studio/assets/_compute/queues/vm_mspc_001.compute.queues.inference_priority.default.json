@@ -1,0 +1,18 @@
+{
+  "_schema": "compute_queue_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "compute",
+  "category": "queues",
+  "name": "inference_priority",
+  "state": "active",
+  "version": "default",
+  "queue_type": "priority_heap",
+  "max_concurrent": 5,
+  "scheduling": "fifo_with_priority",
+  "workers": ["z21_gpu_0", "z21_gpu_1"],
+  "active_jobs": [],
+  "completed_jobs": [],
+  "failed_jobs": []
+}

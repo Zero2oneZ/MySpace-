@@ -1,0 +1,494 @@
+{
+  "_schema": "infrastructure_registry_v1",
+  "_description": "Canonical registry of all infrastructure assets: compute, network, agents, web, comms",
+  "_vm_consolidation_ref": "VM-CONSOLIDATION.md §9",
+  "last_updated": "2026-05-27T23:00:00Z",
+  "compute": {
+    "gpu_profiles": [
+      {
+        "asset_id": "vm_mspc_001.compute.gpu_profiles.rtx3090ti.24gb.v0.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "device": "z21_gpu_0",
+        "model": "RTX 3090 Ti",
+        "vram_gb": 24,
+        "state": "active",
+        "allocator_rules": {
+          "depth_pro": 1500,
+          "mediapipe_pose": 50,
+          "spacetimegpt": 2000,
+          "qwen_anypose": 3000,
+          "longcat_avatar": 4000
+        }
+      }
+    ],
+    "workers": [
+      {
+        "asset_id": "vm_mspc_001.compute.workers.droplet_159_89_181_146.online.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "host": "159.89.181.146",
+        "role": "router",
+        "state": "online",
+        "services": ["caddy_tls:443", "watchdog_mcp:3100", "trollz_api:8080"]
+      }
+    ],
+    "queues": [
+      {
+        "asset_id": "vm_mspc_001.compute.queues.inference_priority.default.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "inference_priority",
+        "max_concurrent": 5,
+        "scheduling": "fifo_with_priority"
+      }
+    ]
+  },
+  "network": {
+    "routers": [
+      {
+        "asset_id": "vm_mspc_001.network.routers.droplet_main.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "host": "159.89.181.146",
+        "services": ["caddy_tls:443", "watchdog_mcp:3100", "trollz_api:8080"]
+      }
+    ],
+    "devices": [
+      {
+        "asset_id": "vm_mspc_001.network.devices.z21_dual_rtx3090ti.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "hostname": "z21",
+        "os": "NixOS",
+        "gpus": 2,
+        "location": "local"
+      }
+    ],
+    "peers": [
+      {
+        "asset_id": "vm_mspc_001.network.peers.droplet_z21_tunnel.wg0.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "tunnel_type": "wireguard",
+        "endpoint": "159.89.181.146:51820",
+        "state": "active"
+      }
+    ]
+  },
+  "agents": {
+    "mcp_servers": [
+      {
+        "asset_id": "vm_mspc_001.agents.mcp_servers.gently_watchdog.3100.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "host": "159.89.181.146",
+        "port": 3100,
+        "sigil": "WATCHDOG",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.mcp_servers.gently_scope_explorer.7392.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "host": "z21",
+        "port": 7392,
+        "sigil": "SCOPE",
+        "state": "active"
+      }
+    ],
+    "inference_chains": [
+      {
+        "asset_id": "vm_mspc_001.agents.inference_chains.run_20_avatar_pipeline.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "chain_id": "run_20",
+        "name": "avatar_pipeline",
+        "steps": 11,
+        "state": "active",
+        "free_concurrent": ["depth_pro", "mediapipe_pose", "spacetimegpt", "qwen_anypose", "ik_delta"]
+      }
+    ],
+    "agent_defs": [
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.infra_orchestrator.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "infra_orchestrator",
+        "role": "PLATFORM · INFRASTRUCTURE",
+        "tier": "L0",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.moe_chain_router.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "moe_chain_router",
+        "role": "PLATFORM · INFRASTRUCTURE",
+        "tier": "L0",
+        "summary": "Stack card — deterministic MoE via retrieval over the crystal chain. XMLParser-shaped cursor across crystal chain + user_graph + MoE index.",
+        "modules": [
+          "core/lib/parser_cursor.py",
+          "core/lib/inference_logger.py",
+          "core/lib/forward_projector.py",
+          "core/lib/user_graph.py",
+          "core/lib/moe_router.py",
+          "core/lib/chat.py"
+        ],
+        "primary_command": "cc chat <prompt>",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.parser_cursor.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "parser_cursor",
+        "role": "ENGINE · CURSOR_BASE",
+        "tier": "L0",
+        "module_path": "core/lib/parser_cursor.py",
+        "substrate": "none (base class)",
+        "engine_pattern": "XMLParser API",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.inference_logger.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "inference_logger",
+        "role": "SUBSTRATE · CRYSTAL_CHAIN",
+        "tier": "L0",
+        "module_path": "core/lib/inference_logger.py",
+        "substrate": "crystal_chain",
+        "storage": "~/.cc/inference_master_chain.jsonl",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.forward_projector.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "forward_projector",
+        "role": "PROJECTOR · FORWARD_CHAIN",
+        "tier": "L0",
+        "module_path": "core/lib/forward_projector.py",
+        "substrate": "none (stateless projector)",
+        "modes": ["inline", "posthoc"],
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.user_graph.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "user_graph",
+        "role": "SUBSTRATE · USER_CHAIN_OF_THOUGHT",
+        "tier": "L0",
+        "module_path": "core/lib/user_graph.py",
+        "substrate": "user_graph",
+        "storage": "~/.cc/user_graph.jsonl",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.moe_router.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "moe_router",
+        "role": "ROUTER · MIXTURE_OF_EXPERTS_RETRIEVAL",
+        "tier": "L0",
+        "module_path": "core/lib/moe_router.py",
+        "substrate": "moe_index (in-memory, built from crystal_chain)",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.chat_gateway.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "chat_gateway",
+        "role": "GATEWAY · DETERMINISTIC_CHAT",
+        "tier": "L0",
+        "module_path": "core/lib/chat.py",
+        "substrate": "none (touches all)",
+        "primary_command": "cc chat <prompt>",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.prompt_enhancer.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "prompt_enhancer",
+        "role": "ENHANCER · DETERMINISTIC_REWRITE",
+        "tier": "L0",
+        "module_path": "core/lib/prompt_enhancer.py",
+        "substrate": "none (pure transform)",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.token_router.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "token_router",
+        "role": "ROUTER · TOKEN_BUDGET_ROUTING",
+        "tier": "L0",
+        "module_path": "core/lib/token_router.py",
+        "substrate": "studio/models/registry.json (read-only via model_registry)",
+        "depends_on": ["model_registry"],
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.model_installer.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "model_installer",
+        "role": "INSTALLER · MODEL_LIFECYCLE",
+        "tier": "L0",
+        "module_path": "core/lib/model_installer.py",
+        "substrate": "studio/models tree",
+        "in_tree_card": "studio/models/AGENT_CARD.md",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.model_registry.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "model_registry",
+        "role": "REGISTRY · MODEL_LOOKUP",
+        "tier": "L0",
+        "module_path": "core/lib/model_registry.py",
+        "substrate": "studio/models/registry.json (read-only)",
+        "consumed_by": ["token_router", "chat_gateway (transitively)"],
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.endpoints.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "endpoints",
+        "role": "INBOUND · LISTENER_FABRIC",
+        "tier": "L0",
+        "module_paths": ["core/lib/endpoints/", "core/lib/endpoints_cli.py"],
+        "substrate": "studio/endpoints",
+        "merge_point": "action=chain dispatches inbound events to cc chat full — external webhooks become first-class crystal-chain entries",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.agents.agent_defs.third_party.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "third_party",
+        "role": "OUTBOUND · CONNECTOR_FABRIC",
+        "tier": "L0",
+        "module_paths": ["core/lib/third_party/", "core/lib/third_party_cli.py"],
+        "substrate": "studio/third_party",
+        "merge_point": "every send logs an InferenceRecord (tier='outbound') — outbound messages become retrievable experts in the MoE router",
+        "state": "active"
+      }
+    ]
+  },
+  "web": {
+    "sites": [
+      {
+        "asset_id": "vm_mspc_001.web.sites.myspace_studio.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "myspace_studio",
+        "stack": "HTMX + salvo + flat HTML",
+        "host": "159.89.181.146",
+        "state": "active"
+      }
+    ],
+    "streams": [
+      {
+        "asset_id": "vm_mspc_001.web.streams.livestream_001.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "livestream_001",
+        "encoder": "nvenc_h264",
+        "source": "z21_gpu_0",
+        "state": "active"
+      }
+    ]
+  },
+  "comms": {
+    "permissions": [
+      {
+        "asset_id": "vm_mspc_001.comms.permissions.friend_access_registry.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "friend_access_registry",
+        "registry": "studio/auth/keys.sqlite",
+        "state": "active"
+      }
+    ],
+    "messages": [
+      {
+        "asset_id": "vm_mspc_001.comms.messages.inter_session_protocol.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "name": "inter_session_protocol",
+        "parties": ["mspc", "gently"],
+        "protocol": "NOTES-FOR-INFERANCE.md",
+        "state": "active"
+      }
+    ]
+  },
+  "tenants": {
+    "configs": [
+      {
+        "asset_id": "vm_mspc_001.tenants.configs.zero2onez_platform.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "tenant_id": "tnt_zero2onez",
+        "display_name": "Zero2oneZ Platform",
+        "tier": "platform",
+        "level": "L0",
+        "state": "active"
+      },
+      {
+        "asset_id": "vm_mspc_001.tenants.configs.acme_corp.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "tenant_id": "tnt_acme_corp",
+        "display_name": "Acme Corporation",
+        "tier": "enterprise",
+        "level": "L1",
+        "state": "active"
+      }
+    ],
+    "memberships": [
+      {
+        "asset_id": "vm_mspc_001.tenants.memberships.acme_corp.user_123.admin.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "tenant_id": "tnt_acme_corp",
+        "user_id": "usr_123",
+        "role": "tenant_admin",
+        "state": "active"
+      }
+    ]
+  },
+  "users": {
+    "profiles": [
+      {
+        "asset_id": "vm_mspc_001.users.profiles.tom_lee.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "user_id": "usr_tom_lee_001",
+        "email": "tom@zero2onez.com",
+        "global_role": "platform_owner",
+        "state": "active"
+      }
+    ],
+    "roles": [
+      {
+        "asset_id": "vm_mspc_001.users.roles.tenant_admin.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "role_id": "role_tenant_admin",
+        "display_name": "Tenant Admin",
+        "scope": "tenant",
+        "state": "active"
+      }
+    ],
+    "grants": [
+      {
+        "asset_id": "vm_mspc_001.users.grants.user_123.tenant_acme.project_walk_v1.write.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "grant_id": "grt_001",
+        "user_id": "usr_123",
+        "tenant_id": "tnt_acme_corp",
+        "resource_type": "project",
+        "resource_id": "proj_walkthrough_v1",
+        "actions": ["read", "write", "deploy"],
+        "state": "active"
+      }
+    ]
+  },
+  "billing": {
+    "plans": [
+      {
+        "asset_id": "vm_mspc_001.billing.plans.enterprise_monthly.v0.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "plan_id": "plan_enterprise_monthly",
+        "display_name": "Enterprise",
+        "billing_cycle": "monthly",
+        "price_usd_cents": 49900,
+        "state": "active"
+      }
+    ],
+    "subscriptions": [
+      {
+        "asset_id": "vm_mspc_001.billing.subscriptions.acme_corp.plan_enterprise_monthly.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "subscription_id": "sub_acme_ent_001",
+        "tenant_id": "tnt_acme_corp",
+        "plan_id": "plan_enterprise_monthly",
+        "status": "active",
+        "state": "active"
+      }
+    ],
+    "usage": [
+      {
+        "asset_id": "vm_mspc_001.billing.usage.acme_corp.gpu_hours.may_2026.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "tenant_id": "tnt_acme_corp",
+        "period": "2026-05",
+        "gpu_hours_used": 423.5,
+        "gpu_hours_limit": 1000,
+        "state": "completed"
+      }
+    ]
+  },
+  "factory": {
+    "templates": [
+      {
+        "asset_id": "vm_mspc_001.factory.templates.realestate_walkthrough.v0.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "template_id": "tmpl_realestate_walkthrough",
+        "display_name": "Real Estate Walkthrough",
+        "engine": "godot",
+        "license": "per_tenant",
+        "state": "active"
+      }
+    ],
+    "builds": [
+      {
+        "asset_id": "vm_mspc_001.factory.builds.acme_dashboard.run_99.completed.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "build_id": "bld_99",
+        "template_id": "tmpl_realestate_walkthrough",
+        "tenant_id": "tnt_acme_corp",
+        "status": "completed",
+        "state": "completed"
+      }
+    ],
+    "deployments": [
+      {
+        "asset_id": "vm_mspc_001.factory.deployments.acme_walk_v1.prod.active.json",
+        "crystal": "placeholder_sha256",
+        "vm_id": "vm_mspc_001",
+        "deployment_id": "dpl_42",
+        "build_id": "bld_99",
+        "tenant_id": "tnt_acme_corp",
+        "host": "acme.zero2onez.studio",
+        "environment": "production",
+        "state": "active"
+      }
+    ],
+    "clients": [
+      {
+        "workspace_id": "ws_acme_corp",
+        "tenant_id": "tnt_acme_corp",
+        "deployment_id": "dpl_42",
+        "build_id": "bld_99",
+        "template_id": "tmpl_realestate_walkthrough",
+        "path": "_factory/clients/acme_corp/",
+        "level": "L1",
+        "state": "active"
+      }
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "blob_to_unreal",
+  "state": "active",
+  "version": "v0",
+  "role": "ORCHESTRATOR · LOOM_CARD_TO_UNREAL_ENGINE_PIPELINE",
+  "tier": "L0",
+  "module_path": "core/lib/blob_to_unreal.py",
+  "summary": "5-pass orchestrator that escorts a morph.engine Loom card's canvas snapshot out of the browser, through Hunyuan i2v, MediaPipe pose extraction, mocap_rig_anchor verification, and into Unreal Engine 5 via LiveLink UDP. Each pass crystal-anchored; UDP dry-run unless MSPC_UNREAL_LIVE=1. Synthetic fallbacks for Hunyuan + MediaPipe so the chain runs end-to-end without those installed.",
+  "passes_5": [
+    "1. blob_snapshot — base64 PNG → ~/.cc/blob_renders/<crystal>/snapshot.png",
+    "2. image_to_video — Hunyuan i2v enqueue (or stub) → video.mp4",
+    "3. video_to_pose — MediaPipe Holistic (or synthetic from PNG hash) → pose.jsonl",
+    "4. pose_to_animation — verify_alignment per frame → rolled animation_crystal",
+    "5. unreal_live_link — UDP stream MocapFrames at fps → UE5 LiveLink Subject"
+  ],
+  "smoke_2026_05_29": {
+    "test_run": {"duration_s": 3, "fps": 30, "verified": "90/90",
+                  "frames_sent": 90, "bytes_total_KB": 195,
+                  "elapsed_s": 3.00, "anchor": "b4439c4d..."},
+    "http_post": {"endpoint": "/dapp/api/loom/snapshot", "status": 200,
+                    "frames_sent": 60, "subject": "MspcBlobHTTP"}
+  },
+  "cc_dispatchers": [
+    "cc blob-to-unreal [png_path] [--duration N] [--fps N] [--live]",
+    "cc unreal-live-link send <pose.jsonl> [--host X --port N --fps N]",
+    "cc unreal-live-link synth --n N"
+  ],
+  "operator_setup": {
+    "ue5_side": ["enable plugin Live Link + Live Link Skeletal Animation",
+                  "open Live Link panel; subject auto-appears when stream starts"],
+    "live_path": "set MSPC_UNREAL_LIVE=1 in env to actually send UDP packets"
+  }
+}

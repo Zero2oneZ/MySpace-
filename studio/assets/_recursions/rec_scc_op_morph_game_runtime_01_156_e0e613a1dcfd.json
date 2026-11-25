@@ -1,0 +1,18 @@
+{
+  "crystal": "e0e613a1dcfd7796521b5cbbd26da249cea0028c1c5549d08a64c7d42dd9831fb5f5756ea22ab36d9dd651ee2d802059ae2ecd24f79ec20e3b95989b0e3dbc9d",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_morph_game_runtime_01_156",
+  "kind": "scc",
+  "name": "morph_game_runtime",
+  "nodes": [
+    "op_morph_game_runtime"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

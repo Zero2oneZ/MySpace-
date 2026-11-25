@@ -1,0 +1,54 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "comfy_dag",
+  "state": "active",
+  "version": "v0",
+  "role": "INDEXER · COMFYUI_NODE_GRAPH",
+  "tier": "L0",
+  "module_path": "core/scripts/comfy_dag.sh",
+  "summary": "Walks a ComfyUI install. Emits a deterministic JSONL chain cataloging every node class (builtin + comfy_extras + custom_nodes) and any saved workflows. Output is ParserCursor-compatible — same shape as scan_chain.jsonl. Feeds the workflow_card generator's --target comfyui surface.",
+  "engine_pattern": "bash + python3 AST parser (extracts CATEGORY / INPUT_TYPES / RETURN_TYPES / FUNCTION / NODE_CLASS_MAPPINGS from .py modules). Deterministic sort, bounded depth.",
+  "storage": {
+    "default_out": "~/.cc/comfy_dag.jsonl",
+    "default_install": "/data/Projects/ComfyUI"
+  },
+  "instructions": [
+    "1. Run: bash core/scripts/comfy_dag.sh > ~/.cc/comfy_dag.jsonl",
+    "2. Or with custom install: bash core/scripts/comfy_dag.sh /path/to/ComfyUI > ~/.cc/comfy_dag.jsonl",
+    "3. Verify: python3 core/lib/parser_cursor.py walk ~/.cc/comfy_dag.jsonl | head -20",
+    "4. Find a specific node category: grep -E 'category.*loaders' ~/.cc/comfy_dag.jsonl",
+    "5. Workflow generator consumes this when emitting --target comfyui artifacts."
+  ],
+  "node_kinds_emitted": [
+    "element name='chain' depth=0 — root + schema",
+    "element name='install' depth=1 — per ComfyUI install (path, size, mtime)",
+    "element name='node_pack' depth=2 — builtin/extras/custom pack",
+    "element name='comfy_node' depth=3 — one per Python class (class_name, category, return_types, function, output_node)",
+    "element name='workflow' depth=2 — saved user workflow .json (path, node_count)"
+  ],
+  "exports": ["bash script + python3 AST helpers inline"],
+  "substrate": "comfy_dag (in-memory JSONL — same retrieval shape as crystal chain)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_comfy_index (to be added: cc comfy-index)",
+      "core/lib/workflow_generator.py (when emitting --target comfyui)",
+      "core/lib/moe_router.py (could index comfy_nodes alongside inference records — same n-gram hash space)"
+    ],
+    "outbound_calls": ["python3 ast module for module parsing"],
+    "substrate_reads": "ComfyUI install dirs (.py modules + user/workflows/*.json)",
+    "substrate_writes": "~/.cc/comfy_dag.jsonl"
+  },
+  "guarantees": [
+    "Deterministic — same install on disk → same JSONL bytes",
+    "Append-only — never overwrites existing entries; always emits fresh chain",
+    "Walkable — ParserCursor reads it identically to inference_master_chain or user_graph",
+    "Cross-substrate joinable — ngram hashes of class_name can match moe_router's"
+  ],
+  "usage_example": "cd /data/Projects/MySpace++ && bash core/scripts/comfy_dag.sh > ~/.cc/comfy_dag.jsonl && python3 core/lib/parser_cursor.py walk ~/.cc/comfy_dag.jsonl | head -30",
+  "chain_runs": ["moe_chain_router_v0"]
+}

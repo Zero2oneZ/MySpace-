@@ -1,0 +1,90 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "attach.smoke.test",
+  "category": "test",
+  "state": "active",
+  "version": "v0",
+  "passes": [
+    {
+      "id": "p00_noise",
+      "agent": "Noise",
+      "kernel_ref": "modifier:Noise",
+      "engine": "deterministic",
+      "in": [
+        "GEO"
+      ],
+      "out": "GEO",
+      "status": "ACTIVE",
+      "attachments": [
+        {
+          "id": "att01",
+          "kind": "doc",
+          "label": "noise tuning notes",
+          "body": "fbm details",
+          "tool_options": [
+            {
+              "name": "use_ref",
+              "type": "bool",
+              "default": false
+            }
+          ]
+        },
+        {
+          "id": "att02",
+          "kind": "ref",
+          "label": "paper.pdf",
+          "body": "Perlin 1985",
+          "uri": "/refs/perlin.pdf"
+        }
+      ]
+    },
+    {
+      "id": "p01_att_standalone",
+      "agent": "doc",
+      "kernel_ref": "attachment:doc",
+      "engine": "attachment",
+      "label": "sequence-level doc",
+      "body": "sibling step in the sequence",
+      "tool_options": [],
+      "in": [
+        "ANY"
+      ],
+      "out": "ANY",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "p02_spike",
+      "agent": "Spike",
+      "kernel_ref": "modifier:Spike",
+      "engine": "deterministic",
+      "in": [
+        "GEO"
+      ],
+      "out": "GEO",
+      "status": "ACTIVE"
+    }
+  ],
+  "attachments": [
+    {
+      "id": "card_att_01",
+      "kind": "asset",
+      "label": "scene.props",
+      "body": "tree, rock, cloud",
+      "uri": "/assets/props.json"
+    },
+    {
+      "id": "card_att_02",
+      "kind": "note",
+      "label": "design intent",
+      "body": "edge-of-forest mood, dawn"
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "albedo",
+      "source": "pass:p00_noise",
+      "blend": "base"
+    }
+  ]
+}

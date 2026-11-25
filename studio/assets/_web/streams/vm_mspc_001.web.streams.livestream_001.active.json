@@ -1,0 +1,25 @@
+{
+  "_schema": "livestream_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "web",
+  "category": "streams",
+  "name": "livestream_001",
+  "state": "active",
+  "version": "v0",
+  "stream_type": "webrtc",
+  "source": "z21_gpu_0",
+  "encoder": "nvenc_h264",
+  "bitrate_kbps": 8000,
+  "resolution": "1920x1080",
+  "fps": 30,
+  "audio": {
+    "codec": "opus",
+    "bitrate_kbps": 128,
+    "channels": 2
+  },
+  "viewers": [],
+  "permissions": ["friend_scoped"],
+  "salted_tokens": true
+}

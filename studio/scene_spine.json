@@ -1,0 +1,8 @@
+{
+  "_doc": "Canonical SCENE SPINE — the ground layer shared by Godot/Blender/three.js. Frame = MetaXR (Y-up, -Z forward, right-handed, meters; per gently coordinate_system.rs/asset_target.rs). A node = a GLB leaf + transform + edit_mode. Godot/three.js consume identity; Blender applies to_blender (Z-up). Build UP from here: transpilers per engine.",
+  "frame": "MetaXR",
+  "nodes": [
+    { "id": "cube_a",   "glb": "/tmp/e2e_proof.glb",  "pos": [0, 0, 0],    "rot_euler_deg": [0, 0, 0],  "scale": [1, 1, 1], "edit_mode": "link" },
+    { "id": "sphere_b", "glb": "/tmp/wrap_proof.glb", "pos": [2, 0.5, -1], "rot_euler_deg": [0, 45, 0], "scale": [1, 1, 1], "edit_mode": "link" }
+  ]
+}

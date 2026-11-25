@@ -1,0 +1,22 @@
+{
+  "crystal": "0c14b702d3325eb588998585da7ac2c168f67878cd98b0bb2a3fc37445a56ee7dd3a0c6d7975b9b4483a9807d9496862419e4a80b372ce28f584e772274ae180",
+  "description": "Pattern 'agent\u2192agent\u2192app' appears 3 times across APPS,ORCHESTRATION,PLATFORMS",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_agent_to_agent_to_app_016",
+  "kind": "motif",
+  "name": "motif: agent\u2192agent\u2192app",
+  "nodes": [
+    "op_comfyui_mcp",
+    "op_generative_mcp",
+    "op_model_api",
+    "op_product_avatar_nft",
+    "op_twitter_mcp"
+  ],
+  "size": 3,
+  "sub_dags_touched": [
+    "APPS",
+    "ORCHESTRATION",
+    "PLATFORMS"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "_meta": {
+    "name": "flux_dev_t2i",
+    "model": "FLUX.1-dev",
+    "notes": "Uses MediaLab paths via extra_model_paths.yaml. UNET + VAE in flux-dev/, CLIPs reused from sd35-large/text_encoders/. Placeholders: __PROMPT__ / __NEG__ (FLUX ignores negatives; left for compat) / __SEED__ / __WIDTH__ / __HEIGHT__."
+  },
+  "prompt": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux-dev/flux1-dev.safetensors",
+        "weight_dtype": "fp8_e4m3fn"
+      }
+    },
+    "2": {
+      "class_type": "VAELoader",
+      "inputs": {"vae_name": "flux-dev/ae.safetensors"}
+    },
+    "3": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": "sd35-large/text_encoders/clip_l.safetensors",
+        "clip_name2": "sd35-large/text_encoders/t5xxl_fp8_e4m3fn.safetensors",
+        "type": "flux"
+      }
+    },
+    "4": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {"text": "__PROMPT__", "clip": ["3", 0]}
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {"text": "__NEG__", "clip": ["3", 0]}
+    },
+    "6": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {"width": 1024, "height": 1024, "batch_size": 1}
+    },
+    "7": {
+      "class_type": "ModelSamplingFlux",
+      "inputs": {
+        "model": ["1", 0],
+        "max_shift": 1.15,
+        "base_shift": 0.5,
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    "8": {
+      "class_type": "BasicGuider",
+      "inputs": {"model": ["7", 0], "conditioning": ["4", 0]}
+    },
+    "9": {
+      "class_type": "KSamplerSelect",
+      "inputs": {"sampler_name": "euler"}
+    },
+    "10": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": ["7", 0],
+        "scheduler": "simple",
+        "steps": 20,
+        "denoise": 1.0
+      }
+    },
+    "11": {
+      "class_type": "RandomNoise",
+      "inputs": {"noise_seed": 0}
+    },
+    "12": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": ["11", 0],
+        "guider": ["8", 0],
+        "sampler": ["9", 0],
+        "sigmas": ["10", 0],
+        "latent_image": ["6", 0]
+      }
+    },
+    "13": {
+      "class_type": "VAEDecode",
+      "inputs": {"samples": ["12", 0], "vae": ["2", 0]}
+    },
+    "14": {
+      "class_type": "SaveImage",
+      "inputs": {"images": ["13", 0], "filename_prefix": "mspc_chain_flux"}
+    }
+  }
+}

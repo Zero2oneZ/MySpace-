@@ -1,0 +1,148 @@
+{
+  "version": "0.1.0",
+  "updated": "2026-05-28T16:00:00Z",
+  "description": "Agent registry for deterministic chain routing. Each agent has a level (1-5), model tier, token budget, and capability set. Lower levels handle narrow tasks; higher levels handle planning and coordination. Level 5 = human (Claude) intervention.",
+  "levels": {
+    "1": {
+      "name": "tiny",
+      "model": "qwen2.5:0.5b",
+      "max_tokens": 2048,
+      "context_window": 4096,
+      "cost_per_1k": 0.0,
+      "capabilities": [
+        "token_count",
+        "simple_regex",
+        "file_list",
+        "hash_compute",
+        "json_validate",
+        "svg_metadata_read",
+        "browser_state_query"
+      ],
+      "route_to": "local_ollama",
+      "spawn_subagents": false,
+      "requires_human": false
+    },
+    "2": {
+      "name": "small",
+      "model": "qwen2.5-coder:1.5b",
+      "max_tokens": 4096,
+      "context_window": 8192,
+      "cost_per_1k": 0.0,
+      "capabilities": [
+        "code_label",
+        "coherence_check",
+        "task_parse",
+        "simple_edit",
+        "bash_one_liner",
+        "social_upload_dispatch",
+        "discord_webhook_send"
+      ],
+      "route_to": "local_ollama",
+      "spawn_subagents": true,
+      "spawn_max_level": 1,
+      "requires_human": false
+    },
+    "3": {
+      "name": "medium",
+      "model": "qwen2.5:7b",
+      "max_tokens": 8192,
+      "context_window": 32768,
+      "cost_per_1k": 0.0,
+      "capabilities": [
+        "plan_draft",
+        "pass_routing",
+        "weave_topology_update",
+        "mcp_tool_call",
+        "hf_inference",
+        "livepeer_stream_ops",
+        "trollz_agent_search",
+        "code_review",
+        "svg_generation"
+      ],
+      "route_to": "local_ollama",
+      "spawn_subagents": true,
+      "spawn_max_level": 2,
+      "requires_human": false
+    },
+    "4": {
+      "name": "large",
+      "model": "qwen2.5:32b",
+      "max_tokens": 16384,
+      "context_window": 128000,
+      "cost_per_1k": 0.0,
+      "capabilities": [
+        "architecture_design",
+        "multi_file_refactor",
+        "cross_project_sync",
+        "gentle_os_bridge",
+        "crystal_hash_compute",
+        "bb_program_author",
+        "opcode_mapping",
+        "training_data_schema"
+      ],
+      "route_to": "local_ollama",
+      "spawn_subagents": true,
+      "spawn_max_level": 3,
+      "requires_human": false
+    },
+    "5": {
+      "name": "opus",
+      "model": "claude-opus-4-7",
+      "max_tokens": 32768,
+      "context_window": 200000,
+      "cost_per_1k": 15.0,
+      "capabilities": [
+        "strategic_decision",
+        "security_review",
+        "new_domain_authorship",
+        "agent_chain_modification",
+        "human_oversight",
+        "intervention_required"
+      ],
+      "route_to": "anthropic_api",
+      "spawn_subagents": true,
+      "spawn_max_level": 4,
+      "requires_human": true
+    }
+  },
+  "routing_rules": {
+    "complexity_to_level": {
+      "0_10": 1,
+      "11_25": 2,
+      "26_50": 3,
+      "51_75": 4,
+      "76_100": 5
+    },
+    "escalation_triggers": [
+      {"trigger": "token_estimate_exceeds_budget", "action": "escalate_one_level"},
+      {"trigger": "capability_not_found", "action": "escalate_one_level"},
+      {"trigger": "error_rate_above_0.3", "action": "escalate_two_levels"},
+      {"trigger": "requires_human_flag_set", "action": "route_to_opus"},
+      {"trigger": "security_sensitive", "action": "route_to_opus"},
+      {"trigger": "new_domain_unknown", "action": "route_to_opus"}
+    ],
+    "de_escalation_triggers": [
+      {"trigger": "task_is_pure_bash", "max_level": 2},
+      {"trigger": "task_is_hash_only", "max_level": 1},
+      {"trigger": "task_is_json_validate", "max_level": 1}
+    ]
+  },
+  "endpoints": {
+    "local_ollama": {
+      "url": "http://127.0.0.1:11434/api/generate",
+      "auth": "none",
+      "timeout": 120
+    },
+    "anthropic_api": {
+      "url": "https://api.anthropic.com/v1/messages",
+      "auth": "claude_guest_key",
+      "timeout": 300,
+      "proxy": "http://127.0.0.1:8520"
+    },
+    "mcp_bridge": {
+      "url": "http://127.0.0.1:8765/mcp/call",
+      "auth": "none",
+      "timeout": 60
+    }
+  }
+}

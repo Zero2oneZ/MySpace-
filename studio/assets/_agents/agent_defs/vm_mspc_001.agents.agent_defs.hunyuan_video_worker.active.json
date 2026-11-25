@@ -1,0 +1,122 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "hunyuan_video_worker",
+  "state": "active",
+  "version": "v0",
+  "role": "INFERENCE_WORKER · MEDIALAB_HUNYUAN_VIDEO_QUEUE_CONSUMER",
+  "tier": "L0",
+  "module_path": "core/lib/hunyuan_video_worker.py",
+
+  "summary": "Connects chain_event_render's dormant video path to actual MP4 output. Tails ~/.cc/chain_renders/_video_queue.jsonl, submits a HunyuanVideo T2V workflow per job to ComfyUI on :8188, polls /history/<prompt_id> every 5s, downloads the MP4 via /view, saves to <render_dir>/video.mp4, and patches the render's manifest.json. Single-instance via lockfile so concurrent workers don't fight the GPU. Each job is one-at-a-time — HunyuanVideo-1.5 needs ~22-24 GB VRAM at 720p bf16 on a 3090 Ti.",
+
+  "engine_pattern": "Stdlib urllib + ComfyUIMCPConnector. Per-job: probe /system_stats → POST /prompt → poll /history/{id} until status_str ∈ {success, error} or timeout → GET /view?filename=&subfolder=&type= → stream-write to dest. Offset file tracks queue progress; lockfile guards single-instance. comfy_offline status deliberately does NOT advance offset — the job stays pending and retries when comfy is back up. All other terminal statuses (rendered / submit_error / exec_error / timeout) DO advance.",
+
+  "default_workflow_topology": [
+    "DualCLIPLoader (clip_l + llava_llama3) → clip",
+    "UNETLoader (hunyuan_video_t2v_720p_bf16) → model",
+    "VAELoader (hunyuan_video_vae_bf16) → vae",
+    "CLIPTextEncode pos / neg → conditioning × 2",
+    "EmptyHunyuanLatentVideo (720×1280×73f) → latent",
+    "KSampler (euler / simple / 30 steps / cfg 6.0) → samples",
+    "VAEDecode → frames",
+    "VHS_VideoCombine (h264-mp4 @ 24fps, crf 19) → MP4"
+  ],
+
+  "expected_model_filenames": {
+    "diffusion": "hunyuan_video_t2v_720p_bf16.safetensors  (env: MSPC_HUNYUAN_DIFFUSION_MODEL)",
+    "vae": "hunyuan_video_vae_bf16.safetensors  (env: MSPC_HUNYUAN_VAE)",
+    "text_encoder_1": "clip_l.safetensors  (env: MSPC_HUNYUAN_TEXT_ENC1)",
+    "text_encoder_2": "llava_llama3_fp16.safetensors  (env: MSPC_HUNYUAN_TEXT_ENC2)"
+  },
+
+  "medialab_path": {
+    "weights": "/data/Projects/MediaLab/video/hunyuan-15/weights/",
+    "comfyui": "/data/Projects/MediaLab/comfyui/  (symlink → /home/tom/Projects/ComfyUI)",
+    "launcher": "/data/Projects/MediaLab/scripts/launch_comfy.sh  (port 8188)",
+    "model_card_status_2026_05_28": "MediaLab/CLAUDE.md states 'All video/audio models: not yet downloaded' — when weights are missing the worker will surface ComfyUI's load error and stop on that job (status='exec_error', queue advances). Run MediaLab/scripts/download_models.sh first."
+  },
+
+  "smoke_test_2026_05_28": {
+    "seeded_job": "0e515ed41a670c44 (Pump.fun create event)",
+    "ran_one": true,
+    "status": "comfy_offline (ComfyUI not running on :8188)",
+    "offset_advanced": false,
+    "completed_log_appended": true,
+    "manifest_video_block_updated": true,
+    "retry_on_restart": "yes — offset stayed at 0 so the same line retries"
+  },
+
+  "exports": ["VideoJob", "JobResult", "process_one", "run_worker",
+              "status_dump", "_default_workflow",
+              "QUEUE", "COMPLETED", "OFFSET", "LOCK",
+              "COMFY_BASE", "DEFAULT_POLL_S", "DEFAULT_TIMEOUT_S"],
+
+  "cli": [
+    "run [--once] [--max-jobs N] [--width W --height H --length F --steps N --fps N] [--timeout S]",
+    "one                                         — drain exactly one job",
+    "status                                       — queue + offset + lock + completed counts",
+    "seed <event.json>                            — enqueue a job from a chain event",
+    "reset-lock                                   — remove stale lock after crash",
+    "workflow-preview                             — print the default workflow JSON"
+  ],
+
+  "cc_dispatchers": [
+    "cc hunyuan-run [--once]                     — long-running worker",
+    "cc hunyuan-one                                — drain one job",
+    "cc hunyuan-status                             — queue summary",
+    "cc hunyuan-seed ~/.cc/chain_renders/<x>/event.json  — manually enqueue",
+    "cc hunyuan-reset-lock                         — clear stale lock",
+    "cc hunyuan-workflow-preview                   — view default workflow"
+  ],
+
+  "operational_notes": {
+    "gpu_pinning": "Set CUDA_VISIBLE_DEVICES=1 in MediaLab's ComfyUI launcher (per /data/Projects/CLAUDE.md, GPU 1 preferred for inference). Worker doesn't manage GPU pinning — it just submits.",
+    "throughput": "~10-25 min per 3s clip @ 720×1280 / 30 steps on a single 3090 Ti. Use --steps 12 for 1.5x faster preview-quality renders.",
+    "tuning": "--length controls duration (frames). 73 = ~3s @ 24fps. Hunyuan-1.5 supports up to 129 frames per generation; beyond that needs chunking.",
+    "missing_models": "If you see status='exec_error' with 'UNETLoader' or 'VAELoader' in error → models not in ComfyUI/models/. Run MediaLab/scripts/download_models.sh and ensure files land in the right subdir or set MSPC_HUNYUAN_* env vars.",
+    "concurrency_safety": "Lockfile holds os.getpid(); stale locks are detected by signal probe (os.kill(pid, 0)). cc hunyuan-reset-lock can force clear if needed."
+  },
+
+  "five_canonical_frames_per_video_event": {
+    "vector": "SHA-256 of canonical record (program/category/action/prompt/status)",
+    "circle": "video:<category>:<action> (categorical bucket)",
+    "hex": "InferenceLogger crystal_id (one per job submit)",
+    "rgb": "deterministic HSV(sub_dag=INFERENCE, cost_class=expensive, tier=video_render)",
+    "fps": "frame_pack across all 5 canonical FPS — same as image side"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Manual via cc hunyuan-* dispatchers",
+      "Future: cron / systemd-timer / cc bg-daemon (not yet wired)",
+      "Tail consumer of ~/.cc/chain_renders/_video_queue.jsonl"
+    ],
+    "outbound_calls": [
+      "GET  http://localhost:8188/system_stats   (probe via ComfyUIMCPConnector.connect)",
+      "POST http://localhost:8188/prompt         (submit workflow)",
+      "GET  http://localhost:8188/history/<id>   (poll completion)",
+      "GET  http://localhost:8188/view?filename= (download MP4)",
+      "core/lib/inference_logger.log() once per job submit",
+      "core/lib/dimension_pack.emit() once per successful job"
+    ],
+    "substrate_reads": [
+      "~/.cc/chain_renders/_video_queue.jsonl",
+      "~/.cc/chain_renders/_video_queue.offset"
+    ],
+    "substrate_writes": [
+      "~/.cc/chain_renders/<short>/video.mp4",
+      "~/.cc/chain_renders/<short>/manifest.json (video block updated)",
+      "~/.cc/chain_renders/_video_queue.completed.jsonl (every attempt, success or fail)",
+      "~/.cc/chain_renders/_video_queue.offset (only when status != comfy_offline)",
+      "~/.cc/chain_renders/_video_worker.lock (singleton guard)"
+    ]
+  },
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Inference · video bridge (completes the chain_event_render video path)"
+}

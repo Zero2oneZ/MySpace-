@@ -1,0 +1,18 @@
+{
+  "crystal": "a5d59658750988544f0b8d0f2f62f112d544b2651a9620715b42d0fdd85bac4b9a181573d2838f728352be93113a0d4b4f044fef304960aae1ad2c9df4186d18",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_defi_loop_01_023",
+  "kind": "scc",
+  "name": "defi_loop",
+  "nodes": [
+    "op_defi_loop"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

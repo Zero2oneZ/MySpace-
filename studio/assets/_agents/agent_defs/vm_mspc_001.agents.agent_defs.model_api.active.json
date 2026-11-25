@@ -1,0 +1,108 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "model_api",
+  "state": "active",
+  "version": "v0",
+  "role": "GATEWAY · UNIFIED_PROPRIETARY_MODEL_API",
+  "tier": "L0",
+  "module_path": "core/lib/model_api.py",
+
+  "summary": "The single proprietary API surface external apps reach AFTER passing through freetier_gate token verification. Wraps cloud_providers + deepseek_mcp + hf_hub behind one HTTP server on port 8521 (env override MSPC_MODEL_API_PORT). Endpoints: POST /v1/text/generate, /v1/code/generate, /v1/embed; GET /v1/providers and /v1/healthz. OpenAI-compatible request shape (prompt OR messages). Bearer auth via freetier_gate.verify_token reading Authorization header. Caller identity (user_id, domain, tier from TokenClaims) propagates into every response AND every crystal chain entry — providing per-tenant audit. Falls back across cloud_providers.pick candidates (up to 4 attempts). Every successful call crystal-anchors with tier='model_api', model='<resolved provider>'.",
+
+  "engine_pattern": "Stdlib http.server.ThreadingHTTPServer. ModelAPI class for in-process callers (no HTTP). HTTP handlers verify token first, parse JSON body, dispatch through ModelAPI.text/code/embed which iterate cloud_providers.pick fallback ladder. Per-attempt latency + status recorded in the response.mspc.attempts array.",
+
+  "endpoints": {
+    "POST /v1/text/generate":  "OpenAI chat shape; default deepseek-chat",
+    "POST /v1/code/generate":  "Code-specialized; default deepseek-coder",
+    "POST /v1/embed":          "Embeddings (v1: deepseek-only)",
+    "GET  /v1/providers":      "Caller-visible active provider list",
+    "GET  /v1/healthz":        "Public; service health"
+  },
+
+  "request_shape_openai_compat": {
+    "prompt": "string (or messages[])",
+    "messages": "[{role, content}, ...]",
+    "max_tokens": "int (default 256)",
+    "temperature": "float (default 0.0)",
+    "cost_class": "free | cheap | fast | premium (default cheap)",
+    "model": "optional provider name hint (e.g. deepseek-reasoner)",
+    "system": "optional system prompt prepend",
+    "language": "code-only: python|gd|rust|... (default python)"
+  },
+
+  "response_shape": {
+    "id": "mspc_<crystal_short>",
+    "object": "chat.completion | embedding",
+    "model": "<resolved provider>",
+    "choices": "[{message: {role, content}, finish_reason}]",
+    "usage": "{prompt_tokens, completion_tokens, total_tokens}",
+    "mspc": "{provider, latency_ms, crystal, caller, attempts[]}"
+  },
+
+  "env_vars": {
+    "MSPC_MODEL_API_PORT": "default 8521",
+    "MODEL_API_LOG":       "set to 'quiet' to suppress access log"
+  },
+
+  "exports": ["ModelAPI", "GenerateResult", "ModelAPIHandler"],
+
+  "substrate": "~/.cc/inference_master_chain.jsonl (every call → InferenceRecord tier='model_api')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "External apps the operator sells (Replit-deployed, dApp, etc.)",
+      "Godot apps after acquiring a freetier token via the callback flow",
+      "cc model-api (future cmd_model_api dispatcher)",
+      "studio_runtime when pass.engine='model_api'"
+    ],
+    "outbound_calls": [
+      "freetier_gate.verify_token (bearer middleware on every request)",
+      "cloud_providers.pick (rank candidates per request)",
+      "core/lib/third_party/deepseek_mcp.send (openai_compat kind)",
+      "core/lib/hf_hub.inference (hf_router kind)",
+      "inference_logger.log (every success: tier='model_api', model='<provider>')"
+    ],
+    "substrate_reads": "Authorization / X-Freetier-Token request header",
+    "substrate_writes": "InferenceRecord per call + access log to stderr"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "boot": "ok — listens on 127.0.0.1:8521 with --bind / --port args",
+    "healthz": "ok — {ok: true, service: 'model_api', version: '0.1'}",
+    "unauthenticated_call_rejected": "ok — 401 {error: 'missing or invalid bearer token'}",
+    "token_issuance_via_callback": "ok — 308-char JWT for agentic_build@trollz.fun",
+    "text_via_bearer": "ok — deepseek-chat 'Reply with exactly: SMOKE_OK' → 'Success.' (12in/2out tokens) latency 1450ms, crystal b15359cf6d9cc66bab8d7e22, caller propagated",
+    "code_via_bearer": "ok — deepseek-coder 'Python lambda squaring int' → valid Python (12in/?out tokens) latency 983ms, crystal d6c63984c8bf91513b23a000",
+    "caller_propagation": "ok — TokenClaims (user_id, domain, tier) flow into response.mspc.caller AND crystal chain entry's source_file=caller=<id>@<domain>"
+  },
+
+  "guarantees": [
+    "Bearer-gated — no API call proceeds without freetier_gate.verify_token returning valid claims",
+    "OpenAI-compatible — any OpenAI SDK can call /v1/text/generate by pointing baseURL at this server",
+    "Crystal-audit-trail — every call has a deterministic chain entry tying caller → provider → response",
+    "Fallback-resilient — up to 4 candidates from cloud_providers.pick tried before reporting 502",
+    "Single-port — one stdlib server; no FastAPI dep",
+    "Caller-aware accounting — tier from token can be used for rate limits (future)",
+    "Per-caller audit — caller={user_id, domain, tier} written into source_file claim",
+    "Graceful degradation — provider failures recorded in response.mspc.attempts[]"
+  ],
+
+  "future_v2_hooks": [
+    "Per-caller rate limiting based on TokenClaims.tier",
+    "Streaming via Server-Sent Events for text/code endpoints",
+    "Image (/v1/image/generate) → autonomous_modeler + comfyui_mcp (B.3 + B.1)",
+    "Audio (/v1/audio/speech) → speech_to_speech (Phase D placeholder)",
+    "3D (/v1/3d/generate) → autonomous_modeler.three_d (B.3)",
+    "Cache short-circuit via result_cache before provider dispatch"
+  ],
+
+  "usage_example": "# In-process:\\nfrom model_api import ModelAPI\\napi = ModelAPI()\\nresult = api.text('Hello', max_tokens=64)\\nprint(result.output, result.crystal)\\n\\n# HTTP (after acquiring token via callback):\\ncurl -X POST http://localhost:8521/v1/text/generate \\\\\\n  -H 'Authorization: Bearer <freetier_token>' \\\\\\n  -d '{\"prompt\":\"hi\",\"max_tokens\":50}'",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.1 of lively-enchanting-parrot plan"
+}

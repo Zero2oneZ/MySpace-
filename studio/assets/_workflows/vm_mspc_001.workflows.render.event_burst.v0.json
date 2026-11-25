@@ -1,0 +1,109 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "event_burst",
+  "category": "render",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Pull top-K novelty events out of the program_events sinks (Solana oracle monitor, correlator output, mocap), render each through chain_event_render → MP4 tile, push the tiles into _video_queue.completed, and crystal-chain the burst. The bridge between the deterministic event stream and the renderable visual record; runs nightly or on-demand.",
+
+  "inputs": [
+    {"name": "k", "type": "int", "required": false, "default": 16,
+      "notes": "Top-K events by novelty score"},
+    {"name": "window_hours", "type": "int", "required": false, "default": 24},
+    {"name": "novelty_threshold", "type": "float", "required": false, "default": 0.6,
+      "notes": "Drop events below this novelty score"},
+    {"name": "render_style", "type": "str", "required": false,
+      "default": "chain_glyph_v1",
+      "notes": "chain_glyph_v1 | minimal_data | crystal_orbit"},
+    {"name": "fps", "type": "int", "required": false, "default": 24},
+    {"name": "tile_secs", "type": "float", "required": false, "default": 3.0}
+  ],
+
+  "outputs": [
+    {"name": "burst_crystal", "type": "str"},
+    {"name": "tile_paths", "type": "list[path]"},
+    {"name": "burst_manifest_path", "type": "path"}
+  ],
+
+  "passes": [
+    {
+      "id": "select_events",
+      "agent": "program_correlator",
+      "model_path": "core/lib/program_correlator.py::select_top_k",
+      "engine": "deterministic",
+      "in": ["k", "window_hours", "novelty_threshold"],
+      "out": "selected_events",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Reads ~/.cc/program_events/**/*.jsonl + ~/.cc/correlations/*.jsonl. Score = α·novelty + β·cluster_size + γ·embedding_distance from canonical centroid. Output {event_id, tier, summary, crystal, embedding_hex} rows."
+    },
+    {
+      "id": "render_tiles",
+      "agent": "chain_event_render",
+      "model_path": "core/lib/chain_event_render.py::render_tile",
+      "engine": "deterministic",
+      "in": ["selected_events", "render_style", "fps", "tile_secs"],
+      "out": "tile_paths",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Per event: matplotlib/cairo deterministic glyph → ffmpeg encode at fps. Tile filename = sha256(event_id+style)[:16]+'.mp4'. Cache short-circuit if file already exists at same hash."
+    },
+    {
+      "id": "enqueue_for_distribution",
+      "agent": "video_queue",
+      "model_path": "core/lib/video_queue.py::enqueue_completed",
+      "engine": "deterministic",
+      "in": ["tile_paths"],
+      "out": "queue_rows",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Append rows to ~/.cc/chain_renders/_video_queue.completed.jsonl. Stream encoder picks these up (continuous_clip_encoder workflow), so the burst itself becomes embeddable."
+    },
+    {
+      "id": "build_burst_manifest",
+      "agent": "burst_manifest",
+      "model_path": "core/lib/burst_manifest.py::write",
+      "engine": "deterministic",
+      "in": ["selected_events", "tile_paths"],
+      "out": "burst_manifest_path",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "JSON file at ~/.cc/burst_manifests/<crystal>.json. Maps each event → tile path → its embedding. Enables time-travel replay + cross-link to original event sinks."
+    },
+    {
+      "id": "anchor_burst",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["selected_events", "tile_paths"],
+      "out": "burst_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='render_burst', model='chain_event_render', source_action='event_burst'. coords=[k, novelty_avg, tile_count, total_render_seconds]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "events", "source": "pass:select_events", "blend": "base"},
+    {"name": "glyphs", "source": "pass:render_tiles", "blend": "additive"},
+    {"name": "manifest", "source": "pass:build_burst_manifest", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/event_burst_proto.py.j2",
+      "out_path": "studio/web/streamlit/event_burst.py"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/program_correlator.py (top-K selection)",
+    "core/lib/chain_event_render.py (deterministic glyph rendering)",
+    "core/lib/video_queue.py (completion sink)",
+    "core/lib/burst_manifest.py (per-burst index)",
+    "core/lib/inference_logger.py (crystal anchor)",
+    "ffmpeg (system dependency)"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "_schema": "product_card_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "products",
+  "category": "developer_tool",
+  "name": "svg_xml_inference_app",
+  "tagline": "The parser engine as a sellable API — POST any SVG or XML, get semantic embeddings + tree + similarity neighbors",
+  "value_tier": 9,
+  "ttm_days": 3,
+  "monthly_recurring_usd": [0, 99, 500],
+  "input_mcps": ["huggingface-mcp"],
+  "substrate_uses": [
+    "parser_cursor", "svg_vector_embed", "sentence_chain",
+    "multi_layer_hex", "energy_inversion", "moe_router", "hf_hub"
+  ],
+  "output_surfaces": ["streamlit", "rest_api_json"],
+  "monetization_channels": ["stripe_metered_per_call",
+                              "stripe_subscription_unlimited_99",
+                              "stripe_enterprise_private_deploy_500"],
+  "depends_on_phases": ["phase0_existing", "phase1"],
+  "status": "DESIGN",
+  "anchor_workflow": null,
+  "_notes": "Product #3. All substrate already exists except multi_layer_hex (Phase 1). FastAPI wrapper exposes parser_cursor.parse + svg_vector_embed.embed + sentence_chain.embed + moe_router.find_neighbors. Pricing: $0 free tier, $0.001/call paid, $99/mo unlimited, $500/mo private."
+}

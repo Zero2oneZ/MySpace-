@@ -1,0 +1,201 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "workflows",
+  "category": "realestate",
+  "name": "realestate_walkthrough_full",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "The master integration card. Exercises every substrate built in this session: Pinterest harvest → SVG embed → light source extraction → frame clock alignment → spatial anchor → dataset FBX selection → Blender MCP modeling → ComfyUI render → Remotion video compose → Godot scene + GDExtension. The friend's real-estate walkthrough rendered as a fully-determined chain of crystal-anchored passes.",
+
+  "inputs": [
+    { "name": "room_id",          "type": "string", "required": true,  "default": "demo_room_001" },
+    { "name": "pinterest_category","type": "string", "required": false, "default": "interior" },
+    { "name": "animation_category","type": "string", "required": false, "default": "idle" },
+    { "name": "fps",              "type": "int",    "required": false, "default": 60 },
+    { "name": "wall_distances_m", "type": "list[float]", "required": false, "default": [4.5, 5.0, 4.5, 5.0, 2.4] }
+  ],
+
+  "outputs": [
+    { "name": "godot_scene",      "type": "tscn" },
+    { "name": "remotion_video",   "type": "mp4" },
+    { "name": "blender_bake",     "type": "blend" },
+    { "name": "spriteforge_sheet","type": "png_atlas+manifest" },
+    { "name": "trace_crystal",    "type": "hash" }
+  ],
+
+  "passes": [
+    {
+      "id": "harvest_pinterest_interior",
+      "agent": "pinterest_connector",
+      "engine": "deterministic",
+      "params": { "category": "interior" },
+      "in": [],
+      "out": "pinterest_pins",
+      "tier": "cheap",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "embed_local_svgs",
+      "agent": "svg_vector_embed",
+      "engine": "deterministic",
+      "params": { "target_dir": "studio/docs" },
+      "in": [],
+      "out": "svg_index",
+      "tier": "cheap",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "extract_lights_from_shapes",
+      "agent": "light_source",
+      "engine": "deterministic",
+      "params": {
+        "layer_stack": [
+          { "name": "emission", "source": "pass:embed_local_svgs", "blend": "additive" },
+          { "name": "albedo",   "source": "pass:embed_local_svgs", "blend": "base" }
+        ]
+      },
+      "in": ["svg_index"],
+      "out": "light_field",
+      "tier": "cheap",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "frame_clock_anchor",
+      "agent": "frame_clock",
+      "engine": "deterministic",
+      "params": {},
+      "in": [],
+      "out": "frame_anchor",
+      "tier": "deterministic",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "spatial_anchor_room",
+      "agent": "spatial_anchor",
+      "engine": "deterministic",
+      "params": {
+        "room_id": "demo_room_001",
+        "wall_distances_m": [4.5, 5.0, 4.5, 5.0, 2.4],
+        "x": 0, "y": 0, "z": 0, "heading": 0
+      },
+      "in": [],
+      "out": "room_anchor",
+      "tier": "deterministic",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "select_mixamo_idle",
+      "agent": "dataset_select_fbx",
+      "engine": "deterministic",
+      "params": { "category": "idle" },
+      "in": [],
+      "out": "rigged_fbx",
+      "tier": "cheap",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "blender_assemble",
+      "agent": "blender_mcp",
+      "engine": "blender",
+      "mcp_server": "blender_mcp",
+      "tool": "scene.compose",
+      "in": ["rigged_fbx", "light_field", "room_anchor", "frame_anchor"],
+      "out": "blender_scene",
+      "tier": "medium",
+      "vram_gb": 0,
+      "status": "IN-FLIGHT"
+    },
+    {
+      "id": "comfy_render_avatar",
+      "agent": "ComfyUI",
+      "engine": "comfyui",
+      "comfy_workflow": "templates/avatar_render_comfy.json.j2",
+      "in": ["rigged_fbx", "light_field"],
+      "out": "avatar_frames",
+      "tier": "large",
+      "vram_gb": 16,
+      "status": "IN-FLIGHT"
+    },
+    {
+      "id": "remotion_compose",
+      "agent": "remotion",
+      "engine": "remotion",
+      "in": ["avatar_frames", "blender_scene", "frame_anchor"],
+      "out": "walkthrough_video",
+      "tier": "medium",
+      "status": "IN-FLIGHT"
+    },
+    {
+      "id": "hf_describe_room",
+      "agent": "hf_inference",
+      "engine": "hf",
+      "params": {
+        "provider": "groq",
+        "model": "moonshotai/Kimi-K2-Instruct",
+        "prompt": "Describe a 4.5m x 5m interior room with 2.4m ceiling, idle avatar at center, warm interior lighting. 2 sentences.",
+        "max_tokens": 128,
+        "temperature": 0.0,
+        "fallback": true,
+        "try_providers": ["groq", "cerebras", "fireworks-ai", "together", "hf-inference"]
+      },
+      "in": ["room_anchor", "light_field"],
+      "out": "room_caption",
+      "tier": "cheap",
+      "status": "ACTIVE"
+    }
+  ],
+
+  "layer_stack": [
+    { "name": "albedo",   "source": "pass:embed_local_svgs",          "blend": "base",         "target_uniform": "u_albedo" },
+    { "name": "normal",   "source": "pass:blender_assemble",          "blend": "normal_map",   "target_uniform": "u_normal" },
+    { "name": "ao",       "source": "pass:blender_assemble",          "blend": "multiply",     "target_uniform": "u_ao" },
+    { "name": "depth",    "source": "pass:spatial_anchor_room",       "blend": "depth_uniform","target_uniform": "u_depth" },
+    { "name": "alpha",    "source": "literal:1.0",                    "blend": "alpha",        "target_uniform": "u_alpha" },
+    { "name": "opacity",  "source": "literal:1.0",                    "blend": "opacity",      "target_uniform": "u_opacity" },
+    { "name": "emission", "source": "pass:extract_lights_from_shapes","blend": "additive",     "target_uniform": "u_emission" }
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/realestate_walkthrough_full_proto.py.j2",
+      "out_path": "studio/web/streamlit/realestate_walkthrough_full.py"
+    },
+    "godot": {
+      "language": "cpp",
+      "scene":  "templates/realestate_walkthrough_full_scene.tscn.j2",
+      "script": "templates/realestate_walkthrough_full_controller.gd.j2",
+      "native": "templates/realestate_walkthrough_full_native.cpp.j2",
+      "out_scene":  "studio/godot/project/scenes/realestate_walkthrough_full.tscn",
+      "out_script": "studio/godot/project/src/realestate_walkthrough_full_controller.gd",
+      "out_native": "studio/godot/project/cpp/src/realestate_walkthrough_full_native.cpp"
+    },
+    "blender": {
+      "template": "templates/realestate_walkthrough_full_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/realestate_walkthrough_full_bake.py"
+    },
+    "spriteforge": {
+      "mcp_server": "spriteforge-mcp",
+      "tools": ["sprite_refine_prompt", "sprite_generate"],
+      "manifest_out": "studio/spriteforge/manifests/realestate_walkthrough_full_sheet.json"
+    },
+    "comfyui": {
+      "workflow_json": "templates/realestate_walkthrough_full_comfy.json.j2",
+      "install_path": "/data/Projects/ComfyUI",
+      "node_packs": ["impact", "ipadapter"],
+      "out_path": "/data/Projects/ComfyUI/user/workflows/realestate_walkthrough_full.json"
+    }
+  },
+
+  "license_tier": "tier3_engine",
+  "price_usd_cents_per_run": 999,
+
+  "crystal": "",
+  "depends_on": [],
+
+  "_notes": "Master integration card. Six ACTIVE passes (pinterest_harvest, svg_embed, light_extract, frame_clock, spatial_anchor, dataset_select) — all run today via studio_runtime in pure-Python deterministic mode. Three IN-FLIGHT passes (blender_assemble, comfy_render_avatar, remotion_compose) — the heavy-compute legs that activate when the GPU pool + MCP bridge wire in. Layer stack uses the full canonical vocabulary including emission (auto-populated by light_source). Surfaces span all 8 emit targets."
+}

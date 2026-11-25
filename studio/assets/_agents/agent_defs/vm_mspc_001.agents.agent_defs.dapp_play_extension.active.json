@@ -1,0 +1,114 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "dapp_play_extension",
+  "state": "active",
+  "version": "v0",
+  "role": "HTTP_EXTENSION · INSTANT_GAMES_LOBBY_AND_FB_SDK_BRIDGE",
+  "tier": "L0",
+  "module_path": "studio/dapp/server.py",
+  "extends": "vm_mspc_001.agents.agent_defs.dapp_server",
+  "parent_card": "studio/assets/_agents/agent_defs/vm_mspc_001.agents.agent_defs.dapp_server.active.json",
+
+  "summary": "Additive surface bolted onto the existing dapp_server: hosts the Godot Instant Games HTML5 build in an iframe, ships a Play in Facebook launcher, exposes /dapp/api/fb_event for the FBInstant SDK shell to relay player events, and exposes /dapp/api/social_graph for the planet_map_scene friends-fetcher. The bridge JS lives at /dapp/play/sdk-bridge.js and is loaded by the iframe-host page. All write events crystal-anchor at tier='fb_event'. The parent dapp_server.active.json card is NOT modified — this sidecar documents only the additions.",
+
+  "engine_pattern": "Reuses dapp_server's stdlib http.server.ThreadingHTTPServer + string.Template render path. Renders three new templates (play.html, play_embed.html, play_no_build.html) via the same _render_page/_render_inner helpers. The SDK bridge JS is an inline string constant served as application/javascript with no caching. Window-message bridge in play_embed.html relays {type:'mspc_fb_event', ...} messages from the iframe to /dapp/api/fb_event. Optional integration modules (fb_instant_games.FBInstantGamesConnector, social_graph_persistence) are imported lazily and degrade to seed data if missing — the surface never breaks the rest of the dApp.",
+
+  "added_routes": {
+    "GET /dapp/play":              "render play.html — lobby with Play in Facebook + Play in browser launchers + live friend count",
+    "GET /dapp/play/embed":        "full-page iframe of the Godot HTML5 build (or play_no_build.html fallback if export missing)",
+    "GET /dapp/play/sdk-bridge.js": "serves application/javascript exposing window.MspcDappBridge (sendEvent, fetchSocialGraph, setToken, loadToken)",
+    "GET /dapp/api/social_graph?player_id=X": "BEARER · returns {players, friendships} for planet_map_scene; reads social_graph_persistence if importable, otherwise deterministic seed",
+    "POST /dapp/api/fb_event":     "BEARER · body {event_name, player_id, context_id, signed_data, payload}; routes through FBInstantGamesConnector.record_event; crystal-anchors at tier='fb_event', model='dapp_fb_bridge', scope='dapp_<event_name>'"
+  },
+
+  "added_templates": {
+    "studio/dapp/templates/play.html":         "lobby — Play in Facebook + Play in browser buttons, live HTMX-loaded friend count, SDK-bridge intro panel",
+    "studio/dapp/templates/play_embed.html":   "full-page iframe of /studio/godot/builds/web_instant_games/index.html plus the SDK bridge script tag and a window-message relay",
+    "studio/dapp/templates/play_no_build.html": "graceful fallback shown when the Godot HTML5 export hasn't been produced yet (no studio/godot/builds/web_instant_games/index.html present)"
+  },
+
+  "added_helpers": [
+    "_SDK_BRIDGE_JS — inline JS constant served at /dapp/play/sdk-bridge.js",
+    "_fb_play_url() — picks https://www.facebook.com/instantgames/play/<FB_INSTANT_APP_ID> or /dapp/play/embed fallback",
+    "_godot_build_present() — checks GODOT_BUILD_INDEX.is_file()",
+    "_seed_social_graph(player_id) — deterministic seed for the planet_map_scene fetcher",
+    "_load_social_graph(player_id) — try social_graph_persistence, fall back to seed",
+    "_record_fb_event(event_name, player_id, context_id, signed_data, payload) — try FBInstantGamesConnector.record_event, fall back to no-op",
+    "DappHandler._handle_fb_event(claims) — POST handler for /dapp/api/fb_event"
+  ],
+
+  "nav_changes": "Added one <a href=\"/dapp/play\">play</a> entry to nav.tabs in studio/dapp/templates/base.html — single-line addition, no other base.html edits",
+
+  "env_vars": {
+    "FB_INSTANT_APP_ID": "FB app id used to build the https://www.facebook.com/instantgames/play/<id> launcher URL; empty → launcher falls back to /dapp/play/embed"
+  },
+
+  "constants": {
+    "GODOT_BUILD_DIR":   "studio/godot/builds/web_instant_games (expected drop location for the Godot HTML5 export)",
+    "GODOT_BUILD_INDEX": "studio/godot/builds/web_instant_games/index.html (presence sentinel)",
+    "GODOT_BUILD_EMBED_SRC": "/studio/godot/builds/web_instant_games/index.html (iframe src — served by the studio_runtime or a future static handler)"
+  },
+
+  "exports": [
+    "_SDK_BRIDGE_JS",
+    "_fb_play_url",
+    "_godot_build_present",
+    "_seed_social_graph",
+    "_load_social_graph",
+    "_record_fb_event"
+  ],
+
+  "substrate": "additive — no own DB. Reuses freetier_gate.require_token for all write/read auth, inference_logger for crystal anchors, and lazy-imports fb_instant_games.FBInstantGamesConnector + social_graph_persistence when present.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "browser: visitors to /dapp/play and /dapp/play/embed",
+      "Godot HTML5 build: iframe-relay window.postMessage({type:'mspc_fb_event', ...}) → /dapp/api/fb_event",
+      "facebook.com/instantgames embed shell: the bridge JS calls /dapp/api/fb_event + /dapp/api/social_graph",
+      "planet_map_scene Godot scene: fetches /dapp/api/social_graph?player_id=X for friend planet rendering"
+    ],
+    "outbound_calls": [
+      "fb_instant_games.FBInstantGamesConnector.record_event(event_name, player_id, context_id, signed_data, payload) — lazy import, optional",
+      "social_graph_persistence.load_graph(player_id) / get_graph / load — lazy import, optional, seed fallback",
+      "core/lib/freetier_gate.require_token(headers) on every added write endpoint and the social_graph reader",
+      "core/lib/inference_logger.InferenceLogger().log(tier='fb_event', model='dapp_fb_bridge', scope='dapp_<event_name>')"
+    ],
+    "substrate_reads": "studio/godot/builds/web_instant_games/index.html presence check; templates under studio/dapp/templates/",
+    "substrate_writes": "crystal chain entries via inference_logger only"
+  },
+
+  "graceful_degradations": [
+    "FB_INSTANT_APP_ID not set → Play in Facebook button routes to /dapp/play/embed",
+    "fb_instant_games module missing → fb_event returns 502 {ok:false, backend:'exception'} with the crystal still anchored at rc=1",
+    "social_graph_persistence module missing → /dapp/api/social_graph returns deterministic seed data, source='seed'",
+    "Godot HTML5 build not exported → /dapp/play/embed renders play_no_build.html with the cc godot-export command"
+  ],
+
+  "guarantees": [
+    "Existing dapp_server routes (services, mint, wallet, products, balance, buy, mint, healthz) are NOT modified",
+    "dapp_server.active.json is NOT modified — additions live in this sidecar card only",
+    "/dapp/api/fb_event and /dapp/api/social_graph are bearer-gated via the same freetier_gate.require_token path the other write endpoints use",
+    "Every /dapp/api/fb_event call crystal-anchors at tier='fb_event' even on backend failure",
+    "Stdlib-only — no new deps; SDK bridge JS is an inline string constant",
+    "Lazy imports of optional modules — server boots even when fb_instant_games / social_graph_persistence don't exist"
+  ],
+
+  "smoke_test_results_2026_05_28": {
+    "syntax_check":           "ok — ast.parse passes",
+    "healthz_unaffected":     "ok — /dapp/healthz still returns {ok:true}",
+    "play_lobby":             "ok — /dapp/play renders with Play in Facebook + Play in browser launchers",
+    "sdk_bridge_served":      "ok — /dapp/play/sdk-bridge.js returns application/javascript with window.MspcDappBridge",
+    "fb_event_unauth_401":    "ok — POST /dapp/api/fb_event without bearer returns 401",
+    "social_graph_unauth_401": "ok — GET /dapp/api/social_graph without bearer returns 401"
+  },
+
+  "usage_example": "GET  /dapp/play\\nGET  /dapp/play/sdk-bridge.js\\ncurl -H 'Authorization: Bearer <token>' -X POST -H 'Content-Type: application/json' \\\\\\n  -d '{\\\"event_name\\\":\\\"orbit_clicked\\\",\\\"player_id\\\":\\\"tom\\\",\\\"context_id\\\":\\\"ctx_1\\\",\\\"signed_data\\\":\\\"sig\\\",\\\"payload\\\":{\\\"planet\\\":\\\"alice\\\"}}' \\\\\\n  http://localhost:8520/dapp/api/fb_event",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Instant Games launch surface. Pairs with the Godot project (studio/godot/project/scenes/planet_map_scene) + future FBInstantGamesConnector + social_graph_persistence modules. Next: cc godot-export web_instant_games target + FB app-id provisioning."
+}

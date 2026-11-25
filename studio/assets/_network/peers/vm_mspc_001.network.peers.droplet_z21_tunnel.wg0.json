@@ -1,0 +1,17 @@
+{
+  "_schema": "network_peer_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "network",
+  "category": "peers",
+  "name": "droplet_z21_tunnel",
+  "state": "active",
+  "version": "wg0",
+  "tunnel_type": "wireguard",
+  "endpoint": "159.89.181.146:51820",
+  "local_endpoint": "z21:51820",
+  "allowed_ips": ["10.200.200.0/24"],
+  "persistent_keepalive": 25,
+  "last_handshake": "2026-05-27T23:00:00Z"
+}

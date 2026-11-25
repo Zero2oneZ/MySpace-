@@ -1,0 +1,17 @@
+[Unit]
+Description=MySpace++ unified proprietary model API gateway
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+WorkingDirectory=/opt/mspc-public
+Environment=PYTHONPATH=/opt/mspc-public/lib:/opt/mspc-public/auth
+ExecStart=/usr/bin/python3 /opt/mspc-public/lib/model_api.py serve --port 8521
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/model_api.log
+StandardError=append:/var/log/mspc/model_api.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,70 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "remotion",
+  "state": "active",
+  "version": "v0",
+  "role": "SURFACE · VIDEO_COMPOSITION_ENGINE",
+  "tier": "L0",
+  "module_path": "studio/remotion (full remotion-monorepo fork)",
+  "summary": "The video composition layer. Programmatic React + TypeScript → video output via ffmpeg. Native compositor binaries for darwin/linux/win/lambda. Captions, animation-utils, effects, codex-plugin, elevenlabs TTS integration, cloud-run + lambda render targets. Closes the multi-modal composition stack: SVG (2D vector) + ComfyUI (2D raster) + SpriteForge (sprite atlas) + Audio (Kokoro/Qwen3-TTS) + Godot (3D scenes) + Blender (3D bake) + Remotion (final video).",
+  "engine_pattern": "monorepo of ~50 packages. Core composition is React components rendered via offscreen browser + ffmpeg encoding. Native compositor crates (.node addons) handle pixel pipeline. CLI exposes render commands; cloud-run + lambda packages enable distributed rendering.",
+  "key_packages": {
+    "core":            "React renderer + composition primitives",
+    "compositor":      "native pixel + ffmpeg pipeline (per-platform .node addons)",
+    "captions":        "subtitle generation + WebVTT export",
+    "cli":             "`npx remotion render` + `npx remotion studio`",
+    "cloudrun":        "GCP Cloud Run render target",
+    "lambda":          "AWS Lambda render target — fan-out parallel frames",
+    "elevenlabs":      "TTS integration package",
+    "effects":         "reusable composition effects (transitions, blurs, glows)",
+    "animation-utils": "interp + spring + timing helpers",
+    "codex-plugin":    "(unique to this fork — TBD purpose)",
+    "convert":         "media format conversion",
+    "discord-poster":  "post rendered videos to Discord (mirrors our third_party.discord pattern)"
+  },
+  "exports": ["@remotion/core", "@remotion/cli", "@remotion/lambda", "@remotion/cloudrun",
+               "@remotion/compositor", "@remotion/captions", "@remotion/effects",
+               "@remotion/elevenlabs", "@remotion/convert"],
+  "substrate": "studio/remotion (TypeScript monorepo + per-platform compositor binaries)",
+  "routing_connections": {
+    "inbound_callers": [
+      "(planned) workflow_generator with --target remotion → emit React component skeleton from workflow_card",
+      "(planned) endpoints.RoutingOperator action=render_video → fan to remotion lambda",
+      "(planned) third_party.discord → post the rendered video"
+    ],
+    "outbound_calls": [
+      "ffmpeg (via compositor native addon)",
+      "elevenlabs API (when TTS pass is wired)",
+      "AWS Lambda / GCP Cloud Run for distributed render"
+    ],
+    "substrate_reads": [
+      "studio/spriteforge/manifests/*.json (frames from sprite-sheet workflows feed video composition)",
+      "studio/blender/scripts/*.py outputs (3D bake → video sequence)",
+      "/home/tom/models/*tts*/ (Qwen3-TTS, Kokoro for narration tracks)"
+    ],
+    "substrate_writes": "studio/remotion/out/*.mp4 (final composed videos — anchorable to crystal chain when bridge lands)"
+  },
+  "the_complete_composition_stack": {
+    "2D_vector":         "svg_vector_embed + svg_harvest + pinterest_vector_motherload",
+    "2D_raster":         "ComfyUI + FLUX + SD3 + Qwen_Image_Edit",
+    "sprite_atlas":      "SpriteForge (web app + MCP)",
+    "audio":             "Kokoro TTS + Qwen3-TTS + Vocal-Isolator (model_index)",
+    "3D_meshes":         "Godot + Blender + Pixal3D + MediaPipe pose",
+    "video_composition": "Remotion (NEW — this card)",
+    "avatar_realtime":   "MediaPipe → AnimateAnyone → Wav2Lip (placeholders — workflow_card flagship references them)"
+  },
+  "guarantees": [
+    "Pure TypeScript + React on the composition side — no opaque binary editor formats",
+    "Deterministic renders: same React component tree + same props = same video bytes (modulo ffmpeg encoder variance)",
+    "Fork from canonical remotion-dev monorepo — upstream patches mergeable",
+    "Native compositor binaries already vendored per platform (no missing builds)"
+  ],
+  "fork_notes": "Cloned via `gh repo clone Zero2oneZ/remotion`. The 'all Sui for video compositing' framing suggests this Zero2oneZ fork is intended to (or will) carry Sui chain anchoring of render artifacts. Standard remotion-dev packages are intact; check `codex-plugin` for the differentiating piece.",
+  "next_wedge": "workflow_generator with --target remotion emits a React component skeleton from a workflow_card. Six surfaces in total: streamlit + godot_scene + godot_gd + godot_cpp + blender + spriteforge + comfyui + remotion = 8 surfaces, one card.",
+  "chain_runs": ["moe_chain_router_v0"]
+}

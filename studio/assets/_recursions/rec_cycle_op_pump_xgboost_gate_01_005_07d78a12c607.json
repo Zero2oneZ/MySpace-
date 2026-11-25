@@ -1,0 +1,18 @@
+{
+  "crystal": "07d78a12c6079d234618284c7e57909ff941ba427b669544f920b89cba3029bdc42ef1c1cddb0befbbdf93e66ee1711a157bcff93d6365b30e3374cbce094e0e",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_pump_xgboost_gate_01_005",
+  "kind": "simple_cycle",
+  "name": "pump_xgboost_gate",
+  "nodes": [
+    "op_pump_xgboost_gate"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

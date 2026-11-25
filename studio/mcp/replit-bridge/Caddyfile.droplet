@@ -1,0 +1,51 @@
+# MySpace++ Unified Bridge — Caddy reverse proxy
+# Place this in /etc/caddy/Caddyfile.d/myspace-bridge on the droplet
+# and include it in the main Caddyfile: import /etc/caddy/Caddyfile.d/*
+
+# If you have a domain, replace :443 with your domain name.
+# For now, bind to all interfaces on port 8766 (alternative to raw 8765).
+
+:8766 {
+    # Enable gzip compression
+    encode gzip
+
+    # CORS headers for public API access
+    header Access-Control-Allow-Origin "*"
+    header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    header Access-Control-Allow-Headers "Content-Type, Authorization"
+
+    # Health check endpoint (handled by Caddy directly)
+    handle /health {
+        reverse_proxy localhost:8765
+    }
+
+    # Social API routes
+    handle /social/* {
+        reverse_proxy localhost:8765
+    }
+
+    # MCP JSON-RPC endpoint
+    handle /mcp/call {
+        reverse_proxy localhost:8765
+    }
+
+    # Tool listing
+    handle /tools {
+        reverse_proxy localhost:8765
+    }
+
+    # Dashboard
+    handle /dashboard.html {
+        reverse_proxy localhost:8765
+    }
+
+    # Root
+    handle {
+        reverse_proxy localhost:8765
+    }
+
+    log {
+        output file /var/log/caddy/myspace-bridge.log
+        format json
+    }
+}

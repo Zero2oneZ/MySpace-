@@ -1,0 +1,40 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "gpu_scheduler",
+  "state": "active",
+  "version": "v0",
+  "role": "SCHEDULER · VRAM_AWARE_GPU_SLOTS",
+  "tier": "L0",
+  "module_path": "core/lib/gpu_scheduler.py",
+  "summary": "VRAM-aware slot allocator across the dual RTX 3090 Ti rig (24 GB each = 48 GB total). First-fit decreasing — picks the GPU with most free VRAM that can fit. Tracks reservations in-memory; verifies against nvidia-smi on demand.",
+  "engine_pattern": "Dict[device_id → GPUDevice]. try_reserve(vram_gb) returns Optional[GPUReservation]. release(res) frees the budget. Thread-safe via Lock.",
+  "default_profile": [
+    { "id": 0, "name": "RTX 3090 Ti", "total_vram_gb": 24.0 },
+    { "id": 1, "name": "RTX 3090 Ti", "total_vram_gb": 24.0 }
+  ],
+  "exports": ["GPUScheduler", "GPUDevice", "GPUReservation"],
+  "substrate": "in-memory reservation table",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/task_queue.py::TaskQueue._run_gpu (every GPU-kind task)",
+      "workflow_generator (per-pass vram_gb pre-check)",
+      "core/cc.sh::cmd_gpu_status (CLI)"
+    ],
+    "outbound_calls": ["subprocess nvidia-smi (verification only, optional)"],
+    "substrate_reads": "nvidia-smi output for drift detection",
+    "substrate_writes": "none"
+  },
+  "guarantees": [
+    "Sum of reservations on a device never exceeds total_vram_gb",
+    "Released reservations always free their budget",
+    "Drift detection via verify_with_nvidia_smi() — warns but does not invalidate",
+    "First-fit decreasing → least-loaded GPU gets the next job"
+  ],
+  "usage_example": "from gpu_scheduler import GPUScheduler\\ns = GPUScheduler()\\nres = s.try_reserve(16, label='flux_inference')\\nif res:\\n    try:\\n        # run model here\\n        pass\\n    finally:\\n        s.release(res)",
+  "chain_runs": ["moe_chain_router_v0"]
+}

@@ -1,0 +1,25 @@
+[Unit]
+Description=MySpace++ Unified Bridge MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/myspace-bridge
+Environment=CC_PROJECT_ROOT=/opt/myspace-bridge/data
+Environment=PYTHONUNBUFFERED=1
+
+# The bridge reads all platform keys from /opt/myspace-bridge/data/.env
+# Create that file on the droplet with the real keys.
+EnvironmentFile=-/opt/myspace-bridge/data/.env
+
+ExecStart=/usr/bin/python3 /opt/myspace-bridge/server.py --replit --port 8765
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

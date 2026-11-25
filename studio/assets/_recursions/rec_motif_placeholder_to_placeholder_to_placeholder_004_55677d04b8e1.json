@@ -1,0 +1,41 @@
+{
+  "crystal": "55677d04b8e1c5071e9742b0588069de0d4dc43d350a448d3313e7ed943721aa091616ade22a5e1a1f077e7a1ebb37d06409ca40cad92b3fe39107d8a6c9f321",
+  "description": "Pattern 'placeholder\u2192placeholder\u2192placeholder' appears 52 times across ORCHESTRATION",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_placeholder_to_placeholder_to_placeholder_004",
+  "kind": "motif",
+  "name": "motif: placeholder\u2192placeholder\u2192placeholder",
+  "nodes": [
+    "op_acoustic_echo_map",
+    "op_bb_emit_godot",
+    "op_berlin_clock_btc",
+    "op_coord_graph",
+    "op_cross_modal_chat",
+    "op_htmx_morphing_platform",
+    "op_image_harmonization",
+    "op_meta_model_bb_compile",
+    "op_moe_router_time_neighbors",
+    "op_moe_router_wave_neighbors",
+    "op_morph_layer_polymorphism",
+    "op_mr_walkthrough_card",
+    "op_object_placement",
+    "op_occlusion_handling",
+    "op_p2p_ring_buffer",
+    "op_pinterest_third_party",
+    "op_real_world_render",
+    "op_realestate_walkthrough",
+    "op_remotion_video_compose",
+    "op_shape_family_index",
+    "op_spatial_transformation",
+    "op_studio_marketplace",
+    "op_tri_modal_logger_wiring",
+    "op_wifi_rtt_position",
+    "op_xml_vector_inference",
+    "op_zpin_identity"
+  ],
+  "size": 52,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

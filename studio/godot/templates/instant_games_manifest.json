@@ -1,0 +1,20 @@
+{
+  "name": "MySpace++ (placeholder)",
+  "description": "MySpace++ Studio · TROLLN ecosystem",
+  "categories": ["MULTIPLAYER", "ARCADE"],
+  "platform_url": "https://trollz.fun/play/myspace_pp",
+  "icon_url": "https://trollz.fun/play/myspace_pp/icon.png",
+  "screen_orientation": "PORTRAIT_OR_LANDSCAPE",
+  "supports_messenger_chat_extension": true,
+  "supports_play_to_win": false,
+  "sdk_version": "7.1",
+  "engine": "godot",
+  "engine_version": "4.6.3-stable",
+  "main_html": "index.html",
+  "developer": {
+    "name": "Zero2oneZ",
+    "support_url": "https://trollz.fun/support",
+    "privacy_url": "https://trollz.fun/privacy",
+    "terms_url": "https://trollz.fun/terms"
+  }
+}

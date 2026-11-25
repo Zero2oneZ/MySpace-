@@ -1,0 +1,36 @@
+{
+  "_schema": "factory_template_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "factory",
+  "category": "templates",
+  "name": "realestate_walkthrough",
+  "state": "active",
+  "version": "v0",
+  "template_id": "tmpl_realestate_walkthrough",
+  "display_name": "Real Estate Walkthrough",
+  "description": "Interactive 3D property tour with avatar guide and room transitions",
+  "category": "3d_experience",
+  "engine": "godot",
+  "license": "per_tenant",
+  "source_assets": [
+    "_global/models/scenes/house_interior",
+    "_global/models/avatars/N001.fbx",
+    "_global/animations/walk/",
+    "_global/animations/gesture/"
+  ],
+  "configurable_params": [
+    {"key": "brand_color", "type": "color", "default": "#3366ff"},
+    {"key": "logo", "type": "image", "default": null},
+    {"key": "room_count", "type": "int", "default": 5, "max": 20},
+    {"key": "contact_info", "type": "string", "default": ""},
+    {"key": "avatar_voice", "type": "enum", "options": ["male_1", "female_1", "clone"], "default": "female_1"},
+    {"key": "music_track", "type": "audio", "default": "_global/audio/music/ambient_1.mp3"}
+  ],
+  "output_type": "godot_project",
+  "estimated_build_time_seconds": 120,
+  "estimated_deploy_time_seconds": 30,
+  "created_at": "2026-05-27T23:00:00Z",
+  "crystal": "<sha256 of this file content>"
+}

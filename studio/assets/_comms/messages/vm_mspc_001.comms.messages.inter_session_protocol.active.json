@@ -1,0 +1,23 @@
+{
+  "_schema": "inter_session_message_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "comms",
+  "category": "messages",
+  "name": "inter_session_protocol",
+  "state": "active",
+  "version": "v0",
+  "protocol": "NOTES-FOR-INFERANCE.md",
+  "parties": ["mspc", "gently"],
+  "communication_file": "studio/docs/NOTES-FOR-INFERANCE.md",
+  "cadence_rules": [
+    "Open every session by reading NOTES-FOR-INFERANCE.md",
+    "Mark completed items [x] with Updated by: <half> at <iso-ts>",
+    "Questions prefixed Q-MSPC-001 or Q-GENTLY-001",
+    "Answers copied into answers block + checked off",
+    "Append-only at section level — never delete"
+  ],
+  "mirror_validation": true,
+  "crystal_hashing": true
+}

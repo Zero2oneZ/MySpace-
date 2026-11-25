@@ -1,0 +1,23 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "panel",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "Panel",
+  "godot_inherits": "Control < CanvasItem < Node",
+  "summary": "Background Control container that draws a themed stylebox (rounded corners, border, shadow, fill). Use as a card backdrop, modal sheet, sidebar, HUD frame around chain_render_wall labels, dialog background. Inherits theme styles from project default unless theme_override_styles/panel is set. Place child Controls (VBoxContainer, Label, Button) inside Panel to get an automatic backing. Heavier than ColorRect — use ColorRect when you only need a single flat color.",
+  "exports": [],
+  "signals": [],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "tint", "godot_property": "self_modulate" },
+    { "layer": "stylebox", "godot_property": "theme_override_styles/panel" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": true,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyPanel\" type=\"Panel\" parent=\".\"]\noffset_right = 400.0\noffset_bottom = 240.0\nmodulate = Color(1, 1, 1, 0.95)\n",
+  "phase": "Atomic UI element"
+}

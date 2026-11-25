@@ -1,0 +1,2 @@
+{"ts":"2026-05-28T22:02:41Z","op":"list","namespace":"me","count":0,"status":403}
+{"ts":"2026-05-28T22:02:41Z","op":"deploy","namespace":"test-namespace","name":"mspc-smoke-do-not-deploy","model_id":"gpt2","confirmed":false,"success":false,"status":0,"error":"deploy requires confirm=True; hourly billing"}

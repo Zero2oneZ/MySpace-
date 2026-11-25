@@ -1,0 +1,74 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "transition_field",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · MEASUREMENT_FIRST_DELTA_FIELD",
+  "tier": "L0",
+  "module_path": "core/lib/transition_field.py",
+  "summary": "The measurement-first inverse of forward_projector. For each chain event with (position, frame, value), measure gradients across a 4D aperture (spatial sphere × temporal disk). Outputs Transition (per-pair delta) + TransitionField (aggregate: divergence, curl, mean_velocity, flow_signature). The flow_signature is a 64-d DCT — joins the wave axis directly. When the chain has data, MEASURE. When it doesn't, fall back to forward_projector.",
+  "engine_pattern": "deterministic gradient measurement. Pure-Python vector math. Same DCT-II as tri_modal_embedder and svg_vector_embed so signatures join across the same unit hypersphere.",
+  "the_architectural_inversion": {
+    "before": "chain event → forward_projector → LLM extrapolation (cost ~10s, best-effort determinism)",
+    "after":  "chain event → measure transitions in aperture → flow signature (cost <50ms, bytes-exact)",
+    "forward_projector_role": "fallback when chain is SPARSE — no nearby events to measure",
+    "transition_field_role":  "default when chain is DENSE — events exist within (radius, frame_window)"
+  },
+  "exports": ["Transition", "TransitionField", "find_similar_flows",
+              "cosine_similarity"],
+  "substrate": "in-memory Transition + TransitionField objects (caller persists via inference_logger)",
+  "measurement_aperture": {
+    "spatial":  "sphere of radius_m around query position (default 5m)",
+    "temporal": "±frame_window frames around query frame at given fps (default ±30 @ 60fps = 0.5s)",
+    "value":    "optional value_key (e.g., 'rgb', 'attribute_signature') — color/shape delta"
+  },
+  "computed_quantities": {
+    "spatial_delta":          "dst.position - src.position (3-vector)",
+    "spatial_distance":       "|spatial_delta|",
+    "direction":              "normalized spatial_delta",
+    "value_delta":            "dst.value - src.value (per channel)",
+    "value_delta_magnitude":  "|value_delta|",
+    "frame_delta":            "dst.frame - src.frame at given fps",
+    "duration_s":             "frame_delta / fps",
+    "velocity_magnitude":     "spatial_distance / duration_s",
+    "color_velocity":         "value_delta_magnitude / duration_s",
+    "mean_velocity_vec":      "average velocity vector across all transitions in field",
+    "divergence":             "sum of (direction · outward) — flow outward (source) or inward (sink)",
+    "curl_vec":               "average cross(direction, outward) — rotational structure",
+    "flow_signature":         "DCT-II of velocity magnitudes, L2-normed → joins wave axis"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "light_source (frame-to-frame light evolution = optical flow)",
+      "svg_vector_embed (shape morph: square → blue square as measured transition)",
+      "spatial_anchor (room_signature drift over time)",
+      "inference_logger (output_text deltas turn-over-turn)",
+      "user_graph (n-gram drift across user's chain-of-thought)",
+      "(planned) moe_router.find_similar_flows — 6th retrieval axis"
+    ],
+    "outbound_calls": ["blake3 / blake2b for crystal", "stdlib math/json/hashlib"],
+    "substrate_reads": "caller-provided event corpus",
+    "substrate_writes": "none (caller persists)"
+  },
+  "smoke_test_results_2026_05_28": {
+    "single_transition":      "ev_A→ev_B: spatial 1m, velocity 12 m/s, color_velocity 3.39 units/s, crystal stable",
+    "field_3_transitions":    "divergence=+18 (outward flow), curl=(0,0,0) (no rotation), flow_sig norm=1.0",
+    "widened_aperture":       "radius 2.5→4m captures +1 transition (ev_D at 3m)",
+    "find_similar_flows":     "self sim=1.000, alt-anchor sim=0.7606 (similar flow pattern at different position)"
+  },
+  "why_flow_sig_is_first_class": "Same 64-d DCT-II shape + L2 norm as wave_embedding (text), svg_path_embedding (geometry), room_signature (acoustic), sentence_chain (syntactic). One unit hypersphere; one cosine_similarity function; one universe of retrieval.",
+  "guarantees": [
+    "Deterministic — same inputs → same transition + field crystal byte-exact",
+    "Pure measurement — no LLM, no model load, no prediction noise",
+    "Lossless within aperture — every event in (radius, frame_window) gets measured",
+    "Joinable — flow_signature lives on the same hypersphere as wave/svg/sentence axes",
+    "Composable — Transition crystals can themselves be chained (Transition of Transitions)"
+  ],
+  "usage_example": "from transition_field import Transition, TransitionField\\nt = Transition.measure(src_event, dst_event, fps=60, value_key='rgb')\\nfield = TransitionField.measure(query=src_event, corpus=events, radius_m=5.0, frame_window=30, fps=60, value_key='rgb')\\nprint(field.divergence, field.curl_vec, field.flow_signature[:8])",
+  "chain_runs": ["moe_chain_router_v0"]
+}

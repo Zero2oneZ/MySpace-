@@ -1,0 +1,60 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "svg_vector_embed",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · GEOMETRIC_VECTOR_EMBEDDING_AXIS",
+  "tier": "L0",
+  "module_path": "core/lib/svg_vector_embed.py",
+  "summary": "The 5th MoE retrieval axis — explicit geometric vector embedding via SVG path parsing. 64-dim DCT-II shape descriptor per path, translation + scale invariant (centered + unit-bbox normalized + arc-length resampled). Same DCT pipeline as wave_embedding but on numerical (x,y) coordinate sequences instead of byte streams. Crystal-anchored so every path ties back to a deterministic source.",
+  "engine_pattern": "pure-Python SVG path parser → coordinate sequence → normalize → arc-length resample → DCT-II → L2-normalize. Stdlib only (re, math, xml.etree). No svglib, no cairosvg, no inkscape required.",
+  "supported_path_commands": ["M/m moveto", "L/l lineto", "H/h horizontal", "V/v vertical",
+                              "C/c cubic Bezier (endpoint only)", "S/s smooth cubic",
+                              "Q/q quadratic Bezier", "T/t smooth quadratic",
+                              "A/a arc (endpoint approximation)", "Z/z close path"],
+  "exports": ["SvgPathRecord", "parse_path", "normalize_points", "resample_linear",
+              "svg_path_embedding", "extract_paths_from_file", "embed_svg_file",
+              "cosine_similarity", "find_svg_neighbors"],
+  "substrate": "stateless transform (caller persists via svg_harvest.sh → ~/.cc/svg_index.jsonl)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/scripts/svg_harvest.sh (walks any root for *.svg → emits ParserCursor JSONL)",
+      "PinterestConnector.harvest_curated (when pin's source_url points at SVG content)",
+      "workflow_card vm_mspc_001.workflows.harvest.pinterest_vector_motherload.v0.json",
+      "(planned) moe_router.find_svg_neighbors — the 5th axis"
+    ],
+    "outbound_calls": ["blake3 / blake2b for crystal hashing", "xml.etree.ElementTree for SVG parse"],
+    "substrate_reads": "SVG files (any path passed by caller)",
+    "substrate_writes": "none — caller persists"
+  },
+  "smoke_test_results_2026_05_28": {
+    "self_match_perfect":          "circle path vs itself → cosine 1.0",
+    "scale_invariant_match":       "two same-shape circles different sizes → cosine 1.0",
+    "shape_discrimination":        "circle vs square → cosine -0.713",
+    "real_repo_harvest":           "34 SVG files, 32 paths embedded, 0 errors",
+    "self_recall_on_corpus":       "querying MASTER-TODO.svg path returns itself at sim 1.0",
+    "geometric_neighbor":          "long horizontal arrow → TWINS-MASTER similar shape sim 0.98",
+    "negative_match":              "long arrow vs small triangle → sim 0.17 (correctly rejected)"
+  },
+  "limits_v0": [
+    "Rotation NOT normalized (would need PCA over point cloud — defer)",
+    "Bezier curves use endpoint approximation (curvature signature lost — adequate for shape matching)",
+    "Arc commands approximated as endpoint",
+    "Very short paths (2-3 points) collapse to similar embeddings after resampling"
+  ],
+  "guarantees": [
+    "Deterministic — same path string → same 64-d embedding byte-exact",
+    "Translation + scale invariant (after normalize_points)",
+    "L2-normalized — cosine similarity = dot product",
+    "Pure-Python stdlib — no SVG library dependencies",
+    "Sub-50ms per typical path (most SVG paths have < 200 waypoints)"
+  ],
+  "the_pin_motherload_thesis": "Pinterest has a treasure trove of vector graphics referenced via pin source_urls. PinterestConnector.harvest_curated with categories ['svg','vector_illustration','icon_set','logo_design','infographic'] surfaces pins; those linking to github raw .svg / codepen / figma get fetched + embedded here. Every harvested path becomes a crystal-anchored node joinable across all 5 MoE retrieval axes.",
+  "usage_example": "from svg_vector_embed import svg_path_embedding, find_svg_neighbors\\nemb = svg_path_embedding('M50,50 C50,77.6 27.6,100 0,100 ...')\\nprint(len(emb))  # 64",
+  "chain_runs": ["moe_chain_router_v0"]
+}

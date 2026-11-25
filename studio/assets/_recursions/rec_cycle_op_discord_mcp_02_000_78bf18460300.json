@@ -1,0 +1,21 @@
+{
+  "crystal": "78bf18460300bb23ced003132f270f12c987a009acd9766ad061911c8b8e411b7261529bdc1bb0f48678bdf4674a077e843f177393395c9ca216b76a8992355f",
+  "description": "Simple cycle of length 2 spanning APPS,PLATFORMS",
+  "edge_kinds_traversed": [
+    "feeds_back",
+    "ingests_from"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_discord_mcp_02_000",
+  "kind": "simple_cycle",
+  "name": "discord-mcp \u2192 avatar_nft",
+  "nodes": [
+    "op_discord_mcp",
+    "op_product_avatar_nft"
+  ],
+  "size": 2,
+  "sub_dags_touched": [
+    "APPS",
+    "PLATFORMS"
+  ]
+}

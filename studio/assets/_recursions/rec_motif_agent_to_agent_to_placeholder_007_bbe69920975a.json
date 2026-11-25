@@ -1,0 +1,33 @@
+{
+  "crystal": "bbe69920975a42e45313f14485b1a7525e23a68ea8799697dbc30aab28831f7e8f8e4a4a4700b312f95474719bb6a94ad6c6e0cf8f75569c76dcdd2878990226",
+  "description": "Pattern 'agent\u2192agent\u2192placeholder' appears 17 times across ORCHESTRATION",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_agent_to_agent_to_placeholder_007",
+  "kind": "motif",
+  "name": "motif: agent\u2192agent\u2192placeholder",
+  "nodes": [
+    "op_chat_gateway",
+    "op_datasets_index",
+    "op_doc_parser",
+    "op_forward_projector",
+    "op_inference_logger",
+    "op_kimi_moe_routing",
+    "op_mcp_bridge",
+    "op_moe_router",
+    "op_moe_router_time_neighbors",
+    "op_moe_router_wave_neighbors",
+    "op_parser_cursor",
+    "op_realestate_walkthrough",
+    "op_task_queue",
+    "op_token_router",
+    "op_tri_modal_logger_wiring",
+    "op_user_graph",
+    "op_workflow_generator",
+    "op_xml_vector_inference"
+  ],
+  "size": 17,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

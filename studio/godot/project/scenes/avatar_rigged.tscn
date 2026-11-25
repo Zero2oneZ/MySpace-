@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://04c7865e2553a0eed117aa75"]
+
+[ext_resource type="Script" path="res://src/avatar_rigged_controller.gd" id="1_main"]
+
+; GENERATED · card_crystal=04c7865e2553a0eed117aa75dd95ec7e45eec7ef8ee024d7a61612aa3891e673daa68368ec54a7fcdbac34ec605c746c076c0d90cddc5cc2dab7361b0074fb6b
+[node name="PhotoToAvatarRigged" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 2.5, 5)
+
+[node name="Light" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 0, 4, 0)
+
+[node name="AvatarMount" type="Node3D" parent="."]

@@ -1,0 +1,80 @@
+{#-
+  pinterest_spriteforge_manifest.json.j2
+
+  Emits a SpriteForge manifest JSON for a workflow_card_v0.
+  Consumed by:
+    - studio/spriteforge/manifests/<name>.manifest.json on disk
+    - studio/spriteforge/mcp/spriteforge-mcp.js (sprite_refine_prompt + sprite_generate)
+    - workflow_generator.py spriteforge surface dispatcher (post-render hashes
+      the artifact and rewrites crystal_anchor to the card_crystal)
+
+  Inputs:
+    card           — the parsed workflow_card_v0 dict
+    crystal_anchor — optional pre-filled crystal hash; defaults to the
+                     placeholder string "__CRYSTAL_ANCHOR_PLACEHOLDER__" so the
+                     workflow_generator can fill it post-emit.
+
+  Defaults:
+    target_format = "spritesheet_png_atlas"
+    frame_grid    = {"cols": 6, "rows": 6}, overridden by
+                    card.spriteforge.frame_grid (or card.surfaces.spriteforge.frame_grid)
+
+  Behavior notes:
+    - layers[]   — one entry per card.layer_stack[] row, enabled=true
+    - passes[]   — flat list with id / engine / model_path / tier
+    - inputs_schema[] / outputs[] / depends_on[] — pass-through from card
+-#}
+{%- set sf = (card.get('spriteforge') or card.get('surfaces', {}).get('spriteforge', {})) -%}
+{%- set fg = sf.get('frame_grid', {'cols': 6, 'rows': 6}) -%}
+{%- set anchor = crystal_anchor | default('__CRYSTAL_ANCHOR_PLACEHOLDER__', true) -%}
+{
+  "name": {{ card.get('name', 'untitled') | tojson }},
+  "version": {{ card.get('version', 'v0') | tojson }},
+  "category": "sprite",
+  "crystal_anchor": {{ anchor | tojson }},
+  "layers": [
+{%- set layer_stack = card.get('layer_stack', []) -%}
+{%- for layer in layer_stack %}
+    {
+      "name": {{ layer.get('name', '') | tojson }},
+      "blend_mode": {{ layer.get('blend', 'base') | tojson }},
+      "source": {{ layer.get('source', '') | tojson }},
+      "enabled": true
+    }{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ],
+  "passes": [
+{%- set passes = card.get('passes', []) -%}
+{%- for p in passes %}
+    {
+      "id": {{ p.get('id', '') | tojson }},
+      "engine": {{ p.get('engine', '') | tojson }},
+      "model_path": {{ p.get('model_path', '') | tojson }},
+      "tier": {{ p.get('tier', '') | tojson }}
+    }{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ],
+  "inputs_schema": [
+{%- set ins = card.get('inputs', []) -%}
+{%- for i in ins %}
+    {{ i | tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ],
+  "outputs": [
+{%- set outs = card.get('outputs', []) -%}
+{%- for o in outs %}
+    {{ o | tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ],
+  "target_format": "spritesheet_png_atlas",
+  "frame_grid": {
+    "cols": {{ fg.get('cols', 6) | int }},
+    "rows": {{ fg.get('rows', 6) | int }}
+  },
+  "depends_on": [
+{%- set deps = card.get('depends_on', []) -%}
+{%- for d in deps %}
+    {{ d | tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ]
+}

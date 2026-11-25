@@ -1,0 +1,66 @@
+{
+  "_comment": "Lucid data connector manifest for MySpace++. SCAFFOLDING ONLY — not deployed. See ../README.md for the deployment plan.",
+  "name": "myspace-tesseract",
+  "version": "0.0.1-scaffold",
+  "callbackBaseUrl": "https://REPLACE-WITH-DROPLET-HOST/lucid",
+  "oauthProviderName": "myspace-friend-pass",
+  "dataActions": {
+    "import":         "/import",
+    "refresh":        "/refresh",
+    "walk-identify":  "/walk/identify",
+    "chain-run":      "/chain/run",
+    "pass-run":       "/pass/run",
+    "search-pieces":  "/pieces/search"
+  },
+  "collections": {
+    "nodes": {
+      "primaryKey": "mspc:node-id",
+      "schema": {
+        "node-id":    "string",
+        "kind":       "string",
+        "source-dag": "string",
+        "status":     "string",
+        "walk-state": "string",
+        "edge-count": "number",
+        "inputs":     "string",
+        "outputs":    "string",
+        "files":      "string"
+      }
+    },
+    "edges": {
+      "primaryKey": "edge-id",
+      "schema": {
+        "edge-id":   "string",
+        "src":       "string",
+        "dst":       "string",
+        "role":      "string"
+      }
+    },
+    "chain_runs": {
+      "primaryKey": "chain_run_id",
+      "schema": {
+        "chain_run_id":   "string",
+        "chain_text":     "string",
+        "started":        "string",
+        "ended":          "string",
+        "step_count":     "number",
+        "success":        "boolean"
+      }
+    },
+    "pieces": {
+      "primaryKey": "piece_id",
+      "schema": {
+        "piece_id":   "string",
+        "asset_sha":  "string",
+        "pass_id":    "string",
+        "kind":       "string",
+        "label":      "string",
+        "tags":       "string"
+      }
+    }
+  },
+  "oauthProvider": {
+    "_note": "Reuse the salted-token registry; one provider per kind.",
+    "scopes": ["mspc:read", "mspc:walk", "mspc:run"]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "chat_gateway",
+  "state": "active",
+  "version": "v1",
+  "role": "GATEWAY · DETERMINISTIC_CHAT",
+  "tier": "L0",
+  "module_path": "core/lib/chat.py",
+  "summary": "The chat gateway. Every cc chat call flows through here. Orchestrates: prev_forward read → user_graph predict → MoE retrieve → enhance → assemble master chain → route → slice → downward dispatch → forward project → log to crystal chain → record to user_graph.",
+  "engine_pattern": "stateless orchestrator. Each cmd_* function executes the same deterministic pipeline. State lives in the substrates; chat.py is the wire.",
+  "subcommands": {
+    "enhance": "spell-fix + structural enhancement only (no model call, no chain)",
+    "route": "token count + tier/model selection only",
+    "chain": "assemble + render the master workspace-coordinate chain",
+    "full": "the whole pipeline — prev_forward + user_predict + moe_retrieve + enhance + assemble + route + slice + project + log + record",
+    "downward": "slice for a lower tier from a higher tier's perspective",
+    "godot": "emit cc_godot_bridge_v1 JSON packet for Godot CCBridge autoload"
+  },
+  "pipeline_v1": [
+    "0a. _read_prev_forward() — pulls last non-placeholder forward chain from crystal chain tail",
+    "0b. _user_graph_predict(prompt, k=5) — chain-of-thought n-gram match",
+    "0c. _moe_find_experts(prompt, k=5) — content match across all past records",
+    "1.  enhancer.enhance(prompt, scope_hint=cwd) — spell-fix + inject SCOPE/INTENT/CONSTRAINTS/OUTPUT (OUTPUT marker tells controlled models to emit <forward>...</forward> tail)",
+    "1b. Prepend PRIOR EXPERT FORWARD CHAINS block (if any), then prepend PRIOR FORWARD CHAIN (if present)",
+    "2.  assembler.assemble(scope_hint=enhanced_text) — master workspace chain",
+    "3.  router.route(master_render) — token-bucket → (tier, model, scope)",
+    "4.  slicer.slice_by_tier(root, tier) — chain slices for the routed tier",
+    "5.  (if tier in large|epic) slicer.downward_slice() — generate scoped slices for medium + tiny",
+    "6.  project_forward(reasoning_trace, output_text, prev_forward, enable_posthoc=CC_FORWARD_POSTHOC) — inline extract + posthoc fallback",
+    "7.  _log_inference(...reasoning_trace, forward_chain_inline, forward_chain_posthoc, forward_source) → crystal_id",
+    "8.  _user_graph_record(words=prompt, chain_crystal=crystal_id, forward_chain=fwd.chosen()) → turn_uuid"
+  ],
+  "output_json_fields": ["original", "enhanced", "replacements", "added_markers", "master_chain", "route", "tokens", "complexity", "slices", "downward_dispatch", "forward_chain", "user_graph_prediction", "moe_experts", "moe_prior_block_chars", "crystal_id", "user_graph_turn_uuid"],
+  "exports": ["cmd_enhance", "cmd_route", "cmd_chain", "cmd_full", "cmd_downward", "cmd_godot", "_log_inference", "_read_prev_forward", "_user_graph_predict", "_user_graph_record", "_moe_find_experts", "_posthoc_enabled"],
+  "substrate": "none (gateway only — touches every substrate via the helpers)",
+  "env_vars": {
+    "CC_SCOPE_CWD": "scope hint injected into the enhanced prompt's SCOPE marker",
+    "CC_FORWARD_POSTHOC": "set to 1 to enable tiny-model posthoc projection (default off)",
+    "CC_AGENT_UUID": "stamped on every InferenceRecord written",
+    "CC_CORRELATION_ID": "cross-half correlation ID (joint with GentlyOS)",
+    "CC_SESSION_ID": "per-session log retrieval key",
+    "CC_TIMESTAMP": "timestamp injected into Godot bridge packets"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_chat (bash dispatcher, all modes)",
+      "CLI: python3 chat.py <enhance|route|chain|full|downward|godot>"
+    ],
+    "outbound_calls": [
+      "core/lib/prompt_enhancer.py::PromptEnhancer.enhance",
+      "core/lib/token_router.py::ModelRouter.route + downward_dispatch",
+      "core/lib/token_router.py::TokenCounter.count + ComplexityScorer.score",
+      "core/lib/model_registry.py::ModelRegistry (transitive via token_router — tier → canonical model name)",
+      "core/lib/chain_builder.py::ChainAssembler + ChainSlicer + PromptRenderer",
+      "core/lib/forward_projector.py::project",
+      "core/lib/inference_logger.py::InferenceLogger.log + SemanticIndex.index_record",
+      "core/lib/user_graph.py::UserGraph.record_turn + UserGraphIndex.build_from + predict_next",
+      "core/lib/moe_router.py::CrystalChainCursor.open + MoERouter.build_from + find_experts + summarize_for_prompt"
+    ],
+    "substrate_reads": "all three (crystal chain via _read_prev_forward + _moe_find_experts, user_graph via _user_graph_predict)",
+    "substrate_writes": "all three (crystal chain via _log_inference, user_graph via _user_graph_record, semantic_index via SemanticIndex.index_record)"
+  },
+  "v1_extension_2026_05_28": "Added MoE retrieval, forward projection, user_graph predict/record, prior chain injection. Output JSON now carries crystal_id + user_graph_turn_uuid + moe_experts + user_graph_prediction + forward_chain.",
+  "usage_example": "python3 core/lib/chat.py full 'wire the moe router into the godot bridge'\\n# Returns JSON with all 16 top-level fields. crystal_id is the primary key into the chain; turn_uuid the key into user_graph.",
+  "chain_runs": ["moe_chain_router_v0"]
+}

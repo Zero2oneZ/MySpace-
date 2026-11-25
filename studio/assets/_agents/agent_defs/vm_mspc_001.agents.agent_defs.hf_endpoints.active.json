@@ -1,0 +1,110 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "hf_endpoints",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · HUGGINGFACE_INFERENCE_ENDPOINTS (dedicated, paid)",
+  "tier": "L0",
+  "module_path": "core/lib/hf_endpoints.py",
+
+  "summary": "Management plane for Hugging Face Inference Endpoints — dedicated, always-on deployments of a specific model on specific hardware. DISTINCT from hf_hub.py (which is the 19-provider per-call router). Surface: list_endpoints / get_endpoint / deploy_endpoint / pause_endpoint / resume_endpoint / delete_endpoint / predict, plus a deploy_canonical convenience that ships a tiny default text model on the cheapest tier. Every deploy* function REQUIRES confirm=True. Every operation crystal-anchors via inference_logger.log() with tier='deploy' (control-plane) or tier='inference' (data-plane). stdlib-only — reuses hf_hub._load_token / _http_get / _http_post.",
+
+  "engine_pattern": "stdlib-only urllib HTTPS client against api.endpoints.huggingface.cloud/v2/endpoint/<namespace>. Token resolved via hf_hub._load_token (env HF_TOKEN → HUGGINGFACE_TOKEN → ~/.cache/huggingface/token → .env). Every operation appends to studio/hf_endpoints/log.jsonl AND emits a crystal-anchored entry on the master inference chain. _http_delete added locally since hf_hub.py only exposes GET/POST.",
+
+  "cost_warning": {
+    "billing_model": "HOURLY — billed per minute while endpoint is running, even if idle",
+    "implication": "Accidentally deploying a single GPU endpoint can incur $1–$15/hour. A cpu-basic endpoint forgotten over a weekend is still ~$3+. There is no per-call free tier.",
+    "safety_rails": [
+      "deploy_endpoint() REQUIRES confirm=True parameter — refuses with {success:False, error:'deploy requires confirm=True; hourly billing'} otherwise",
+      "deploy_canonical() REQUIRES confirm=True — same refusal contract",
+      "CLI deploy + deploy-canonical require --confirm flag",
+      "Default hardware='cpu-basic' (cheapest tier)",
+      "Default min_replica=0 (scale-to-zero between calls)",
+      "Refusal events are crystal-anchored too — tier='deploy' model='hf_endpoint' rc=2 — so the chain has a tamper-evident record of every gated call"
+    ],
+    "operator_checklist": "Before deploying: (1) confirm namespace is the correct HF account, (2) verify hardware tier and region match expectation, (3) note the cost/hour from HF's pricing page, (4) set a calendar reminder to pause or delete the endpoint when done. After deploying: pause_endpoint() the moment work pauses; delete_endpoint() when fully done."
+  },
+
+  "vs_hf_hub": {
+    "hf_hub_py": "Multi-provider router. Per-call billing across 19 cloud providers via OpenAI-compatible router. Free-tier-friendly. No deploy step.",
+    "hf_endpoints_py": "Dedicated endpoint manager. Hourly billing on a specific deployment of a specific model. Deploy step required. Requires confirm=True gate.",
+    "when_to_use_which": "hf_hub for ad-hoc / bursty / experimental calls (default). hf_endpoints when a workflow card needs guaranteed availability + predictable latency on a model that isn't well-served by the providers list, AND the operator has explicitly budgeted for hourly billing."
+  },
+
+  "api_surface": {
+    "management_base": "https://api.endpoints.huggingface.cloud/v2/endpoint/<namespace>",
+    "list_endpoints":   "GET    <base>",
+    "get_endpoint":     "GET    <base>/<name>",
+    "deploy_endpoint":  "POST   <base>          (body: model + compute + provider)  ** confirm=True required **",
+    "pause_endpoint":   "POST   <base>/<name>/pause",
+    "resume_endpoint":  "POST   <base>/<name>/resume",
+    "delete_endpoint":  "DELETE <base>/<name>",
+    "predict":          "POST   <endpoint_url>/v1/chat/completions   (or /predict)"
+  },
+
+  "defaults": {
+    "hardware": "cpu-basic",
+    "region": "us-east-1",
+    "accelerator": "cpu",
+    "vendor": "aws",
+    "framework": "pytorch",
+    "task": "text-generation",
+    "min_replica": 0,
+    "max_replica": 1,
+    "endpoint_type": "protected",
+    "canonical_text_model": "meta-llama/Llama-3.2-1B-Instruct"
+  },
+
+  "exports": [
+    "HFEndpointsClient",
+    "list_endpoints", "get_endpoint",
+    "deploy_endpoint", "deploy_canonical",
+    "pause_endpoint", "resume_endpoint", "delete_endpoint",
+    "predict",
+    "EndpointRef",
+    "CANONICAL_TEXT_MODEL",
+    "DEFAULT_HARDWARE", "DEFAULT_REGION", "DEFAULT_ACCELERATOR"
+  ],
+
+  "substrate": "studio/hf_endpoints/log.jsonl (per-call op log: ts, op, namespace, name, status, success, preview)",
+
+  "crystal_anchoring": {
+    "control_plane_ops": "deploy / pause / resume / delete — logged with tier='deploy', model='hf_endpoint', scope='<namespace>/<name>'",
+    "data_plane_ops": "predict — logged with tier='inference', model='hf_endpoint:<name>', scope=<endpoint_url>",
+    "refusals_logged": "deploy_endpoint(confirm=False) emits a chain entry with rc=2 — refusals are part of the audit trail",
+    "rationale": "Provisioning a paid endpoint is a substrate-altering action equivalent in importance to a model call. Both belong on the crystal chain."
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio_runtime — when a workflow card requires a dedicated endpoint (vs. shared provider router)",
+      "core/cc.sh::cmd_hf_endpoints_list | cmd_hf_endpoints_get | cmd_hf_endpoints_predict (read-only / billing-neutral)",
+      "core/cc.sh::cmd_hf_endpoints_deploy | cmd_hf_endpoints_pause | cmd_hf_endpoints_resume | cmd_hf_endpoints_delete (--confirm-gated)"
+    ],
+    "outbound_calls": [
+      "https://api.endpoints.huggingface.cloud/v2/endpoint/<namespace>",
+      "https://api.endpoints.huggingface.cloud/v2/endpoint/<namespace>/<name>",
+      "https://api.endpoints.huggingface.cloud/v2/endpoint/<namespace>/<name>/{pause,resume}",
+      "<per-endpoint URL>/v1/chat/completions"
+    ],
+    "substrate_reads": "HF_TOKEN via hf_hub._load_token; HF_NAMESPACE from env (falls back to 'me')",
+    "substrate_writes": "studio/hf_endpoints/log.jsonl + ~/.cc/inference_master_chain.jsonl"
+  },
+
+  "guarantees": [
+    "confirm=True gate on every deploy path — no accidental provisioning",
+    "Crystal-anchored — every op (including refusals) lands on the inference chain",
+    "Reuses hf_hub helpers — single source of truth for token + HTTP",
+    "stdlib-only — no new pip deps; only urllib + dataclasses + pathlib",
+    "Scale-to-zero by default — min_replica=0 avoids billing while idle (warm-up trade-off accepted)"
+  ],
+
+  "usage_example": "# Read-only — safe to run anytime\\ncc hf-endpoints-list\\ncc hf-endpoints-get <namespace> <name>\\n\\n# Paid op — requires --confirm\\ncc hf-endpoints-deploy <namespace> mspc-llama32-1b meta-llama/Llama-3.2-1B-Instruct --confirm\\n\\n# Call a deployed endpoint\\ncc hf-endpoints-predict https://<endpoint>.endpoints.huggingface.cloud '{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}'\\n\\n# Always pause when done\\ncc hf-endpoints-pause <namespace> mspc-llama32-1b\\n\\n# Or delete entirely\\ncc hf-endpoints-delete <namespace> mspc-llama32-1b",
+
+  "chain_runs": ["moe_chain_router_v0"]
+}

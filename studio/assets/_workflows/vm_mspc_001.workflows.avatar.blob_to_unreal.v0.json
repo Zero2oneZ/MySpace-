@@ -1,0 +1,139 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "blob_to_unreal",
+  "category": "avatar",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Take a morph.engine blob from the Loom card and ride it through 5 passes into Unreal Engine. Captures the Three.js canvas snapshot, generates motion via HunyuanVideo (image→video), extracts a pose stream from the video (MediaPipe Holistic remapped to Meta Body joints), and streams the joint Transforms over UDP into Unreal's LiveLink plugin. Result: the blob's morph stack becomes a live-driven character in UE5.",
+
+  "inputs": [
+    {"name": "blob_snapshot_png", "type": "image", "required": true,
+      "default": "", "notes": "Base64 PNG from the morph_engine.html canvas. Provided by the Loom 'Export → Unreal' button or by cc loom-snapshot."},
+    {"name": "card_crystal", "type": "str", "required": false, "default": "",
+      "notes": "The morph.engine card's content-hash for provenance. Crystal-anchored on every pass."},
+    {"name": "duration_s", "type": "float", "required": false, "default": 5.0},
+    {"name": "fps", "type": "int", "required": false, "default": 30},
+    {"name": "subject_name", "type": "str", "required": false,
+      "default": "MspcBlob", "notes": "LiveLink Subject name shown in UE5's Live Link panel."},
+    {"name": "unreal_host", "type": "str", "required": false,
+      "default": "127.0.0.1"},
+    {"name": "unreal_port", "type": "int", "required": false, "default": 11111}
+  ],
+
+  "outputs": [
+    {"name": "snapshot_path", "type": "image"},
+    {"name": "motion_video_path", "type": "video"},
+    {"name": "pose_jsonl_path", "type": "path"},
+    {"name": "animation_crystal", "type": "str"},
+    {"name": "live_link_session", "type": "json",
+      "notes": "{subject_name, frames_sent, started_at, ended_at, ue_host:port}"}
+  ],
+
+  "passes": [
+    {
+      "id": "blob_snapshot",
+      "agent": "loom_snapshot",
+      "model_path": "studio/dapp/server.py /dapp/api/loom/snapshot",
+      "engine": "deterministic",
+      "in": ["blob_snapshot_png"],
+      "out": "snapshot_path",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Browser POSTs base64 PNG of the current canvas frame. Server writes to ~/.cc/blob_renders/<crystal_short>/snapshot.png."
+    },
+    {
+      "id": "image_to_video",
+      "agent": "hunyuan_video_worker",
+      "model_path": "core/lib/hunyuan_video_worker.py",
+      "engine": "comfyui",
+      "in": ["snapshot_path", "duration_s", "fps"],
+      "out": "motion_video_path",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Existing HunyuanVideo queue consumer; image-conditioning via i2v workflow template. Output .mp4 lands at <render_dir>/video.mp4."
+    },
+    {
+      "id": "video_to_pose",
+      "agent": "mediapipe_holistic",
+      "model_path": "core/lib/blob_to_unreal.py::extract_pose",
+      "engine": "mcp",
+      "in": ["motion_video_path"],
+      "out": "pose_jsonl_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Walks video frames, runs MediaPipe Holistic, remaps 33-point pose landmarks to Meta Body joints via mocap_frame.MEDIAPIPE_POSE_TO_META_BODY. Writes one MocapFrame JSON line per video frame to ~/.cc/blob_renders/<crystal_short>/pose.jsonl."
+    },
+    {
+      "id": "pose_to_animation",
+      "agent": "mocap_rig_anchor",
+      "model_path": "core/lib/mocap_rig_anchor.py",
+      "engine": "deterministic",
+      "in": ["pose_jsonl_path"],
+      "out": "animation_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Each MocapFrame from pose.jsonl gets verify_alignment(); accumulates per-frame alignment_crystals into a single rolled-up animation_crystal. animation_registry.record_frame() for each, then mark the source verified once frame_count threshold met."
+    },
+    {
+      "id": "unreal_live_link",
+      "agent": "unreal_live_link",
+      "model_path": "core/lib/third_party/unreal_live_link.py",
+      "engine": "mcp",
+      "in": ["pose_jsonl_path", "subject_name", "unreal_host", "unreal_port"],
+      "out": "live_link_session",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Streams MocapFrame.joints over UDP to Unreal Engine's LiveLink Free plugin (default port 11111). Subject_name appears in UE5's Live Link panel; drives Animation Blueprint via LiveLinkSubject node. Sends one LiveLinkFrameData message per video frame at the card's declared fps."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "motion", "source": "pass:pose_to_animation", "blend": "additive",
+      "notes": "Animation track replaces or blends with the rig's idle motion."},
+    {"name": "alpha", "source": "literal:1.0", "blend": "alpha"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/blob_to_unreal_proto.py.j2",
+      "out_path": "studio/web/streamlit/blob_to_unreal.py"
+    },
+    "godot": {
+      "language": "gd",
+      "script": "templates/blob_to_unreal_controller.gd.j2",
+      "out_script": "studio/godot/project/src/blob_to_unreal_controller.gd"
+    },
+    "comfyui": {
+      "workflow_json": "templates/hunyuan_i2v.json.j2",
+      "out_path": "/data/Projects/ComfyUI/user/workflows/blob_to_unreal_i2v.json",
+      "notes": "Image-to-video conditioning workflow with hunyuan_video_t2v_720p_bf16 + ip_adapter for blob frame conditioning."
+    },
+    "spriteforge": {
+      "manifest_out": "studio/spriteforge/manifests/blob_to_unreal_sheet.json",
+      "notes": "Per-frame snapshot atlas for inspecting the motion video without playing it."
+    }
+  },
+
+  "depends_on": [
+    "morph.engine (the source Loom card)",
+    "core/lib/mocap_frame.py (Meta Body joint vocabulary)",
+    "core/lib/hunyuan_video_worker.py (video gen)",
+    "core/lib/animation_registry.py (frame provenance)",
+    "Unreal Engine 5 with LiveLink Free plugin enabled"
+  ],
+
+  "operator_setup": {
+    "ue5_side": [
+      "Plugins → Animation → Live Link → enable",
+      "Plugins → Animation → Live Link Skeletal Animation → enable",
+      "Restart UE5; Window → Live Link panel",
+      "Click + Source → Message Bus Source → select 'MspcBlob' once cc starts streaming"
+    ],
+    "network": [
+      "UDP port 11111 must be reachable from the host running this pipeline to the UE5 machine.",
+      "Default 127.0.0.1 assumes UE5 runs on the same box. Override --unreal-host for remote."
+    ]
+  }
+}

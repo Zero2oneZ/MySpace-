@@ -1,0 +1,20 @@
+[Unit]
+Description=MySpace++ MCP Host Server (:8091)
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/lib/mcp_host_server.py --port 8091 --tools solana_feed,pattern_predict,token_risk,contract_gen
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/mcp-host.log
+StandardError=append:/var/log/mspc/mcp-host.log
+
+[Install]
+WantedBy=multi-user.target

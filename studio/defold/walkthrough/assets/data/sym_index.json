@@ -1,0 +1,21 @@
+{
+  "task_chain_id": "abc123def",
+  "index": {
+    "vm_realestate_001": {
+      "project": "realestate",
+      "roles": ["walkthrough-crystal"],
+      "touched_files": ["scene://livingroom", "scene://kitchen"],
+      "related_tasks": ["real estate walkthrough for property #001"],
+      "chains": [1, 2],
+      "status": "running"
+    },
+    "vm_defold_runtime": {
+      "project": "defold",
+      "roles": ["runtime"],
+      "touched_files": [],
+      "related_tasks": ["real estate walkthrough for property #001"],
+      "chains": [1],
+      "status": "running"
+    }
+  }
+}

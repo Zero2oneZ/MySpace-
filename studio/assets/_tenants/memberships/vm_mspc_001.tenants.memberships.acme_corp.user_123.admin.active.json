@@ -1,0 +1,19 @@
+{
+  "_schema": "tenant_membership_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "tenants",
+  "category": "memberships",
+  "name": "acme_corp.user_123.admin",
+  "state": "active",
+  "version": "v0",
+  "membership_id": "mem_acme_user123_admin",
+  "tenant_id": "tnt_acme_corp",
+  "user_id": "usr_123",
+  "role": "tenant_admin",
+  "joined_at": "2026-05-27T23:00:00Z",
+  "invited_by": "usr_tom_lee_001",
+  "permissions": ["project.create", "project.delete", "user.invite", "user.remove", "billing.view", "billing.update", "factory.deploy", "api.keys"],
+  "crystal": "<sha256 of this file content>"
+}

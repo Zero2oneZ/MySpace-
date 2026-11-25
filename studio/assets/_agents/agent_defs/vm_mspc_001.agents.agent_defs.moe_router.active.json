@@ -1,0 +1,46 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "moe_router",
+  "state": "active",
+  "version": "v0",
+  "role": "ROUTER · MIXTURE_OF_EXPERTS_RETRIEVAL",
+  "tier": "L0",
+  "module_path": "core/lib/moe_router.py",
+  "summary": "Mixture-of-Experts retrieval over the crystal chain. No training. Past inference records ARE the experts. Incoming prompts match by n-gram overlap; top-k matches surface their forward chains as priors for the next call.",
+  "engine_pattern": "CrystalChainCursor extends ParserCursor — each crystal record is presented as NODE_ELEMENT name='record' with routing fields as attributes (queryable via has_attribute / get_named_attribute_value) and big text bodies on data.",
+  "record_view": {
+    "node_type": "element",
+    "node_name": "record",
+    "depth": 1,
+    "attributes": ["crystal_id", "prev_crystal", "master_index", "agent_uuid", "correlation_id", "session_id", "timestamp", "latency_ms", "tier", "model", "scope", "tokens_in", "tokens_out", "complexity", "done_flag", "rc", "forward_source", "source_file", "source_folder", "source_action", "source_step"],
+    "data_keys": ["original_prompt", "enhanced_prompt", "output_text", "reasoning_trace", "forward_chain_inline", "forward_chain_posthoc", "chain_context", "coordinates"]
+  },
+  "indexing_strategy": "At build_from(cursor) time, walk the chain once. For each record extract n-grams (2-grams + 3-grams, same algorithm as user_graph) from (original_prompt + enhanced_prompt + reasoning_trace + output_text). Map ngram_hash → list[crystal_id]. Genesis record is skipped.",
+  "retrieval_algorithm": "1) extract_ngrams(incoming_prompt). 2) for each gram hash, look up ngram_to_experts. 3) score each crystal_id by # of overlapping grams. 4) sort by (-score, crystal_id). 5) return top-k ExpertMatch with score, fit_ratio (score / total_incoming_grams), matched_ngrams, tier, model, scope, timestamp, forward_chain, original_prompt, snippets.",
+  "summarize_for_prompt": "Renders top-k matches as PRIOR EXPERT FORWARD CHAINS block, dedupes by forward_chain[:200] prefix, caps at max_chars (default 1500). Returns empty string if no matched expert has a forward_chain.",
+  "non_overriding_principle": "MoE retrieval does NOT change the deterministic token-bucket routing decision. It only enriches the prompt with prior expert forward chains. The router stays deterministic; smartness grows from the index size.",
+  "exports": ["CrystalChainCursor", "MoERouter", "ExpertMatch"],
+  "substrate": "moe_index (in-memory, rebuilt from crystal_chain on each build_from)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::_moe_find_experts (cmd_full / cmd_godot pre-pipeline)",
+      "CLI: python3 moe_router.py find | walk | summary"
+    ],
+    "outbound_calls": ["parser_cursor::ParserCursor (base class)"],
+    "substrate_reads": "~/.cc/inference_master_chain.jsonl (via CrystalChainCursor)",
+    "substrate_writes": "none (read-only over the crystal chain)"
+  },
+  "guarantees": [
+    "Deterministic — same crystal chain + same incoming prompt → same top-k matches in same order",
+    "Read-only — never writes to the crystal chain; safe to run concurrently with logger",
+    "Genesis-aware — skips the seed record (tier='genesis')",
+    "Cross-substrate ngram compatibility — hashes match user_graph's, so user n-grams can be joined with model n-grams later"
+  ],
+  "usage_example": "from moe_router import CrystalChainCursor, MoERouter\\ncur = CrystalChainCursor(); cur.open()\\nrouter = MoERouter.build_from(cur)\\nmatches = router.find_experts('wire the forward projector', k=5)\\nfor m in matches:\\n    print(m.score, m.tier, m.model, m.fit_ratio, m.forward_chain[:80])",
+  "chain_runs": ["moe_chain_router_v0"]
+}

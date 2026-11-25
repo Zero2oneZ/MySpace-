@@ -1,0 +1,32 @@
+<div class="product">
+  <div class="head">
+    <h3>{name}</h3>
+    <span class="price">{price_str}</span>
+  </div>
+  <p style="margin:.4rem 0 .25rem;">{tagline}</p>
+  <p class="meta" style="margin:.2rem 0;"><span class="pill {status}">{status}</span></p>
+  <details>
+    <summary style="cursor:pointer;font-size:.85rem;color:#666;">monetization channels</summary>
+    <ul style="margin-top:.3rem;">{monetization}</ul>
+  </details>
+  <div class="pay-row">
+    <button class="cta"
+            hx-post="/dapp/api/buy"
+            hx-target="#buy-result"
+            hx-swap="innerHTML"
+            hx-vals='{"product":"{product_slug}","payment_method":"stripe","amount_cents":{price_cents}}'
+            hx-ext="json-enc">
+      Pay {price_str} · Stripe
+      <span class="htmx-indicator">…</span>
+    </button>
+    <button class="alt"
+            hx-post="/dapp/api/buy"
+            hx-target="#buy-result"
+            hx-swap="innerHTML"
+            hx-vals='{"product":"{product_slug}","payment_method":"sui_usdc","amount_micro":{amount_micro}}'
+            hx-ext="json-enc">
+      Pay {price_str} · Sui USDC
+      <span class="htmx-indicator">…</span>
+    </button>
+  </div>
+</div>

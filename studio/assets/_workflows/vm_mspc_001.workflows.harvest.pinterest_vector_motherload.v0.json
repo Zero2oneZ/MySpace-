@@ -1,0 +1,98 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "workflows",
+  "category": "harvest",
+  "name": "pinterest_vector_motherload",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Mine Pinterest for vector graphic source URLs (SVG, illustration, icon, logo, infographic). For each pin whose source_url points at fetchable vector content (github raw .svg, codepen, figma public, raw SVG endpoints), download + parse + embed every <path d='...'> via svg_vector_embed. Every harvested path becomes a crystal-anchored node in ~/.cc/svg_index.jsonl, joinable across all 5 MoE retrieval axes.",
+
+  "inputs": [
+    { "name": "categories",     "type": "list[str]", "default": ["svg","vector_illustration","icon_set","logo_design","infographic"], "required": false },
+    { "name": "queries_per_cat", "type": "int",      "default": 3, "required": false },
+    { "name": "pins_per_query",  "type": "int",      "default": 20, "required": false },
+    { "name": "fetch_external",  "type": "bool",     "default": false, "required": false }
+  ],
+
+  "outputs": [
+    { "name": "harvest_jsonl",   "type": "jsonl",       "path": "~/.cc/pinterest_vector_harvest.jsonl" },
+    { "name": "svg_index_jsonl", "type": "jsonl",       "path": "~/.cc/svg_index.jsonl" },
+    { "name": "summary",         "type": "json" }
+  ],
+
+  "passes": [
+    {
+      "id": "harvest_pins",
+      "agent": "pinterest_connector",
+      "engine": "mcp",
+      "mcp_server": "third_party.pinterest.PinterestConnector",
+      "tool": "harvest_curated",
+      "in": ["categories"],
+      "out": "pins_with_source_urls",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Uses PINTREST_API key from .env. Returns pins with title/description/image_url/source_url."
+    },
+    {
+      "id": "filter_vector_sources",
+      "agent": "url_filter",
+      "engine": "deterministic",
+      "in": ["pins_with_source_urls"],
+      "out": "vector_candidate_urls",
+      "tier": "cheap",
+      "status": "TEXT-PLACEHOLDER",
+      "_note": "Filter to URLs matching: github.com/*/raw/*.svg, codepen.io, figma.com, *.svg direct. Hand-written URL pattern matchers."
+    },
+    {
+      "id": "fetch_svg_content",
+      "agent": "url_fetcher",
+      "engine": "deterministic",
+      "in": ["vector_candidate_urls"],
+      "out": "svg_files_on_disk",
+      "tier": "medium",
+      "status": "TEXT-PLACEHOLDER",
+      "_note": "HTTPS GET each candidate, save to studio/media/Media/vectors/<pin_id>.svg. Skip non-SVG content-type responses. Throttle to respect host rate limits."
+    },
+    {
+      "id": "embed_svg_paths",
+      "agent": "svg_vector_embed",
+      "engine": "deterministic",
+      "in": ["svg_files_on_disk"],
+      "out": "svg_index_jsonl",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "_note": "Run core/scripts/svg_harvest.sh studio/media/Media/vectors/ → ~/.cc/svg_index.jsonl. Already working on local SVGs (34 files / 32 paths smoke-tested)."
+    },
+    {
+      "id": "link_to_crystal_chain",
+      "agent": "inference_logger",
+      "engine": "deterministic",
+      "in": ["svg_index_jsonl"],
+      "out": "joined_chain",
+      "tier": "deterministic",
+      "status": "TEXT-PLACEHOLDER",
+      "_note": "Each harvested path → one InferenceRecord with tier='harvest', model='pinterest+svg_vector_embed', stores (pin_url, source_url, path_crystal, embedding) — fully joinable across 5 MoE axes."
+    }
+  ],
+
+  "layer_stack": [],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/pinterest_vector_motherload_proto.py.j2",
+      "out_path": "studio/web/streamlit/pinterest_vector_motherload.py"
+    }
+  },
+
+  "license_tier": "tier1_hobby",
+  "price_usd_cents_per_run": 50,
+
+  "crystal": "",
+  "depends_on": [],
+
+  "_notes": "First HARVEST workflow card. Demonstrates the chain-of-chains pattern: external content (Pinterest pins) → URL filtering → fetch → embed → crystal-anchor → join to inference chain. Three passes are ACTIVE today (harvest_pins via connector + embed_svg_paths via svg_harvest.sh). Two passes are TEXT-PLACEHOLDER (url_filter, fetch_svg_content) and need stubbed-in HTTPS client + URL pattern matchers. The link_to_crystal_chain pass requires inference_logger extension to accept tier='harvest' records. Once these three placeholders flip ACTIVE, the motherload is operational."
+}

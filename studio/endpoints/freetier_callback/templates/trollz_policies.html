@@ -1,0 +1,72 @@
+<h1>trollz.fun — Acceptable Use Policies</h1>
+<p class="meta">Last updated 2026-05-28 · version v0 · crystal {policies_hash}</p>
+
+<p>These policies sit on top of the <a class="link" href="/terms/">Terms of Service</a>. Reading and accepting both gives you a session token good for 30 days on the trollz.fun surface.</p>
+
+<h2>What you may do</h2>
+<ul>
+  <li>Browse the storefront, view minted NFTs, view prize pools.</li>
+  <li>Purchase TROLLN tokens through the disclosed payment rails (Stripe, Sui USDC).</li>
+  <li>Mine zNiXz / SYNTH by contributing compute, content curation, or signal validation through approved clients.</li>
+  <li>Mint your own NFTs and offer them for sale, paying the disclosed minting fees.</li>
+  <li>Use the public read API at the rate limit posted on the developer page.</li>
+</ul>
+
+<h2>What you must not do</h2>
+<ul>
+  <li><strong>No fraud or wash trading.</strong> Don't artificially inflate volume, manipulate prize-desk outcomes, or coordinate market actions to deceive other users.</li>
+  <li><strong>No exploitation.</strong> If you discover a vulnerability, disclose it through the responsible-disclosure email below; do not exploit it.</li>
+  <li><strong>No illegal content.</strong> No CSAM, no targeted harassment, no content that infringes intellectual property of others, no incitement to violence.</li>
+  <li><strong>No automation of the public UI.</strong> Headless browsers, scraping bots, and rate-limit-evading clients are prohibited. Use the documented API instead.</li>
+  <li><strong>No sanctions evasion.</strong> If you are located in or acting on behalf of a sanctioned jurisdiction or person, you may not use this service.</li>
+</ul>
+
+<h2>Data we collect</h2>
+<ul>
+  <li><strong>Acceptance ledger:</strong> your user_id (or wallet address), the IP prefix of the accepting request, and the User-Agent prefix. Crystal-anchored for audit.</li>
+  <li><strong>Session token:</strong> HMAC-signed; held only by you after issuance.</li>
+  <li><strong>Chain entries:</strong> when you mint, purchase, or transact, the on-chain receipt is public by chain design.</li>
+  <li><strong>No third-party advertising trackers</strong> are loaded by the storefront itself.</li>
+</ul>
+
+<h2>Data we do not sell</h2>
+<p>We don't sell your personal data to third parties. Aggregate, anonymized statistics may be published as part of public economic reports about the ecosystem.</p>
+
+<h2>DMCA and takedowns</h2>
+<p>Send notices to the contact address. Counter-notices follow the standard 17 U.S.C. § 512 process.</p>
+
+<h2>Sign and receive your token</h2>
+<form method="post" action="/terms/policies/callback/"
+      hx-post="/terms/policies/callback/" hx-target="#result" hx-swap="innerHTML">
+  <label for="user_id" style="display:block; font-weight:600; margin-top:.85rem;">
+    Your handle or wallet address
+  </label>
+  <input type="text" id="user_id" name="user_id"
+          placeholder="e.g. zero2onez or 0x1234..." required
+          autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+
+  <label class="row">
+    <input type="checkbox" name="accepted" value="true" required>
+    <span>
+      I have read the
+      <a class="link" href="/terms/">Terms of Service</a>
+      and these Acceptable Use Policies; I accept them.
+    </span>
+  </label>
+
+  <label class="row" style="margin-top: .5rem; opacity: .9;">
+    <input type="checkbox" name="friends_consent" value="true">
+    <span>
+      <strong>(optional)</strong> I authorize harvest of my Facebook friends list
+      when I log in via Facebook OAuth (uses the <code>user_friends</code> scope —
+      only friends who also use this app are returned, per Facebook policy).
+      You can revoke at any time at <a class="link" href="https://www.facebook.com/settings?tab=applications">facebook.com/settings/apps</a>.
+    </span>
+  </label>
+
+  <button type="submit" class="cta">Sign + Get my token</button>
+</form>
+
+<div id="result" style="margin-top: 1rem;"></div>
+
+<p class="stamp">crystal-anchor of this acceptance lands at <code>tier='legal_acceptance'</code> in the public audit chain.</p>

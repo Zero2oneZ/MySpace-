@@ -1,0 +1,55 @@
+<h1>Play · Instant Games</h1>
+<p class="meta">Launch the planet_map_scene Godot Instant Games build. Play on Facebook
+(reach your friends-graph) or run a private session in your browser. Every game event is
+crystal-anchored via the FB SDK bridge.</p>
+
+<div class="panel">
+  <h3 style="margin-top:0;">Launchers</h3>
+  <p style="margin:.2rem 0;">
+    <a class="link" href="{fb_play_url}" target="_blank" rel="noopener">
+      <button class="cta" type="button">Play in Facebook</button>
+    </a>
+  </p>
+  <p style="margin:.2rem 0;">
+    <a class="link" href="/dapp/play/embed">
+      <button class="alt" type="button">Play in browser</button>
+    </a>
+  </p>
+  <p class="meta" style="margin:.45rem 0 0;">
+    FB launcher target: <code>{fb_play_url}</code><br>
+    Browser embed:      <code>/dapp/play/embed</code>
+  </p>
+</div>
+
+<div class="panel"
+     hx-get="/dapp/api/social_graph?player_id=self"
+     hx-trigger="load delay:200ms"
+     hx-target="#friends-count"
+     hx-swap="innerHTML">
+  <h3 style="margin-top:0;">Your social graph
+    <span class="htmx-indicator">…</span>
+  </h3>
+  <div id="friends-count" class="meta">
+    Friends in your graph: <b>?</b> — loading…
+  </div>
+  <p style="margin:.55rem 0 0;">
+    <a class="link" href="/dapp/play/embed">Open the planet map</a>
+    to render every friend as an orbiting planet around your sun.
+  </p>
+</div>
+
+<div class="panel tight">
+  <h3 style="margin-top:0;">SDK bridge</h3>
+  <p class="meta" style="margin:.2rem 0;">
+    The Godot HTML5 build loads <code>/dapp/play/sdk-bridge.js</code>, which
+    exposes <code>window.MspcDappBridge</code> with helpers:
+  </p>
+  <ul class="meta" style="margin:.2rem 0;">
+    <li><code>sendEvent(name, player_id, context_id, signed_data, payload)</code> → POST /dapp/api/fb_event</li>
+    <li><code>fetchSocialGraph(player_id)</code> → GET /dapp/api/social_graph</li>
+    <li><code>setToken(t) / loadToken()</code> → bearer plumbing via localStorage</li>
+  </ul>
+</div>
+
+<p class="stamp">FBInstantGamesConnector.record_event(…) routes events to the social graph; missing
+module degrades gracefully. Every event crystal-anchors at <code>tier='fb_event'</code>.</p>

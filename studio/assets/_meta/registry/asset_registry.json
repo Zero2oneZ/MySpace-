@@ -1,0 +1,105 @@
+{
+  "_schema": "asset_registry_v1",
+  "_description": "Canonical registry of all assets in studio/assets/. Content-addressed.",
+  "_vm_consolidation_ref": "VM-CONSOLIDATION.md §9",
+  "assets": [
+    {
+      "asset_id": "asset_n001.global.models.avatars.N001.v0.fbx",
+      "vm_id": "vm_mspc_godot_001",
+      "crystal": "placeholder_sha256",
+      "scope": "_global/models/avatars/",
+      "path": "_global/models/avatars/N001.fbx",
+      "size_bytes": 791000,
+      "type": "model",
+      "format": "fbx",
+      "roles": ["avatar-mesh", "lipsync-target"],
+      "tags": ["N001", "tile-skin", "low-poly"],
+      "created_at": "2026-05-27T23:00:00Z",
+      "chain_run_id": "run_20_avatar_mesh"
+    },
+    {
+      "asset_id": "asset_a3f7.global.animations.dance.Northern_Soul_Spin.v0.fbx",
+      "vm_id": "vm_mspc_godot_001",
+      "crystal": "placeholder_sha256",
+      "scope": "_global/animations/dance/",
+      "path": "_global/animations/dance/Northern_Soul_Spin.fbx",
+      "size_bytes": 0,
+      "type": "animation",
+      "format": "fbx",
+      "roles": ["motion-clip"],
+      "tags": ["dance", "90-frames", "ground-truth"],
+      "created_at": "2026-05-27T23:00:00Z",
+      "chain_run_id": "run_20_motion_library"
+    }
+  ],
+  "motion_index": {
+    "_description": "Intent → FBX filename lookup for Run #20 avatar pipeline",
+    "_note": "Generated from ~/Datasets/3d/ input/<cat>/ listing",
+    "walk": ["walk/Catwalk_Walk.fbx", "walk/Start_Walking.fbx", "walk/Walk_In_Circle.fbx"],
+    "idle": ["idle/Standing_Idle_02.fbx", "idle/Soccer_Idle.fbx"],
+    "argue": ["gesture/Standing_Arguing.fbx"],
+    "explain": ["gesture/Talking.fbx", "gesture/Counting.fbx", "gesture/Beckoning.fbx"],
+    "celebrate": ["gesture/Cheering.fbx", "dance/Northern_Soul_Spin.fbx"],
+    "danger_react": ["reaction/Shoved.fbx", "reaction/Death_From_Right.fbx"]
+  },
+  "model_cards": {
+    "_description": "33-model tensor tree inventory for Run #20",
+    "models": [
+      {
+        "name": "apple_DepthPro",
+        "hf_id": "",
+        "local_path": "_inference/weights/depth/apple_depth_pro/",
+        "in": "RGB 1024^2",
+        "out": "depth 1024^2",
+        "vram_mb": 1500,
+        "ms_per_frame": 30,
+        "signal": "visual_depth",
+        "depends_on": []
+      },
+      {
+        "name": "qualcomm_MediaPipe_Pose",
+        "hf_id": "",
+        "local_path": "_inference/weights/pose/mediapipe_pose/",
+        "in": "RGB 256^2",
+        "out": "33 landmarks",
+        "vram_mb": 50,
+        "ms_per_frame": 10,
+        "signal": "pose",
+        "depends_on": []
+      },
+      {
+        "name": "SpaceTimeGPT",
+        "hf_id": "",
+        "local_path": "_inference/weights/video/spacetimegpt/",
+        "in": "video clip",
+        "out": "text",
+        "vram_mb": 2000,
+        "ms_per_frame": 50,
+        "signal": "spatial_qa",
+        "depends_on": []
+      },
+      {
+        "name": "Qwen_Image_Edit_2511_AnyPose",
+        "hf_id": "",
+        "local_path": "_inference/weights/pose/qwen_anypose/",
+        "in": "RGB + pose prompt",
+        "out": "posed image",
+        "vram_mb": 3000,
+        "ms_per_frame": 80,
+        "signal": "pose_conditioning",
+        "depends_on": []
+      },
+      {
+        "name": "LongCat_Video_Avatar_1_5",
+        "hf_id": "",
+        "local_path": "_inference/weights/video/longcat_video_avatar/",
+        "in": "face image + audio",
+        "out": "talking-head video",
+        "vram_mb": 4000,
+        "ms_per_frame": 120,
+        "signal": "avatar_video_gen",
+        "depends_on": []
+      }
+    ]
+  }
+}

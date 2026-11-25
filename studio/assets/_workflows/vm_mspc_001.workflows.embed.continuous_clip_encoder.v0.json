@@ -1,0 +1,103 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "continuous_clip_encoder",
+  "category": "embed",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Warm CLIP daemon that tails every JSONL sink (program_events, correlations, mocap, DOM, render output) and embeds every event into a shared 512-d vector space. The NN's vector axis in dim_pack now carries real semantic signal instead of SHA hash. Same event always produces the same vector (deterministic) so the training corpus is reproducible.",
+
+  "inputs": [
+    {"name": "model_id", "type": "str", "required": false,
+      "default": "openai/clip-vit-base-patch32"},
+    {"name": "device", "type": "str", "required": false, "default": "auto",
+      "notes": "cpu | cuda:0 | auto"},
+    {"name": "poll_interval_s", "type": "float", "required": false, "default": 1.0},
+    {"name": "max_events", "type": "int", "required": false, "default": 0,
+      "notes": "0 = run forever"}
+  ],
+
+  "outputs": [
+    {"name": "embeddings_jsonl_path", "type": "path"},
+    {"name": "latest_tail_path", "type": "path"},
+    {"name": "frames_encoded_count", "type": "int"}
+  ],
+
+  "passes": [
+    {
+      "id": "warm_load",
+      "agent": "stream_encoder",
+      "model_path": "core/lib/stream_encoder.py::StreamEncoder.warm",
+      "engine": "diffusers",
+      "in": ["model_id", "device"],
+      "out": "loaded_encoder",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Loads CLIPModel + CLIPProcessor from HF cache. ~1.1 GB RSS on CPU; ~600 MB VRAM on GPU. Auto-fallback to CPU on CUDA OOM."
+    },
+    {
+      "id": "tail_sinks",
+      "agent": "stream_encoder",
+      "model_path": "core/lib/stream_encoder.py::encode_loop",
+      "engine": "deterministic",
+      "in": ["loaded_encoder", "poll_interval_s"],
+      "out": "embeddings_jsonl_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "6 sinks tailed: program_events/**/*.jsonl, correlations/*.jsonl, meta_xr_mocap.jsonl, snap_lens_mocap.jsonl, phantom_dom_events.jsonl, chain_renders/_video_queue.completed.jsonl. Offsets at ~/.cc/embeddings/_encoder_offsets.json. Single-instance lockfile."
+    },
+    {
+      "id": "embed_text_or_image",
+      "agent": "stream_encoder",
+      "model_path": "core/lib/stream_encoder.py::_encode_one",
+      "engine": "diffusers",
+      "in": ["event"],
+      "out": "encoded_event",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Per-source canonical sentence → CLIP text encoder. If event references an image_path that exists, falls through to CLIP image encoder so chain text events and rendered tiles sit in the same 512-d space."
+    },
+    {
+      "id": "ingest_to_index",
+      "agent": "embedding_index",
+      "model_path": "core/lib/embedding_index.py::EmbeddingIndex.add",
+      "engine": "deterministic",
+      "in": ["encoded_event"],
+      "out": "index_size",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Maintains a cosine-similarity index. numpy path active (matmul); stdlib fallback linear scan. Singleton at ~/.cc/embeddings/_index.bin + _index_meta.jsonl."
+    },
+    {
+      "id": "wire_dim_pack",
+      "agent": "dimension_pack",
+      "model_path": "core/lib/dimension_pack.py::_vector_hex_64",
+      "engine": "deterministic",
+      "in": ["encoded_event"],
+      "out": "vec64_hex",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "4-tier priority: (1) inline embedding_hex, (2) embedding_index lookup by crystal_id, (3) multi_layer_hex, (4) SHA-256 fallback. NN's vector axis carries real CLIP signal whenever the encoder has seen the event."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "semantic", "source": "pass:embed_text_or_image", "blend": "base"},
+    {"name": "temporal", "source": "pass:tail_sinks", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/continuous_clip_encoder_proto.py.j2",
+      "out_path": "studio/web/streamlit/continuous_clip_encoder.py"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/stream_encoder.py",
+    "core/lib/embedding_index.py",
+    "core/lib/dimension_pack.py",
+    "transformers + torch (provided by ComfyUI venv)"
+  ]
+}

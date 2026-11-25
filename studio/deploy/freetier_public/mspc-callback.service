@@ -1,0 +1,31 @@
+[Unit]
+Description=MySpace++ freetier callback server (trollz.fun + GentlyOS.io terms/policies)
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public/
+EnvironmentFile=/opt/mspc-public/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/mspc-public:/opt/mspc-public/lib
+ExecStart=/usr/bin/python3 /opt/mspc-public/freetier_callback/server.py --port 8540 --bind 127.0.0.1
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+LimitNOFILE=65536
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mspc-public/auth /opt/mspc-public/logs
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

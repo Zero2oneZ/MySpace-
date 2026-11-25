@@ -1,0 +1,36 @@
+{
+  "_schema": "gpu_profile_v1",
+  "vm_id": "vm_mspc_001",
+  "device_id": "z21_gpu_0",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "compute",
+  "category": "gpu_profiles",
+  "name": "rtx3090ti",
+  "state": "active",
+  "version": "v0",
+  "hardware": {
+    "gpu": "NVIDIA RTX 3090 Ti",
+    "vram_gb": 24,
+    "cuda_compute": "8.6",
+    "device_preference": "GPU 1",
+    "env_var": "CUDA_VISIBLE_DEVICES=1"
+  },
+  "capabilities": {
+    "max_batch": 4,
+    "supported_precisions": ["fp16", "bf16", "int8"],
+    "tensor_cores": true,
+    "nvlink": false
+  },
+  "allocator_rules": {
+    "depth_pro": 1500,
+    "mediapipe_pose": 50,
+    "spacetimegpt": 2000,
+    "qwen_anypose": 3000,
+    "longcat_avatar": 4000,
+    "total_budget_mb": 24000,
+    "reserve_for_os": 4000
+  },
+  "created_at": "2026-05-27T23:00:00Z",
+  "crystal": "<sha256 of this file content>"
+}

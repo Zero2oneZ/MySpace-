@@ -1,0 +1,90 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "dapp_morph_extension",
+  "state": "active",
+  "version": "v0",
+  "role": "HTTP_EXTENSION · PERSONA_DRIVEN_MORPHING_GAME_SURFACE",
+  "tier": "L0",
+  "module_path": "studio/dapp/server.py",
+  "extends": "vm_mspc_001.agents.agent_defs.dapp_server",
+  "parent_card": "studio/assets/_agents/agent_defs/vm_mspc_001.agents.agent_defs.dapp_server.active.json",
+  "siblings": [
+    "vm_mspc_001.agents.agent_defs.dapp_play_extension"
+  ],
+
+  "summary": "Additive surface bolted onto the existing dapp_server: hosts a persona-aware morphing variant of the Godot Instant Games embed. The page asks /dapp/api/morph_plan for a ScenePlan derived from the bearer-token identity (identity_resolver → morph_game_runtime), then morphs its CSS accent and tells the iframe which Godot scene to boot. Falls back to a stub plan when the optional identity_resolver / morph_game_runtime modules (parallel agents F and G) are not yet present, so this surface is forward-compatible from day one. The parent dapp_server.active.json and the dapp_play_extension sidecar are NOT modified.",
+
+  "engine_pattern": "Reuses dapp_server's stdlib http.server.ThreadingHTTPServer + string.Template render path. Adds one module-level helper (_build_morph_plan) that lazy-imports identity_resolver + morph_game_runtime, returns asdict(plan) when successful, and a fixed-shape stub plan otherwise (status still 200). The /dapp/play_morph page mirrors play_embed.html with a persona panel + inline <style id=\"persona-style\"> block updated client-side via hx-on::after-request='updatePersonaStyle(event)'. HTMX configRequest hook injects 'Authorization: Bearer <localStorage.mspc_freetier_token>' on the in-page morph_plan fetch.",
+
+  "added_routes": {
+    "GET /dapp/play_morph":        "PUBLIC · renders play_morph.html — embeds /studio/godot/builds/web_instant_games/index.html?scene=morphing_game and runs an HTMX in-page fetch to /dapp/api/morph_plan to morph the persona panel + CSS accent. play_no_build.html fallback if the Godot HTML5 export is missing.",
+    "GET /dapp/api/morph_plan":    "BEARER · returns asdict(ScenePlan) JSON. Lazy-imports core/lib/identity_resolver.resolve(token_or_user) → AudiencePersonaVector then core/lib/morph_game_runtime.plan_for(persona) → ScenePlan. On ImportError or any failure: returns a fixed-shape stub {persona_id, inferred_role:'unknown', primary_face:'play_default', godot_scene:'scenes/main.tscn', crystal:'', custom_css_vars:{'--accent':<brand_bg>}, stub:true} with HTTP 200 so the Godot loader and the morph panel keep working."
+  },
+
+  "added_templates": {
+    "studio/dapp/templates/play_morph.html": "~85 lines — persona panel (persona_id, inferred_role, primary_face, godot_scene) + inline <style id='persona-style'> + Godot iframe at /studio/godot/builds/web_instant_games/index.html?scene=morphing_game + collapsible <details> showing raw ScenePlan JSON. HTMX hx-get to /dapp/api/morph_plan on load with htmx:configRequest hook that stamps Bearer <localStorage.mspc_freetier_token>. After-request callback updatePersonaStyle(event) parses the JSON response, rewrites :root { --persona-accent: … }, and fills the panel fields."
+  },
+
+  "added_helpers": [
+    "_stub_morph_plan(persona_id) — fixed-shape ScenePlan dict served on import or resolution failure; mirrors the future morph_game_runtime ScenePlan asdict() shape so client code branches the same way as it will when the modules land",
+    "_build_morph_plan(claims) — lazy-imports identity_resolver + morph_game_runtime, resolves persona from claims.user_id, returns asdict(plan) or stub on any failure; inline crystal-anchor via inference_logger at tier='morph_plan_served', model='dapp_morph_route', scope='morph_plan_get'; never raises"
+  ],
+
+  "nav_changes": "Added one <a href=\"/dapp/play_morph\">play_morph</a> entry to nav.tabs in studio/dapp/templates/base.html, placed immediately after the existing /dapp/play link added by the dapp_play_extension sidecar — single-line addition, no other base.html edits.",
+
+  "boot_banner_addition": "main() boot stderr banner gets one extra line: '/dapp/play_morph /dapp/api/morph_plan' so operators see the new surface at startup.",
+
+  "substrate": "additive — no own DB. Reuses freetier_gate.require_token for bearer gating, inference_logger for crystal anchors, and lazy-imports identity_resolver + morph_game_runtime (parallel agent F + G outputs) when present. Defaults BRANDING['brand_bg'] for the persona accent when no plan is resolvable.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "browser: visitors to /dapp/play_morph (public page, no token required to view)",
+      "the in-page HTMX panel: hx-get /dapp/api/morph_plan with Bearer header stamped from localStorage.mspc_freetier_token",
+      "Godot HTML5 build: iframe loads index.html?scene=morphing_game and selects the morphing_game.tscn scene on its end"
+    ],
+    "outbound_calls": [
+      "core/lib/identity_resolver.resolve(persona_id_seed) → AudiencePersonaVector — lazy import, agent F build",
+      "core/lib/morph_game_runtime.plan_for(persona) → ScenePlan — lazy import, agent G build",
+      "core/lib/freetier_gate.require_token(headers) on /dapp/api/morph_plan",
+      "core/lib/inference_logger.InferenceLogger().log(tier='morph_plan_served', model='dapp_morph_route', scope='morph_plan_get')"
+    ],
+    "substrate_reads": "studio/godot/builds/web_instant_games/index.html presence check; templates under studio/dapp/templates/",
+    "substrate_writes": "crystal chain entries via inference_logger only"
+  },
+
+  "graceful_degradations": [
+    "identity_resolver missing → /dapp/api/morph_plan returns stub plan (HTTP 200, stub:true)",
+    "morph_game_runtime missing → /dapp/api/morph_plan returns stub plan (HTTP 200, stub:true)",
+    "resolve_fn or plan_for not callable → stub plan (HTTP 200, stub:true)",
+    "inference_logger missing → log skipped (stderr warning), response unaffected",
+    "Godot HTML5 build not exported → /dapp/play_morph renders play_no_build.html (same fallback path as /dapp/play/embed)",
+    "No bearer token in localStorage → HTMX call hits /dapp/api/morph_plan unauth → 401; the panel keeps its loading state, page itself remains rendered"
+  ],
+
+  "guarantees": [
+    "Existing dapp_server routes (services, mint, wallet, products, balance, buy, mint, healthz) and dapp_play_extension routes (/dapp/play*, /dapp/api/fb_event, /dapp/api/social_graph) are NOT modified",
+    "dapp_server.active.json AND dapp_play_extension.active.json are NOT modified — additions live in this sidecar card only",
+    "/dapp/api/morph_plan is bearer-gated via the same freetier_gate.require_token path as the other write endpoints",
+    "Stub plan returned on import/resolve failure carries HTTP 200 so the Godot iframe and persona panel never break on a freshly-provisioned host",
+    "Stdlib-only — no new deps; all CSS / JS is inline in play_morph.html",
+    "Single line added to base.html nav; no other template touched"
+  ],
+
+  "smoke_test_2026_05_28": {
+    "syntax_check":         "ok — ast.parse passes on server.py",
+    "play_morph_public":    "ok — GET /dapp/play_morph renders 200 without a bearer token",
+    "morph_plan_unauth":    "ok — GET /dapp/api/morph_plan without bearer → 401",
+    "morph_plan_authed":    "ok — GET /dapp/api/morph_plan with valid bearer → 200 + ScenePlan JSON (stub-shaped while identity_resolver / morph_game_runtime absent)",
+    "no_existing_route_changed": "ok — /dapp/services /dapp/mint /dapp/wallet /dapp/play /dapp/play/embed /dapp/play/sdk-bridge.js /dapp/api/fb_event /dapp/api/social_graph all unaffected"
+  },
+
+  "usage_example": "GET  /dapp/play_morph\\ncurl -H 'Authorization: Bearer <token>' http://localhost:8520/dapp/api/morph_plan",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Persona-driven Instant Games surface. Pairs with parallel agent F (identity_resolver) + agent G (morph_game_runtime) + the Godot morphing_game.tscn scene. The dApp side is forward-compatible: stub plan today, real persona resolution the moment the two modules land."
+}

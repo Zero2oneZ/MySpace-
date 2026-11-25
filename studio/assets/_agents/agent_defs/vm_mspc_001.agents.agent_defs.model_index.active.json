@@ -1,0 +1,70 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "model_index",
+  "state": "active",
+  "version": "v0",
+  "role": "INDEXER · LOCAL_MODEL_REGISTRY",
+  "tier": "L0",
+  "module_path": "core/scripts/model_index.sh",
+  "summary": "Walks /home/tom/models (283 GB across 33 collections: Qwen_Image_Edit, TencentARC_Pixal3D, gemma-4-E4B, marigold-normals, Marlin-2B, Qwen3-TTS, LTX2.3, Kolors-Virtual-Try-On, apple_DepthPro, Pixal3D, Flux2-Klein, LongCat-Video, melodyflow, Vocal-Isolator, facebook_sapiens-1b, SpaceTimeGPT, metaclip-2, flux_2_klein_4B_background_remove_lora, ...). Classifies each .safetensors/.ckpt/.pt/.gguf/.bin/.onnx by extension + dir + size bucket. Emits ParserCursor-compatible JSONL.",
+  "engine_pattern": "bash + python3 json. Deterministic walk. Two classification axes (dir hint + filename hint + size bucket).",
+  "storage": {
+    "default_out": "~/.cc/model_index.jsonl",
+    "default_root": "/home/tom/models"
+  },
+  "classification": {
+    "lora":           "dir or filename contains 'lora' / 'LoRA'",
+    "controlnet":     "dir or filename contains 'controlnet' / 'control'",
+    "vae":            "dir or filename contains 'vae'",
+    "clip":           "dir or filename contains 'clip' / 'text_encoder'",
+    "embedding":      "dir contains 'embedding' / 'textual_inversion' OR file < 10 MB",
+    "upscaler":       "dir or filename contains 'upscaler' / 'esrgan' / 'upscale'",
+    "tts":            "dir or filename contains 'tts' / 'voice'",
+    "asr":            "dir or filename contains 'whisper' / 'asr'",
+    "small_model":    "size 100 MB - 2 GB without dir/name match",
+    "base_checkpoint":"size 2 - 8 GB",
+    "huge_model":     "size > 8 GB (FLUX-scale, large LLMs)"
+  },
+  "instructions": [
+    "1. Run: bash core/scripts/model_index.sh > ~/.cc/model_index.jsonl",
+    "2. Add roots: bash core/scripts/model_index.sh /home/tom/models /opt/models > ~/.cc/model_index.jsonl",
+    "3. Walk: python3 core/lib/parser_cursor.py walk ~/.cc/model_index.jsonl | head -50",
+    "4. Find all LoRAs: grep -E 'kind.:.lora' ~/.cc/model_index.jsonl",
+    "5. Find Qwen models: grep -i qwen ~/.cc/model_index.jsonl",
+    "6. token_router pulls from this when resolving a tier",
+    "7. workflow_card 'model_path' fields validate against this index"
+  ],
+  "node_kinds_emitted": [
+    "element name='chain' depth=0 — root + schema",
+    "element name='root' depth=1 — per model root dir",
+    "element name='collection' depth=2 — per top-level model collection (e.g., apple_DepthPro/)",
+    "text name='readme_snippet' depth=3 — README.md first 20 lines",
+    "element name='model_file' depth=2 — per weight file (rel, kind, ext, size, mtime)"
+  ],
+  "exports": ["bash script + classify() function"],
+  "substrate": "model_index (JSONL — joinable with comfy_dag and crystal chain)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_models_index (to be added: cc models-index)",
+      "core/lib/token_router.py (transitively via model_registry — extends to include local /home/tom/models entries)",
+      "core/lib/workflow_generator.py (validates model_path fields in cards)",
+      "core/lib/forward_projector.py (could pick CC_TINY_MODEL from index)"
+    ],
+    "outbound_calls": ["std find + du + stat"],
+    "substrate_reads": "/home/tom/models (and any other roots given)",
+    "substrate_writes": "~/.cc/model_index.jsonl"
+  },
+  "guarantees": [
+    "Deterministic — same filesystem → same JSONL bytes",
+    "Read-only over /home/tom/models — never mutates models",
+    "Walkable — ParserCursor reads identically to other chains",
+    "Classification heuristics documented in this card; reproducible"
+  ],
+  "usage_example": "cd /data/Projects/MySpace++ && bash core/scripts/model_index.sh > ~/.cc/model_index.jsonl && grep -c model_file ~/.cc/model_index.jsonl",
+  "chain_runs": ["moe_chain_router_v0"]
+}

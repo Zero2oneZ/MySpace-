@@ -1,0 +1,95 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "real.estate.walkthrough_adb44752",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: real estate walkthrough purchase with crystal receipt",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_realestate_walkthrough_p",
+      "agent": "realestate_walkthrough_purchase",
+      "kernel_ref": "card:realestate_walkthrough_purchase",
+      "engine": "card",
+      "in": [
+        "STR",
+        "STR",
+        "INT",
+        "STR",
+        "STR",
+        "INT"
+      ],
+      "out": "STR",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:idle.walk.twist_481cb60a"
+      ]
+    },
+    {
+      "id": "p01_realestate_walkthrough_f",
+      "agent": "realestate_walkthrough_full",
+      "kernel_ref": "card:realestate_walkthrough_full",
+      "engine": "card",
+      "in": [
+        "STRING",
+        "STRING",
+        "STRING",
+        "INT",
+        "LIST[FLOAT]"
+      ],
+      "out": "TSCN",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:unified_model_api",
+        "card:pump_surf_pipeline"
+      ]
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_realestate_walkthrough_p",
+      "source": "pass:p00_realestate_walkthrough_p",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_realestate_walkthrough_f",
+      "source": "pass:p01_realestate_walkthrough_f",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:realestate_walkthrough_full",
+    "card:realestate_walkthrough_purchase"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:39:01Z"
+  }
+}

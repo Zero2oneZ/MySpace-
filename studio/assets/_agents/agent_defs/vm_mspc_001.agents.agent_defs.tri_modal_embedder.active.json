@@ -1,0 +1,80 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "tri_modal_embedder",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · 4D_ADJACENT_POSSIBLE",
+  "tier": "L0",
+  "module_path": "core/lib/tri_modal_embedder.py",
+  "summary": "Every record crystallizes across three adjacent domains: VECTOR (BLAKE3 hex), WAVE (DCT-II spectrum of content-as-audio, L2-normalized), TIME (forward + inverted sinusoidal positional encoding with self-healing residual signature). The crystal links all three. Lookup in any one domain returns the other two — the adjacent possible cache. Inverted-time arm provides differential-amplifier tamper detection.",
+  "engine_pattern": "pure Python — no numpy/scipy. BLAKE3 (or blake2b fallback). DCT-II implemented from math.cos basis. Positional encoding from math.sin/cos with geometric frequencies (transformer-style).",
+  "domains": {
+    "vector": {
+      "dim": "64 hex chars (256 bits) of BLAKE3",
+      "interpretation": "what the content IS",
+      "retrieval": "exact match or n-gram overlap (via moe_router)"
+    },
+    "wave": {
+      "dim": 64,
+      "method": "DCT-II of UTF-8 bytes treated as audio samples in [-1, 1]",
+      "interpretation": "how the content RESONATES (frequency signature)",
+      "retrieval": "cosine similarity (l2-normalized → dot product)"
+    },
+    "time": {
+      "dim": 32,
+      "method": "sin/cos positional encoding of (timestamp, btc_height)",
+      "interpretation": "when the content EXISTS",
+      "self_healing": "forward + inverted produces (0, 2cos, 0, 2cos, ...) residual signature — differential-amplifier; tampering breaks the pattern instantly",
+      "retrieval": "euclidean distance in forward-time space"
+    }
+  },
+  "exports": [
+    "TriModalCrystal", "vector_embedding", "wave_embedding", "time_vector",
+    "verify_time_residual", "cosine_similarity", "time_distance",
+    "find_wave_neighbors", "find_time_neighbors"
+  ],
+  "substrate": "tri-modal (in-memory; caller persists crystals)",
+  "routing_connections": {
+    "inbound_callers": [
+      "(planned) inference_logger.log — add tri_modal_crystal to each InferenceRecord",
+      "(planned) workflow_generator — every emitted file gets a tri-modal seal in its header",
+      "(planned) moe_router.find_wave_neighbors / find_time_neighbors — cross-modal retrieval"
+    ],
+    "outbound_calls": [
+      "blake3 (or blake2b fallback) — content + crystal hashing",
+      "math.sin / math.cos — DCT basis + positional encoding"
+    ],
+    "substrate_reads": "none (stateless)",
+    "substrate_writes": "none (stateless — caller persists)"
+  },
+  "self_healing_check": {
+    "principle": "differential amplifier — forward + inverted should produce known fixed signature",
+    "expected_residual": "(0, 2*cos, 0, 2*cos, ...) — sin pairs cancel, cos pairs double",
+    "tamper_detection": "any byte flip in forward or inverted arm breaks the pattern → reject",
+    "tolerance": "1e-9 (math precision)"
+  },
+  "smoke_test_results_2026_05_28": {
+    "verify_round_trip": "time_residual_ok=true, wave_norm_ok=true, all_ok=true",
+    "compare_related_strings": "wave_cosine=0.571 (signal present)",
+    "compare_unrelated_strings": "wave_cosine=0.529 (weaker but non-zero — DCT of bytes is content-order sensitive)",
+    "determinism": "same content + same timestamp + same btc_height → same crystal, byte-for-byte"
+  },
+  "guarantees": [
+    "Deterministic — same (content, timestamp, btc_height) → same TriModalCrystal, every time",
+    "Tamper-evident time arm — flipping any byte in forward OR inverted breaks residual signature",
+    "L2-normalized wave — cosine similarity is dot product (cheap, comparable)",
+    "Pure Python — no numpy/scipy dependencies — works on any Python 3 environment"
+  ],
+  "performance_notes": [
+    "DCT-II is O(n * k) where n = SAMPLE_CAP (2048 bytes) and k = WAVE_COEFFS (64). Pure-Python ~10ms per crystallize.",
+    "Future: pyfftw or numpy fallback when available → ~50× faster.",
+    "Time encoding is O(dim) — negligible (~16 sin/cos calls)."
+  ],
+  "usage_example": "from tri_modal_embedder import TriModalCrystal\\ntmc = TriModalCrystal.of('hello world', btc_height=945000)\\nprint(tmc.crystal[:16], tmc.verify())",
+  "chain_runs": ["moe_chain_router_v0"]
+}

@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://4b5b9c4a5d3b5600c71da2e8"]
+
+[ext_resource type="Script" path="res://src/realestate_walkthrough_full_controller.gd" id="1_main"]
+
+; GENERATED · card_crystal=4b5b9c4a5d3b5600c71da2e80b4346997284960d3202f11cb32ed05db348219fca89e0b61a08a18550d9d8db72d2ea8297d367804789e33bf0c239f88b3ef835
+[node name="RealestateWalkthroughFull" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 2.5, 5)
+
+[node name="Light" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 0, 4, 0)
+
+[node name="AvatarMount" type="Node3D" parent="."]

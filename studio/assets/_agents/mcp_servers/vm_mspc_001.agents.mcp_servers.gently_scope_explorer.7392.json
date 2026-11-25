@@ -1,0 +1,21 @@
+{
+  "_schema": "mcp_server_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "mcp_servers",
+  "name": "gently_scope_explorer",
+  "state": "active",
+  "version": "7392",
+  "server_type": "mcp",
+  "host": "z21",
+  "port": 7392,
+  "tools": [
+    {"name": "scope_resolve", "type": "oracle"},
+    {"name": "scope_walk", "type": "graph"}
+  ],
+  "sigil": "SCOPE",
+  "permissions": ["read"],
+  "description": "Canonical scope oracle for gently chain"
+}

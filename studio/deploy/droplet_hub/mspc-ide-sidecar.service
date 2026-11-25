@@ -1,0 +1,21 @@
+[Unit]
+Description=GentlyOS IDE Sidecar — gated data surface + wired IDE
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+WorkingDirectory=/opt/mspc-public
+Environment=PYTHONPATH=/opt/mspc-public/lib:/opt/mspc-public/auth
+Environment=IDE_SECRET=${IDE_SECRET}
+Environment=IDE_ADMIN_HANDLE=sovereign
+Environment=IDE_ADMIN_PASS=${IDE_ADMIN_PASS}
+Environment=GENTLY_SERVER=http://127.0.0.1:7337
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/ide_sidecar.py --port 7338
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/ide_sidecar.log
+StandardError=append:/var/log/mspc/ide_sidecar.log
+
+[Install]
+WantedBy=multi-user.target

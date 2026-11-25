@@ -1,0 +1,392 @@
+<!doctype html>
+<!--
+  MySpace++ Studio — Facebook Instant Games HTML shell
+  Godot 4.6.3-stable web export · WASM + threads (SharedArrayBuffer)
+
+  Lifecycle:
+    1. FBInstant SDK loads from connect.facebook.net BEFORE Godot bootstrap
+    2. FBInstant.initializeAsync() → resolves when the platform is ready
+    3. Godot WASM downloads + instantiates; we feed FBInstant.setLoadingProgress(p)
+    4. On engine.start() resolved, we call FBInstant.startGameAsync() → game runs
+
+  Bridge surface:
+    window.MspcFBInstant.*  — synchronous helpers callable from GDScript via
+                              JavaScriptBridge.eval(). All async results land on
+                              window.__mspc_fb_<event>_response (string JSON).
+    window.__mspc_fb_ready  — boolean polled by FacebookSDKBridge.gd
+
+  Backend telemetry:
+    Every significant SDK event is POSTed to /dapp/api/fb_event with bearer
+    window.__mspc_freetier_token (host page is responsible for setting this
+    BEFORE this shell loads; we degrade gracefully if absent).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' https: blob: data:;
+  script-src  'self' 'unsafe-eval' 'unsafe-inline' blob:
+              https://connect.facebook.net
+              https://www.facebook.com
+              https://*.fbcdn.net
+              https://*.facebook.com;
+  connect-src 'self' https: wss: blob: data:
+              https://*.facebook.com
+              https://*.fbcdn.net
+              https://graph.facebook.com;
+  img-src     'self' https: blob: data:;
+  style-src   'self' 'unsafe-inline' https:;
+  font-src    'self' https: data:;
+  frame-src   https://*.facebook.com;
+  worker-src  'self' blob:;
+  child-src   'self' blob:;
+" />
+<title>$GODOT_PROJECT_NAME</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#eee; }
+  #canvas { display:block; width:100vw; height:100vh; outline:none; touch-action:none; }
+  #canvas:focus { outline:none; }
+  #mspc-boot {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px;
+    background:#000; color:#9af; font-size:14px; z-index:9999;
+  }
+  #mspc-boot .bar { width:60%; max-width:380px; height:4px; background:#222; border-radius:2px; overflow:hidden; }
+  #mspc-boot .fill { height:100%; width:0%; background:linear-gradient(90deg,#5af,#a9f); transition:width 0.18s ease; }
+  #mspc-boot .lbl { opacity:0.6; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; }
+  .hidden { display:none !important; }
+</style>
+
+<!-- Facebook Instant Games SDK — MUST load before the Godot bootstrap -->
+<script src="https://connect.facebook.net/en_US/fbinstant.7.1.js"></script>
+
+<script>
+//
+// SharedArrayBuffer / cross-origin-isolation enforcement
+// Godot 4 WASM threads require COOP+COEP. On non-isolated hosts we install a
+// service-worker shim. FB Instant Games' hosting iframe already provides COOP/COEP,
+// so this is a no-op there; we keep the shim for local preview.
+//
+(function () {
+  if (typeof window.crossOriginIsolated === "boolean" && window.crossOriginIsolated) return;
+  if (!('serviceWorker' in navigator)) return;
+  // Best-effort: register only if a sibling /coi-serviceworker.js exists.
+  // (FB hosting won't reach this branch.)
+  try {
+    fetch('coi-serviceworker.js', { method:'HEAD' })
+      .then(r => { if (r.ok) navigator.serviceWorker.register('coi-serviceworker.js').catch(()=>{}); })
+      .catch(()=>{});
+  } catch(e) {}
+})();
+
+//
+// Backend telemetry forwarder.
+// Posts each FB SDK event to the MySpace++ dApp backend. Token is read from
+// window.__mspc_freetier_token (Studio/host page sets this before mounting).
+//
+function mspcFbForward(event_name, payload) {
+  try {
+    var token = window.__mspc_freetier_token || "";
+    var body = {
+      event_name: event_name,
+      player_id:  (window.__mspc_fb_player_id  || ""),
+      context_id: (window.__mspc_fb_context_id || ""),
+      signed_data:(window.__mspc_fb_signed     || ""),
+      payload:    (payload || {})
+    };
+    fetch('/dapp/api/fb_event', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify(body),
+      keepalive: true,
+      credentials: 'omit'
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+//
+// MspcFBInstant — flat helper surface for GDScript via JavaScriptBridge.eval().
+// All async calls write their JSON result to a well-known global the GD side polls.
+//
+window.MspcFBInstant = (function () {
+  function safe() { return (typeof FBInstant !== 'undefined' && FBInstant); }
+  return {
+    isReady: function () { return !!window.__mspc_fb_ready; },
+
+    getPlayerID: function () {
+      var fb = safe(); if (!fb || !fb.player) return "";
+      try { return fb.player.getID() || ""; } catch(e) { return ""; }
+    },
+    getPlayerName: function () {
+      var fb = safe(); if (!fb || !fb.player) return "";
+      try { return fb.player.getName() || ""; } catch(e) { return ""; }
+    },
+    getContextID: function () {
+      var fb = safe(); if (!fb || !fb.context) return "";
+      try { return fb.context.getID() || ""; } catch(e) { return ""; }
+    },
+    getContextType: function () {
+      var fb = safe(); if (!fb || !fb.context) return "SOLO";
+      try { return fb.context.getType() || "SOLO"; } catch(e) { return "SOLO"; }
+    },
+    getLocale: function () {
+      var fb = safe(); if (!fb) return "en_US";
+      try { return fb.getLocale() || "en_US"; } catch(e) { return "en_US"; }
+    },
+    getPlatform: function () {
+      var fb = safe(); if (!fb) return "WEB";
+      try { return fb.getPlatform() || "WEB"; } catch(e) { return "WEB"; }
+    },
+
+    // Async: fetches the list of connected players in current context.
+    // Result lands on window.__mspc_fb_players_response (JSON string).
+    fetchConnectedPlayers: function () {
+      var fb = safe();
+      window.__mspc_fb_players_response = "";
+      if (!fb || !fb.player || !fb.player.getConnectedPlayersAsync) {
+        window.__mspc_fb_players_response = JSON.stringify({status:"unavailable"});
+        return false;
+      }
+      fb.player.getConnectedPlayersAsync().then(function(players){
+        var out = (players || []).map(function(p){
+          return { id: p.getID(), name: p.getName(), photo: p.getPhoto() };
+        });
+        window.__mspc_fb_players_response = JSON.stringify({status:"ok", players: out});
+        mspcFbForward("connected_players_fetched", { count: out.length });
+      }).catch(function(err){
+        window.__mspc_fb_players_response = JSON.stringify({status:"error", error: String(err && err.message || err)});
+      });
+      return true;
+    },
+
+    // Async: opens FB context-switch / create / choose dialogs.
+    chooseContextAsync: function () {
+      var fb = safe();
+      window.__mspc_fb_context_response = "";
+      if (!fb || !fb.context || !fb.context.chooseAsync) {
+        window.__mspc_fb_context_response = JSON.stringify({status:"unavailable"});
+        return false;
+      }
+      fb.context.chooseAsync().then(function(){
+        window.__mspc_fb_context_id = fb.context.getID() || "";
+        window.__mspc_fb_context_response = JSON.stringify({status:"ok", context_id: window.__mspc_fb_context_id});
+        mspcFbForward("context_chosen", { context_id: window.__mspc_fb_context_id });
+      }).catch(function(err){
+        window.__mspc_fb_context_response = JSON.stringify({status:"error", error: String(err && err.message || err)});
+      });
+      return true;
+    },
+
+    // Log a custom analytics event.
+    logEvent: function (name, value, params) {
+      var fb = safe(); if (!fb || !fb.logEvent) return false;
+      try {
+        var v = (typeof value === 'string') ? parseFloat(value) : value;
+        if (isNaN(v)) v = 0;
+        var p = params || {};
+        if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) { p = {}; } }
+        fb.logEvent(name, v, p);
+        mspcFbForward("custom_event", { name: name, value: v, params: p });
+        return true;
+      } catch(e) { return false; }
+    },
+
+    // Update leaderboard score. Result on window.__mspc_fb_lb_response
+    setScore: function (leaderboard_name, score, extra_data) {
+      var fb = safe();
+      window.__mspc_fb_lb_response = "";
+      if (!fb || !fb.getLeaderboardAsync) {
+        window.__mspc_fb_lb_response = JSON.stringify({status:"unavailable"});
+        return false;
+      }
+      fb.getLeaderboardAsync(leaderboard_name).then(function(lb){
+        return lb.setScoreAsync(parseInt(score, 10) || 0, extra_data || "");
+      }).then(function(entry){
+        window.__mspc_fb_lb_response = JSON.stringify({status:"ok"});
+        mspcFbForward("score_submitted", { leaderboard: leaderboard_name, score: score });
+      }).catch(function(err){
+        window.__mspc_fb_lb_response = JSON.stringify({status:"error", error: String(err && err.message || err)});
+      });
+      return true;
+    },
+
+    // Pull the signed player info (verifiable on the backend).
+    getSignedPlayerInfo: function (payload) {
+      var fb = safe();
+      window.__mspc_fb_signed_response = "";
+      if (!fb || !fb.player || !fb.player.getSignedPlayerInfoAsync) {
+        window.__mspc_fb_signed_response = JSON.stringify({status:"unavailable"});
+        return false;
+      }
+      fb.player.getSignedPlayerInfoAsync(payload || "").then(function(info){
+        var sig = info.getSignature();
+        window.__mspc_fb_signed = sig;
+        window.__mspc_fb_signed_response = JSON.stringify({status:"ok", player_id: info.getPlayerID(), signature: sig});
+        mspcFbForward("signed_player_info", { player_id: info.getPlayerID() });
+      }).catch(function(err){
+        window.__mspc_fb_signed_response = JSON.stringify({status:"error", error: String(err && err.message || err)});
+      });
+      return true;
+    },
+
+    // Tell FB we hit a checkpoint / quit cleanly.
+    quit: function () {
+      var fb = safe(); if (!fb || !fb.quit) return false;
+      try { fb.quit(); return true; } catch(e) { return false; }
+    }
+  };
+})();
+</script>
+</head>
+
+<body>
+  <div id="mspc-boot">
+    <div class="lbl">MySpace++ · loading</div>
+    <div class="bar"><div class="fill" id="mspc-boot-fill"></div></div>
+    <div class="lbl" id="mspc-boot-stage">connecting</div>
+  </div>
+
+  <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault();">
+    HTML5 canvas appears to be unsupported in the current browser.
+  </canvas>
+
+  <script src="$GODOT_URL"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var bootEl   = document.getElementById('mspc-boot');
+    var fillEl   = document.getElementById('mspc-boot-fill');
+    var stageEl  = document.getElementById('mspc-boot-stage');
+    var canvas   = document.getElementById('canvas');
+    var GODOT_PROGRESS = 0; // 0..1, fed into FBInstant.setLoadingProgress (0..100)
+
+    function setStage(s)    { try { stageEl.textContent = s; } catch(e){} }
+    function setFill(p01)   { try { fillEl.style.width = Math.max(0, Math.min(1, p01)) * 100 + '%'; } catch(e){} }
+    function reportProgress(p01) {
+      GODOT_PROGRESS = Math.max(0, Math.min(1, p01));
+      setFill(GODOT_PROGRESS);
+      if (typeof FBInstant !== 'undefined' && FBInstant.setLoadingProgress) {
+        try { FBInstant.setLoadingProgress(Math.round(GODOT_PROGRESS * 100)); } catch(e){}
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Step 1: initialize FBInstant. On non-FB hosts (preview / dApp side), the
+    // SDK script may still load but initializeAsync() will reject — we proceed
+    // to boot Godot regardless so previews are not blocked.
+    // ─────────────────────────────────────────────────────────────────────────
+    function initFBInstant() {
+      return new Promise(function (resolve) {
+        if (typeof FBInstant === 'undefined') {
+          setStage('fbinstant unavailable — preview mode');
+          mspcFbForward('init_skipped', { reason: 'sdk_missing' });
+          resolve(false);
+          return;
+        }
+        setStage('fbinstant: initialize');
+        FBInstant.initializeAsync()
+          .then(function () {
+            window.__mspc_fb_ready = true;
+            try {
+              window.__mspc_fb_player_id  = (FBInstant.player  && FBInstant.player.getID())  || "";
+              window.__mspc_fb_context_id = (FBInstant.context && FBInstant.context.getID()) || "";
+            } catch (e) {}
+            mspcFbForward('initialized', {
+              platform: (FBInstant.getPlatform && FBInstant.getPlatform()) || "WEB",
+              locale:   (FBInstant.getLocale   && FBInstant.getLocale())   || "en_US",
+              entry:    (FBInstant.getEntryPointData && FBInstant.getEntryPointData()) || null
+            });
+            resolve(true);
+          })
+          .catch(function (err) {
+            setStage('fbinstant init failed — preview mode');
+            mspcFbForward('init_failed', { error: String(err && err.message || err) });
+            resolve(false);
+          });
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Step 2: download + instantiate Godot WASM. The exporter substitutes
+    // $GODOT_LOADER_JS / $GODOT_LOADER_ARGS at build time.
+    // ─────────────────────────────────────────────────────────────────────────
+    function bootGodot() {
+      setStage('godot: downloading');
+      reportProgress(0.05);
+
+      var engine = new Engine($GODOT_CONFIG);
+
+      return engine.startGame({
+        'executable': '$GODOT_BASENAME',
+        'mainPack':   '$GODOT_BASENAME.pck',
+        'canvas':     canvas,
+        'canvasResizePolicy': 2,
+        'experimentalVK': false,
+        'focusCanvas': true,
+        'onProgress': function (current, total) {
+          if (total > 0) {
+            var p = 0.05 + 0.90 * (current / total); // 5%..95% during download
+            reportProgress(p);
+          }
+        },
+        'onPrint': function (out, err) {
+          if (err) { try { console.error(out); } catch(e){} }
+          else     { try { console.log(out);   } catch(e){} }
+        }
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Step 3: tell FBInstant we're ready, then reveal the canvas.
+    // ─────────────────────────────────────────────────────────────────────────
+    function startGame(fbReady) {
+      reportProgress(1.0);
+      setStage('starting');
+      if (fbReady && typeof FBInstant !== 'undefined' && FBInstant.startGameAsync) {
+        return FBInstant.startGameAsync()
+          .then(function () {
+            mspcFbForward('game_started', {
+              player_id:  window.__mspc_fb_player_id  || "",
+              context_id: window.__mspc_fb_context_id || ""
+            });
+          })
+          .catch(function (err) {
+            mspcFbForward('start_failed', { error: String(err && err.message || err) });
+          });
+      }
+      return Promise.resolve();
+    }
+
+    function reveal() {
+      try { bootEl.classList.add('hidden'); } catch(e){}
+      try { canvas.focus(); } catch(e){}
+    }
+
+    function fatal(err) {
+      try {
+        bootEl.classList.remove('hidden');
+        stageEl.textContent = 'fatal: ' + String(err && err.message || err);
+      } catch(e){}
+      mspcFbForward('fatal', { error: String(err && err.message || err) });
+    }
+
+    // Drive the lifecycle.
+    initFBInstant()
+      .then(function (fbReady) {
+        return bootGodot().then(function () { return startGame(fbReady); });
+      })
+      .then(reveal)
+      .catch(fatal);
+  })();
+  </script>
+</body>
+</html>

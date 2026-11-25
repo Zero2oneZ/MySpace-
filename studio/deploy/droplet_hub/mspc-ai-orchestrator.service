@@ -1,0 +1,20 @@
+[Unit]
+Description=MySpace++ AI Orchestrator Hub (:8524)
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/ai_orchestrator.py --port 8524 --backends ollama,claude,cc
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/ai-orchestrator.log
+StandardError=append:/var/log/mspc/ai-orchestrator.log
+
+[Install]
+WantedBy=multi-user.target

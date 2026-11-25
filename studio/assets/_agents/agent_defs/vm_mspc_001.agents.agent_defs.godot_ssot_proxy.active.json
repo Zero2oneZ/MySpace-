@@ -1,0 +1,134 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "godot_ssot_proxy",
+  "state": "active",
+  "version": "v0",
+  "role": "SIDECAR · GODOT_SCENE_SSoT_HTTP_PROXY",
+  "tier": "L0",
+  "module_path": "core/lib/godot_ssot_proxy.py",
+
+  "summary": "Stdlib HTTP sidecar on port 8766 that exposes the Godot scene state as a queryable + commandable API to external callers (Replit-deployed apps, dApp, Meta Quest builds, Facebook Instant Games). Mediates via the existing cc_bridge.gd file queue at ~/.cc/godot_bridge.jsonl + scene snapshots at ~/.cc/scene_state/<scene_uid>.json + single-writer locks at ~/.cc/scene_locks/<scene_uid>.lock. Bearer-gated by freetier_gate.verify_token on every endpoint EXCEPT /healthz. Caller identity (user_id, domain, tier) propagates into every response and every crystal chain entry. POST /scene/{uid}/command acquires fcntl.flock LOCK_EX|LOCK_NB on the lock file, writes {writer_id, acquired_at, ttl_ms=2000} payload, appends a cc_godot_bridge_v1 packet to ~/.cc/godot_bridge.jsonl, crystal-anchors, releases the lock, and returns {ack, crystal, packet_id}. When the lock is held by another writer, 409 with retry_after_ms; stale locks (now - acquired_at >= ttl_ms) are stolen with a ConflictTrace appended to ~/.cc/conflict_log.jsonl AND a tier='ssot_conflict' crystal anchor. GET /events is a Server-Sent Events stream tailing ~/.cc/godot_bridge_outbound.jsonl, with 500ms poll and 30s heartbeats.",
+
+  "engine_pattern": "Stdlib http.server.ThreadingHTTPServer (mirrors freetier_callback/server.py + model_api.py). Per-request handler verifies bearer via freetier_gate.verify_token, dispatches, crystal-anchors via inference_logger.log (tier='ssot_api', model='godot_proxy', source_file=caller=<user_id>@<domain>). Single-writer locks use fcntl.flock with LOCK_EX|LOCK_NB; stale locks (past ttl_ms) are force-stolen with a ConflictTrace record. SSE streams new lines from godot_bridge_outbound.jsonl every 500ms with 30s heartbeats.",
+
+  "endpoints": {
+    "GET  /healthz":                       "Public — {ok: true, service: 'godot_ssot'}",
+    "GET  /scene/{scene_uid}/state":       "Read snapshot file ~/.cc/scene_state/{uid}.json — empty {} if missing",
+    "POST /scene/{scene_uid}/command":     "Acquire flock → append cc_godot_bridge_v1 packet → crystal anchor → return {ack, crystal, packet_id}",
+    "GET  /symbols":                       "Read ~/.cc/sym_index.json",
+    "POST /symbols":                       "Merge {name, kind, meta} entry into sym_index.json + crystal anchor",
+    "GET  /chain/recent?n=N":              "Tail last N records from ~/.cc/inference_master_chain.jsonl (cap 200)",
+    "GET  /tasks":                         "Read ~/.cc/task_queue.json",
+    "GET  /events":                        "SSE tail of ~/.cc/godot_bridge_outbound.jsonl (500ms poll, 30s heartbeat)"
+  },
+
+  "request_shape_command": {
+    "action":    "string (godot_action) — required",
+    "payload":   "object — action-specific payload",
+    "writer_id": "string — single-writer ID; falls back to caller.user_id"
+  },
+
+  "response_shape_command": {
+    "ack":         "true",
+    "crystal":     "blake3 hash of the InferenceRecord crystal anchor",
+    "packet_id":   "uuid4 of the bridge packet",
+    "scene_uid":   "echo of the scene UID",
+    "stale_steal": "true if we stole a stale lock; ConflictTrace + ssot_conflict crystal also emitted"
+  },
+
+  "response_shape_conflict_409": {
+    "error":           "lock_held",
+    "current_writer": "writer_id holding the fresh lock",
+    "retry_after_ms": "ms until ttl expiry"
+  },
+
+  "bridge_packet_shape": {
+    "protocol":       "cc_godot_bridge_v1",
+    "timestamp":      "ISO-8601 UTC",
+    "agent_uuid":     "$CC_AGENT_UUID or 'ssot_proxy'",
+    "packet_id":      "uuid4",
+    "original":       "ssot_proxy.command scene=<uid> action=<action>",
+    "enhanced":       "writer_id=<id> caller=<user_id>@<domain>",
+    "route":          "{tier: 'ssot', model: 'godot_proxy', scope: <scene_uid>}",
+    "tokens":         "0",
+    "complexity":     "0.0",
+    "godot_action":   "<action>",
+    "chain_context":  "ssot_proxy::scene=<uid>::writer=<writer_id>",
+    "ssot":           "{scene_uid, writer_id, payload, caller: {user_id, domain, tier}}"
+  },
+
+  "env_vars": {
+    "SSOT_PORT":  "default 8766",
+    "SSOT_LOG":   "set to 'quiet' to suppress access log",
+    "CC_HOME":    "override ~/.cc base (default: $HOME/.cc)"
+  },
+
+  "exports": ["GodotSSoTHandler"],
+
+  "filesystem_layout": {
+    "~/.cc/scene_state/<scene_uid>.json":     "READ — Godot writes; sidecar reads",
+    "~/.cc/scene_locks/<scene_uid>.lock":     "WRITE — sidecar acquires fcntl LOCK_EX|LOCK_NB + stamps {writer_id, acquired_at, ttl_ms}",
+    "~/.cc/godot_bridge.jsonl":               "APPEND — cc_godot_bridge_v1 packets (cc_bridge.gd polls; we never delete)",
+    "~/.cc/godot_bridge_outbound.jsonl":      "TAIL — Godot writes; SSE clients consume",
+    "~/.cc/sym_index.json":                   "READ/WRITE — symbol index for SymIndexer",
+    "~/.cc/conflict_log.jsonl":               "APPEND — ConflictTrace on stale-lock steals",
+    "~/.cc/task_queue.json":                  "READ — task list",
+    "~/.cc/inference_master_chain.jsonl":     "READ — crystal chain tail for /chain/recent"
+  },
+
+  "single_writer_lock_semantics": {
+    "ttl_ms_default": 2000,
+    "lock_call":      "fcntl.flock(fd, LOCK_EX | LOCK_NB)",
+    "fresh_held":     "BlockingIOError + existing.acquired_at within ttl_ms → 409 {error:'lock_held', current_writer, retry_after_ms}",
+    "stale_held":     "BlockingIOError + existing.acquired_at past ttl_ms → steal lock, append ConflictTrace, crystal-anchor tier='ssot_conflict'",
+    "release":        "fcntl LOCK_UN + close fd in finally"
+  },
+
+  "substrate": "~/.cc/inference_master_chain.jsonl (every API call → InferenceRecord tier='ssot_api'; conflict steals → tier='ssot_conflict')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Replit-deployed external apps (via freetier token)",
+      "dApp /buy or other authenticated UI calls",
+      "Meta Quest builds (LAN call to Caddy → this sidecar)",
+      "Facebook Instant Games (Caddy → this sidecar)",
+      "cc godot-ssot smoke tests"
+    ],
+    "outbound_calls": [
+      "freetier_gate.verify_token (bearer middleware on every endpoint except /healthz)",
+      "inference_logger.log (every API call: tier='ssot_api'; lock steals: tier='ssot_conflict')"
+    ],
+    "substrate_reads": "Authorization / X-Freetier-Token request header; scene snapshots; sym_index; task_queue; master chain tail; outbound JSONL tail",
+    "substrate_writes": "godot_bridge.jsonl (cc_bridge.gd will pick up); scene_locks; sym_index; conflict_log; crystal chain entries (via inference_logger)"
+  },
+
+  "guarantees": [
+    "Bearer-gated — every endpoint except /healthz requires a valid freetier token",
+    "Crystal-audit-trail — every API call has a deterministic chain entry tying caller → endpoint → outcome",
+    "Single-writer scene mutation — fcntl.flock guarantees one writer at a time per scene_uid",
+    "Stale-lock recovery — locks older than ttl_ms are stolen with a ConflictTrace + crystal anchor (no permanent lockup)",
+    "Single-port — one stdlib server; no FastAPI dep",
+    "Per-caller audit — caller={user_id, domain, tier} written into source_file claim",
+    "Bridge-protocol-compatible — packets match cc_bridge.gd's cc_godot_bridge_v1 (cc_bridge picks them up without modification)",
+    "127.0.0.1-only — Caddy on droplet handles TLS termination"
+  ],
+
+  "future_v2_hooks": [
+    "Per-caller rate limiting based on TokenClaims.tier",
+    "WebSocket upgrade for /events (today uses SSE)",
+    "Scene state diff endpoint (GET /scene/{uid}/state?since=<crystal>)",
+    "Bulk command batching (POST /scene/{uid}/batch)",
+    "Lock-yielding (POST /scene/{uid}/release with writer_id proof)",
+    "Per-domain ACLs (e.g. trolln_tier can write, freetier read-only)"
+  ],
+
+  "usage_example": "# Server:\\npython3 core/lib/godot_ssot_proxy.py serve --port 8766 --bind 127.0.0.1\\n\\n# Public health check:\\ncurl http://localhost:8766/healthz\\n\\n# Read scene state (authed):\\ncurl -H 'Authorization: Bearer <freetier_token>' http://localhost:8766/scene/test/state\\n\\n# Send command (authed; single-writer locked):\\ncurl -X POST http://localhost:8766/scene/test/command \\\\\\n  -H 'Authorization: Bearer <freetier_token>' \\\\\\n  -H 'Content-Type: application/json' \\\\\\n  -d '{\"action\":\"spawn_entity\",\"payload\":{\"prefab\":\"npc\"},\"writer_id\":\"replit_app_42\"}'\\n\\n# Tail outbound events (SSE):\\ncurl -N -H 'Authorization: Bearer <freetier_token>' http://localhost:8766/events",
+
+  "chain_runs": ["godot_ssot_v0"],
+  "phase": "C.1 of lively-enchanting-parrot plan"
+}

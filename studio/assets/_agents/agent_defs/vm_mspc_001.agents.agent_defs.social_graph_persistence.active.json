@@ -1,0 +1,108 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "social_graph_persistence",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · SOCIAL_GRAPH_STORE",
+  "tier": "L0",
+  "module_path": "core/lib/social_graph_persistence.py",
+
+  "summary": "SQLite-backed directed multigraph of Facebook-derived player relationships plus an append-only JSONL audit trail. Nodes are players (FB-derived identity, optional lat/lon/country); edges are friendships tagged by source_via (graph_api | fb_instant | manual). Multi-edge by design — (A->B via graph_api) and (A->B via fb_instant) are distinct provenance facts and coexist on PRIMARY KEY (source_player, target_player, source_via). Symmetric friendships default to bidirectional writes. Every upsert appends one audit row and anchors a crystal_id via inference_logger (try/except — never blocks). Stdlib-only — sqlite3 / json / math / hashlib. Public API: upsert_player, upsert_edge, get_player, get_friends, get_friend_of_friend, find_in_radius (haversine + country-centroid fallback), stats, export_for_planet_map.",
+
+  "engine_pattern": "Module-level functions that open a fresh sqlite3 connection per call (cheap on local FS), execute the operation, close, then audit. No global ORM, no connection pool. Schema auto-applied on every _connect() via CREATE TABLE IF NOT EXISTS — idempotent. CLI subcommands: stats, upsert-player, upsert-edge, friends, fof, radius, player, export-planet.",
+
+  "schema": {
+    "players": {
+      "player_id (PK)":    "TEXT — FB-derived stable id",
+      "name":              "TEXT",
+      "picture_url":       "TEXT",
+      "lat":               "REAL — optional explicit lat",
+      "lon":               "REAL — optional explicit lon",
+      "country_code":      "TEXT — ISO 3166-1 alpha-2, uppercased",
+      "first_seen":        "INTEGER — unix epoch of first upsert",
+      "last_seen":         "INTEGER — unix epoch of latest upsert",
+      "crystal_id":        "TEXT — crystal hash anchoring the latest upsert"
+    },
+    "friend_edges": {
+      "PK":                "(source_player, target_player, source_via)",
+      "source_via":        "graph_api | fb_instant | manual",
+      "signed":            "INTEGER 0/1 — 1 if signed_player_info verified",
+      "captured_at":       "INTEGER — unix epoch",
+      "crystal_id":        "TEXT — crystal hash for this upsert"
+    },
+    "indices": [
+      "idx_edges_target ON friend_edges(target_player)",
+      "idx_players_country ON players(country_code)"
+    ]
+  },
+
+  "storage": {
+    "db_path":     "~/.cc/social_graph.sqlite (mode 600 on first create; override via MSPC_SOCIAL_GRAPH_DB)",
+    "audit_path":  "~/.cc/social_graph_audit.jsonl (mode 600 on first create; shadows DB path when override is set)",
+    "audit_row":   "{ts, op, player_id_or_pair, crystal_id, source_via}"
+  },
+
+  "exports": [
+    "upsert_player",
+    "upsert_edge",
+    "get_player",
+    "get_friends",
+    "get_friend_of_friend",
+    "find_in_radius",
+    "stats",
+    "export_for_planet_map",
+    "COUNTRY_CENTROIDS"
+  ],
+
+  "substrate": "sqlite3 file at MSPC_SOCIAL_GRAPH_DB or ~/.cc/social_graph.sqlite; audit JSONL alongside; inference_logger master chain receives one crystal anchor per upsert (best-effort).",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/facebook_friends_graph.py (parallel agent — calls upsert_player / upsert_edge as the Graph API + fb_instant capture pipeline ingests friend lists)",
+      "studio/dapp /api/social_graph HTTP endpoint (get_player, get_friends, export_for_planet_map for client reads)",
+      "godot planet_map_scene (fetches export_for_planet_map JSON for the orbital friend visualization)"
+    ],
+    "outbound_calls": [
+      "core/lib/inference_logger.InferenceLogger().log(tier='social_graph', model='social_graph', scope='upsert_{op}', ...) — best-effort crystal anchor per upsert; failures swallowed so the social graph never blocks on inference-chain availability"
+    ],
+    "substrate_reads":  "sqlite DB (players, friend_edges)",
+    "substrate_writes": "sqlite DB + JSONL audit + crystal-chain (via inference_logger)"
+  },
+
+  "haversine": "Pure stdlib (math.radians/sin/cos/atan2). Earth radius 6371.0088 km. Distance computed against player.lat/lon when present; falls back to COUNTRY_CENTROIDS dict for ~85 ISO 3166-1 alpha-2 codes covering the largest populations.",
+
+  "country_centroid_fallback": "When a player has country_code but no explicit lat/lon, find_in_radius and export_for_planet_map drop to COUNTRY_CENTROIDS[code] for an approximate position. Documented as approximate (population-weighted geographic centroid). Result rows carry centroid_fallback=true so consumers know.",
+
+  "guarantees": [
+    "Schema is auto-created on first use — no migration step required",
+    "DB and audit file are mode 600 on first create",
+    "Crystal anchor is best-effort — inference_logger failure never blocks an upsert",
+    "Audit log is append-only — JSONL; no row is ever rewritten or deleted",
+    "Multi-edge on PRIMARY KEY (source, target, source_via) so graph_api and fb_instant evidence coexist",
+    "self-loop edges are rejected at upsert_edge",
+    "bidirectional=True is the default — friendships are symmetric facts",
+    "Stdlib-only — no external Python deps required (no networkx, no geopy)"
+  ],
+
+  "cli_examples": [
+    "python3 core/lib/social_graph_persistence.py stats",
+    "python3 core/lib/social_graph_persistence.py upsert-player tom_dev --name Tom --lat 40.7 --lon -74.0",
+    "python3 core/lib/social_graph_persistence.py upsert-edge tom_dev alice --via fb_instant",
+    "python3 core/lib/social_graph_persistence.py friends tom_dev",
+    "python3 core/lib/social_graph_persistence.py fof tom_dev --depth 2 --limit 200",
+    "python3 core/lib/social_graph_persistence.py radius --lat 40.7 --lon -74.0 --km 500",
+    "python3 core/lib/social_graph_persistence.py export-planet tom_dev --hops 2 --max 100"
+  ],
+
+  "planet_map_export_shape": {
+    "players":     "[{player_id, lat, lon, name, picture_url}, ...]",
+    "friendships": "[{player_a, player_b}, ...] — unordered pairs, lexicographic, deduped"
+  },
+
+  "phase": "social_graph foundation — paired with facebook_friends_graph capture agent and consumed by dApp + Godot planet map"
+}

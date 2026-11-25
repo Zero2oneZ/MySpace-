@@ -1,0 +1,59 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "blender_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · BLENDER_CLAUDE_MCP",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/blender_mcp.py",
+  "summary": "Outbound connector mirroring the third_party/discord+pinterest pattern but pointing at a Blender MCP server. When the MCP server is reachable (stdio JSON-RPC), proxies tool calls like mesh.create / material.set / light.add / render.image. Falls back to `blender --background --python-expr <code>` subprocess when MCP unreachable. Lets Claude / the chain DRIVE Blender's bpy API directly — closes the 3D modeling loop.",
+  "engine_pattern": "ThirdPartyConnector subclass. JSON-RPC over stdio by default; HTTP endpoint when configured. Last-resort bpy fallback via subprocess. Same crystal-id stamping + send-log pattern as Discord/Telegram/etc.",
+  "expected_tools": [
+    "mesh.create",       "mesh.import_fbx",   "mesh.export_gltf",
+    "material.set",      "material.bake_pbr",
+    "light.add",         "camera.set",
+    "scene.list_objects","scene.clear",
+    "render.image",      "render.animation",
+    "bone.list",         "bone.set_rotation",
+    "modifier.add",      "python.exec"
+  ],
+  "env_vars": {
+    "BLENDER_MCP_TOKEN":    "auth for MCP server (when required)",
+    "BLENDER_MCP_ENDPOINT": "stdio://<binary> or http://host:port (default: stdio://blender-mcp)"
+  },
+  "convenience_wrappers": [
+    "create_primitive(shape, size, name)",
+    "set_material_rgb(object_name, rgb, metallic, roughness)",
+    "add_light(position, rgb, intensity, kind)",
+    "render_image(output, samples, resolution)"
+  ],
+  "exports": ["BlenderMCPConnector", "EXPECTED_TOOLS"],
+  "substrate": "studio/third_party/blender_mcp (auth configs, send logs)",
+  "routing_connections": {
+    "inbound_callers": [
+      "studio_runtime._dispatch_blender (when card pass.engine='blender' and pass.mcp_server='blender_mcp')",
+      "core/cc.sh::cmd_third_party_send --service blender_mcp",
+      "endpoints.RoutingOperator (when action=blender_model)"
+    ],
+    "outbound_calls": [
+      "subprocess to blender-mcp stdio server (JSON-RPC)",
+      "fallback: subprocess to `blender --background --python-expr <code>`"
+    ],
+    "substrate_reads": "studio/third_party/blender_mcp/*.json (auth)",
+    "substrate_writes": "send log entries"
+  },
+  "closes_the_3d_loop": "Pinterest harvest → SVG geometry → spatial_anchor room mesh → blender_mcp.create_primitive + material.set + light.add + render.image → workflow_generator --target blender. Claude can model 3D scenes from natural language. The render output crystal-anchors back into the chain.",
+  "guarantees": [
+    "Graceful degradation — when blender-mcp not installed, fallback to raw `blender --python-expr`",
+    "Same connector shape as Discord/Pinterest/etc. — uniform third_party pattern",
+    "Every tool invocation logged via send_log → searchable",
+    "Tool call args + result JSON-serializable → crystal-chain compatible"
+  ],
+  "usage_example": "from third_party.base import ConnectionConfig\\nfrom third_party.blender_mcp import BlenderMCPConnector\\nc = BlenderMCPConnector(ConnectionConfig(service='blender_mcp'))\\nc.connect()\\nc.create_primitive('cube', 2.0, name='Box')\\nc.set_material_rgb('Box', [1.0, 0.5, 0.1])\\nc.add_light([3, 3, 3], [1, 1, 1], intensity=500)\\nc.render_image('/tmp/render.png', samples=64)",
+  "chain_runs": ["moe_chain_router_v0"]
+}

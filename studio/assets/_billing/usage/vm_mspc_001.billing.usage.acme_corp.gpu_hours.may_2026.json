@@ -1,0 +1,28 @@
+{
+  "_schema": "usage_report_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "billing",
+  "category": "usage",
+  "name": "acme_corp.gpu_hours",
+  "state": "may_2026",
+  "version": "v0",
+  "tenant_id": "tnt_acme_corp",
+  "subscription_id": "sub_acme_ent_001",
+  "period": "2026-05",
+  "metrics": {
+    "gpu_hours_used": 423.5,
+    "gpu_hours_limit": 1000,
+    "storage_gb_used": 187.3,
+    "storage_gb_limit": 500,
+    "bandwidth_tb_used": 0.8,
+    "bandwidth_tb_limit": 2,
+    "projects_created": 3,
+    "projects_limit": 10,
+    "users_active": 12,
+    "users_limit": 50
+  },
+  "overage_charges_usd_cents": 0,
+  "crystal": "<sha256 of this file content>"
+}

@@ -1,0 +1,79 @@
+[gd_scene load_steps=8 format=3 uid="uid://d7p1m4nq9k8r2"]
+
+[ext_resource type="Script" path="res://src/planet_map_controller.gd" id="1_ctrl"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_space"]
+sky_top_color = Color(0.02, 0.03, 0.07, 1)
+sky_horizon_color = Color(0.05, 0.06, 0.12, 1)
+ground_bottom_color = Color(0.01, 0.01, 0.02, 1)
+ground_horizon_color = Color(0.03, 0.03, 0.06, 1)
+sun_angle_max = 30.0
+sun_curve = 0.15
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = SubResource("ProceduralSkyMaterial_space")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.28, 0.35, 1)
+ambient_light_energy = 0.6
+reflected_light_source = 1
+
+[sub_resource type="SphereMesh" id="SphereMesh_earth"]
+radius = 5.0
+height = 10.0
+radial_segments = 64
+rings = 32
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_earth"]
+albedo_color = Color(0.18, 0.42, 0.62, 1)
+metallic = 0.05
+roughness = 0.85
+rim_enabled = true
+rim = 0.4
+rim_tint = 0.5
+
+[sub_resource type="LabelSettings" id="LabelSettings_hud"]
+font_size = 22
+font_color = Color(0.85, 0.95, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 0.8)
+
+; GENERATED · planet_map_scene v1 — social-graph planet visualization
+[node name="PlanetMap" type="Node3D"]
+script = ExtResource("1_ctrl")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 6, 4, 10)
+fov = 55.0
+near = 0.1
+far = 1000.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.5, -0.707107, 0.5, 0.5, 0.707107, 0.5, -0.707107, 0, 0.707107, 10, 12, 10)
+light_color = Color(1, 0.96, 0.88, 1)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Earth" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_earth")
+material_override = SubResource("StandardMaterial3D_earth")
+
+[node name="PlayerNodes" type="Node3D" parent="Earth"]
+
+[node name="FriendEdges" type="Node3D" parent="Earth"]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 420.0
+offset_bottom = 60.0
+text = "Connected players: 0"
+label_settings = SubResource("LabelSettings_hud")

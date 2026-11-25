@@ -1,0 +1,288 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "forest.clearing.dawn.world_a7316b8d",
+  "category": "world",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: forest clearing dawn battle with 5 fighters surrounded by trees and torches",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_seed_medieval_ranger_with_72a",
+      "agent": "medieval.ranger.with_72ad85fb",
+      "kernel_ref": "card:medieval.ranger.with_72ad85fb",
+      "engine": "card",
+      "in": [
+        "STR"
+      ],
+      "out": "ANY",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "swap_mode": "none",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:2d.pixel.platformer_2b1633b7"
+      ],
+      "frozen": true
+    },
+    {
+      "id": "p01_seed_dark_sorcerer_with_74479",
+      "agent": "dark.sorcerer.with_74479815",
+      "kernel_ref": "card:dark.sorcerer.with_74479815",
+      "engine": "card",
+      "in": [
+        "STR"
+      ],
+      "out": "ANY",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "swap_mode": "none",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:2d.pixel.platformer_2b1633b7"
+      ],
+      "frozen": true
+    },
+    {
+      "id": "p02_seed_dwarven_smith_with_5957e",
+      "agent": "dwarven.smith.with_5957e9e8",
+      "kernel_ref": "card:dwarven.smith.with_5957e9e8",
+      "engine": "card",
+      "in": [
+        "STR"
+      ],
+      "out": "ANY",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "swap_mode": "none",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:2d.pixel.platformer_2b1633b7"
+      ],
+      "frozen": true
+    },
+    {
+      "id": "p03_seed_wood_elf_with_93c4f7cd",
+      "agent": "wood.elf.with_93c4f7cd",
+      "kernel_ref": "card:wood.elf.with_93c4f7cd",
+      "engine": "card",
+      "in": [
+        "STR"
+      ],
+      "out": "ANY",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "swap_mode": "none",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:2d.pixel.platformer_2b1633b7"
+      ],
+      "frozen": true
+    },
+    {
+      "id": "p04_seed_goblin_scout_with_bbf36d",
+      "agent": "goblin.scout.with_bbf36dd9",
+      "kernel_ref": "card:goblin.scout.with_bbf36dd9",
+      "engine": "card",
+      "in": [
+        "STR"
+      ],
+      "out": "ANY",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "swap_mode": "none",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:2d.pixel.platformer_2b1633b7"
+      ],
+      "frozen": true
+    },
+    {
+      "id": "p05_depth_estimation",
+      "agent": "Depth Estimation",
+      "kernel_ref": "hf:Depth Estimation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "DEPTH_MAP",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [],
+      "params": {
+        "model": "Intel/dpt-hybrid-midas",
+        "prompt": "forest clearing dawn battle with 5 fighters surrounded by trees and torches",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p06_image_to_3d",
+      "agent": "Image-to-3D",
+      "kernel_ref": "hf:Image-to-3D",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [],
+      "params": {
+        "model": "openai/shap-e",
+        "prompt": "forest clearing dawn battle with 5 fighters surrounded by trees and torches",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p07_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "tool": "scene.list_objects",
+      "params": {}
+    },
+    {
+      "id": "p08_godot",
+      "agent": "godot",
+      "kernel_ref": "connector:godot",
+      "engine": "godot",
+      "in": [
+        "3D"
+      ],
+      "out": "SCENE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "params": {}
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "albedo",
+      "source": "pass:p00_seed_medieval_ranger_with_72a",
+      "blend": "base"
+    },
+    {
+      "name": "normal",
+      "source": "pass:p01_seed_dark_sorcerer_with_74479",
+      "blend": "additive"
+    },
+    {
+      "name": "roughness",
+      "source": "pass:p02_seed_dwarven_smith_with_5957e",
+      "blend": "additive"
+    },
+    {
+      "name": "metallic",
+      "source": "pass:p03_seed_wood_elf_with_93c4f7cd",
+      "blend": "additive"
+    },
+    {
+      "name": "emission",
+      "source": "pass:p04_seed_goblin_scout_with_bbf36d",
+      "blend": "additive"
+    },
+    {
+      "name": "ao",
+      "source": "pass:p05_depth_estimation",
+      "blend": "additive"
+    },
+    {
+      "name": "depth",
+      "source": "pass:p06_image_to_3d",
+      "blend": "additive"
+    },
+    {
+      "name": "alpha",
+      "source": "pass:p07_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "opacity",
+      "source": "pass:p08_godot",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:dark.sorcerer.with_74479815",
+    "card:dwarven.smith.with_5957e9e8",
+    "card:goblin.scout.with_bbf36dd9",
+    "card:medieval.ranger.with_72ad85fb",
+    "card:wood.elf.with_93c4f7cd",
+    "connector:blender",
+    "connector:godot",
+    "hf:Depth Estimation",
+    "hf:Image-to-3D"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "3d",
+      "game"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T03:39:12Z"
+  }
+}

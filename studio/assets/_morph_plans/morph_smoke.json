@@ -1,0 +1,17 @@
+{
+  "cost_class": "free",
+  "created_at": 1780009544,
+  "crystal": "0d51e017aab844db8a1fb2efc7fa2ac96db1ae1562d191f87889ef91e457ba40d2f3c0fb785beddd010008fa16dcce72de727804f7697a4e0c78a39e0a108a99",
+  "custom_css_vars": {
+    "--accent": "#4caf50"
+  },
+  "expires_at": 1780031144,
+  "godot_scene": "scenes/main.tscn",
+  "inferred_role": "unknown",
+  "persona_id": "morph_smoke",
+  "primary_face": "play_default",
+  "snap_lens_deeplink": "snapchat://camera?lens=lens_mspc_canopy_v0&hint=morph_smoke",
+  "solana_coin_variant": "tier_canopy",
+  "sui_nft_recommendation": "sui_visitor_seal_v0",
+  "workflow_card": "realestate_walkthrough_full"
+}

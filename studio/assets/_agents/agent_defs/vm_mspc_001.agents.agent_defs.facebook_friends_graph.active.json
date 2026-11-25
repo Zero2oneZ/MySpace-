@@ -1,0 +1,146 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "facebook_friends_graph",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · FACEBOOK_FRIENDS_GRAPH_HARVESTER",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/facebook_friends_graph.py",
+
+  "summary": "Friends-graph harvester for the MySpace++ social graph. Companion to facebook_games_sdk.py (which owns the dev surface). Single purpose: given a user_access_token + player_id, fetch the consenting friends list from /me/friends OR consume the FBInstant.player.getConnectedPlayersAsync payload, normalize each record into {player_id, friend_player_id, friend_name, friend_picture_url, friend_app_active, captured_at, source, signed}, then forward each edge to social_graph_persistence.upsert_edge (graceful no-op while agent F's module is still landing). Every successful harvest crystal-anchors via inference_logger.log(tier='social_graph', model='facebook_friends_graph', scope='friends_harvest'). Stdlib-only — no requests, no facebook-sdk package. Graceful degrade everywhere: missing FB_APP_ID/SECRET → verify_credentials + graph_api harvest return SendResult(success=False) WITHOUT hitting the network; missing user_access_token → graceful 400 with explanatory error; missing social_graph_persistence → persistence becomes a no-op (recorded in the body anyway) and friend_of_friend / nearby_active_friends return empty lists with explanatory notes.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring facebook_games_sdk shape. SERVICE='facebook_friends'. Dispatcher routes recipient → private _tool method; each returns (status, body) and the dispatcher wraps in SendResult. /me/friends is paginated via the body.paging.next cursor with MAX_PAGES=50 hard cap. appsecret_proof is auto-attached to every /me/* call when both FB_APP_SECRET and user_access_token are present (FB server-call best practice). Permission gate runs BEFORE any /me/friends call: check_permissions is invoked internally and must report scope_user_friends_granted=True or harvest refuses with HTTP 403 + error='user_friends_scope_not_granted'.",
+
+  "safety_rail": {
+    "policy": "NEVER harvest /me/friends without explicit user_friends scope granted via FB OAuth + a checkbox on the terms page.",
+    "enforcement": [
+      "1. harvest_for(source='graph_api') ALWAYS calls check_permissions first.",
+      "2. If /me/permissions does not list user_friends with status='granted', harvest_for returns SendResult(success=False, error='user_friends_scope_not_granted') and makes NO call to /me/friends.",
+      "3. /me/friends ITSELF only returns friends who have also authorized our app (platform policy enforced server-side by Meta since Graph API v2.0).",
+      "4. fb_instant source consumes the payload returned by FBInstant.player.getConnectedPlayersAsync — players the SDK already filtered to 'connected and uses our game'.",
+      "5. revoke_check is provided so callers can detect token revocation (OAuthException code 190 / HTTP 401) and immediately stop harvesting for that user."
+    ],
+    "consent_policy": "Harvest ONLY after user_friends scope is granted via FB OAuth and the user has ticked the explicit consent checkbox on the MySpace++ terms-of-service page. The checkbox text must name the harvest scope plainly (\"share my Facebook friends who also use this app\") — generic ToS acceptance is NOT sufficient. If the checkbox is unticked, the calling surface MUST NOT pass the token to this connector. If user_friends is revoked later (via FB account settings or our app), revoke_check returns token_valid=False and the harvest loop must halt and mark all previously persisted edges for the player as 'consent_withdrawn' at the social_graph_persistence layer.",
+    "data_minimization": "We persist {friend_player_id, friend_name, friend_picture_url, friend_app_active, captured_at, source, signed} only. We do NOT persist locale, gender, age, email, or any other Graph field — even if Meta returns them.",
+    "redaction": "access_token, user_access_token, appsecret_proof, app_secret, signed_player_info, and raw payload are stripped from the crystal-anchor record before logging."
+  },
+
+  "expected_tools": [
+    "harvest_for",
+    "check_permissions",
+    "revoke_check",
+    "friend_of_friend",
+    "nearby_active_friends",
+    "verify_credentials"
+  ],
+
+  "env_vars": {
+    "FB_APP_ID":             "Facebook App ID (developers.facebook.com/apps → App Settings → Basic). Required for appsecret_proof signing.",
+    "FB_APP_SECRET":         "Facebook App Secret. Required for appsecret_proof signing on /me/* calls (FB server-call best practice).",
+    "FB_USER_ACCESS_TOKEN":  "Optional fallback user-OAuth token for CLI usage. Production callers should pass the token per-call via send(..., user_access_token=<t>).",
+    "FB_GRAPH_API_VERSION":  "Override default v18.0 (e.g. v19.0, v20.0)",
+    "FB_GRAPH_API_BASE":     "Full base URL override (skips version composition)"
+  },
+
+  "user_provisioning_required": {
+    "status": "NOT YET PROVISIONED",
+    "rationale": "Shares FB_APP_ID and FB_APP_SECRET with facebook_games_sdk. The user_access_token is per-call (per-player) and supplied by the OAuth flow at runtime — not stored in .env in production. Until FB_APP_ID and FB_APP_SECRET are added the connector will graceful-fail every network call without any HTTP request.",
+    "vars_to_set_in_env": [
+      "FB_APP_ID",
+      "FB_APP_SECRET"
+    ],
+    "how_to_obtain": [
+      "1. Visit https://developers.facebook.com/apps — same app used by facebook_games_sdk.",
+      "2. App Dashboard → Settings → Basic → App ID + App Secret.",
+      "3. App Review → Permissions → request 'user_friends' (standard access). Meta requires this review for ALL non-developer-tester accounts.",
+      "4. Implement the OAuth flow on the calling surface (studio/dapp/server.py or the FBInstant SDK init): request scope 'user_friends' along with whatever else you need, then pass the resulting user_access_token per-call to harvest_for.",
+      "5. Append to /data/Projects/MySpace++/.env (mirrored to /data/Projects/gently/.env):",
+      "     FB_APP_ID=<your-app-id>",
+      "     FB_APP_SECRET=<your-app-secret>"
+    ],
+    "docs_link": "https://developers.facebook.com/docs/graph-api/reference/user/friends/"
+  },
+
+  "convenience_wrappers": [
+    "harvest_for(user_access_token, player_id, source='graph_api'|'fb_instant', payload?, signed_player_info?) — primary entry; paginates /me/friends OR consumes connected_players; persists each edge; returns metadata.friends_count + new_friends_count + error_for_oauth_revoked",
+    "check_permissions(user_access_token) — GET /me/permissions; surfaces scope_user_friends_granted bool",
+    "revoke_check(user_access_token) — GET /me?fields=id; surfaces token_valid bool + error_for_oauth_revoked when OAuthException code 190 / HTTP 401",
+    "friend_of_friend(player_id, depth=2) — queries social_graph_persistence.query_edges; graceful empty list when module absent",
+    "nearby_active_friends(player_id, geo_radius_km=50) — queries social_graph_persistence.query_geo_friends; graceful empty list + note when geo unknown",
+    "verify_credentials() — read-only smoke; confirms FB_APP_ID + FB_APP_SECRET present; NO network call"
+  ],
+
+  "exports": [
+    "FacebookFriendsGraphConnector",
+    "EXPECTED_TOOLS",
+    "DEFAULT_GRAPH_VERSION",
+    "DEFAULT_GRAPH_HOST",
+    "DEFAULT_PAGE_LIMIT",
+    "MAX_PAGES"
+  ],
+
+  "substrate": "studio/third_party/facebook_friends/ (per-config persistence) + ~/.cc/third_party_logs/facebook_friends_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored social_graph records, tier='social_graph', model='facebook_friends_graph') + social_graph_persistence DB (edges; agent F is building this)",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh (future: cmd_fb_friends_harvest / cmd_fb_friends_permissions)",
+      "studio/dapp/server.py (FBInstant webhook handler — POST connected_players after FBInstant.player.getConnectedPlayersAsync resolves client-side)",
+      "facebook_games_sdk.graph_get_me → confirm /me/permissions then trigger harvest_for"
+    ],
+    "outbound_calls": [
+      "https://graph.facebook.com/<version>/me/friends?fields=id,name,picture.type(large)&limit=5000  (paginated)",
+      "https://graph.facebook.com/<version>/me/permissions  (safety-rail gate)",
+      "https://graph.facebook.com/<version>/me?fields=id    (revoke probe)",
+      "social_graph_persistence.upsert_edge(player_id, friend_player_id, **meta)",
+      "social_graph_persistence.query_edges(player_id, depth=N)",
+      "social_graph_persistence.query_geo_friends(player_id, geo_radius_km=N)",
+      "inference_logger.log (every success: tier='social_graph', model='facebook_friends_graph')"
+    ],
+    "substrate_reads": "FB_APP_ID + FB_APP_SECRET + FB_USER_ACCESS_TOKEN + FB_GRAPH_API_VERSION + FB_GRAPH_API_BASE via studio/auth/keys.load_env",
+    "substrate_writes": "send_log entries + crystal_chain social_graph records (only when keys present + call succeeds, OR for local-only friend_of_friend/nearby_active_friends queries) + social_graph DB edges (when social_graph_persistence is importable)"
+  },
+
+  "companions": {
+    "facebook_games_sdk": "Sibling connector — owns the developer surface (debug_token, send_app_event, register_instant_game, leaderboard_get, notification_send, graph_get_me, app_secret_proof_compute). This module does NOT duplicate any of those tools.",
+    "social_graph_persistence": "Agent F is building this in core/lib/social_graph_persistence.py. Until it lands the persistence calls become no-ops (logged to stderr as a warning only if upsert raises); harvest_for still returns the normalized friends list in body.friends so callers can use it directly."
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "syntax": "ok — python ast.parse succeeds",
+    "connect_no_keys": "expected_false — FB_APP_ID + FB_APP_SECRET absent from .env",
+    "harvest_graph_api_no_keys": "graceful_fail — SendResult(success=False, error='facebook_friends_not_configured'); NO network call",
+    "harvest_fb_instant_synthetic_payload": "ok — 2 friends normalized from {connected_players: [Alice, Bob]}; metadata.friends_count=2; new_friends_count=0 (social_graph_persistence not yet importable; persisted counter is best-effort proxy)",
+    "verify_credentials_no_keys": "graceful_fail — error='facebook_friends_keys not configured (missing FB_APP_ID and/or FB_APP_SECRET)'",
+    "check_permissions_no_token": "graceful_fail — error='missing user_access_token'",
+    "revoke_check_no_token": "graceful_fail — error='missing user_access_token'",
+    "friend_of_friend_no_persistence": "ok — edges_count=0 + explanatory note",
+    "nearby_active_friends_no_geo": "ok — matched_count=0 + note='social_graph_persistence not yet available'",
+    "unknown_tool": "graceful_fail — error='unknown_tool:bogus' + metadata.expected_tools listed",
+    "bad_source": "graceful_fail — error='unsupported source: bogus'",
+    "missing_player_id": "graceful_fail — error='missing player_id'"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful harvest event has a deterministic InferenceRecord with tier='social_graph', model='facebook_friends_graph', scope='friends_harvest'",
+    "Consent-first — user_friends scope MUST be granted before /me/friends is called; check_permissions is invoked internally as a gate",
+    "Stdlib-only — no `facebook-sdk` or `requests` package required; uses urllib (GET only — harvest is pure read)",
+    "Graceful — missing FB_APP_ID/FB_APP_SECRET → all network tools return SendResult(success=False) WITHOUT any HTTP request",
+    "Graceful persistence — social_graph_persistence ImportError is caught; persistence becomes a no-op and the normalized friends list is still returned in body.friends",
+    "Paginated + bounded — /me/friends pagination follows body.paging.next with MAX_PAGES=50 hard cap to prevent runaway harvests",
+    "Auto-proof — appsecret_proof auto-attached to every /me/* request when FB_APP_SECRET + user_access_token are both present",
+    "Redacted logs — access_token, user_access_token, appsecret_proof, app_secret, signed_player_info, raw payload are stripped from the crystal-anchor record",
+    "Token-revoke aware — revoke_check + harvest_for both surface error_for_oauth_revoked=True when OAuthException code 190 / HTTP 401 is returned",
+    "Data minimization — only {friend_player_id, friend_name, friend_picture_url, friend_app_active, captured_at, source, signed} are persisted; locale/gender/age/email are NOT persisted even when Meta returns them",
+    "Dual-source — graph_api (server-side OAuth flow) AND fb_instant (FBInstant SDK client-side callback) both supported via the same harvest_for entry"
+  ],
+
+  "usage_example": "from core.lib.third_party.facebook_friends_graph import FacebookFriendsGraphConnector\\nc = FacebookFriendsGraphConnector()\\n# graph_api path (server-side OAuth flow)\\nperm = c.send('check_permissions', json.dumps({'user_access_token': uat}))\\nif perm.metadata.get('scope_user_friends_granted'):\\n    r = c.send('harvest_for', json.dumps({\\n        'user_access_token': uat,\\n        'player_id': 'fb_42',\\n        'source': 'graph_api',\\n    }))\\n    print(r.metadata['friends_count'], r.crystal_id)\\n# fb_instant path (called from the FBInstant SDK postback)\\nr2 = c.send('harvest_for', json.dumps({\\n    'user_access_token': '',\\n    'player_id': 'fb_42',\\n    'source': 'fb_instant',\\n    'signed_player_info': signed_blob,\\n    'payload': {'connected_players': connected_players_array},\\n}))\\nprint(r2.metadata['friends_count'], r2.crystal_id)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "third_party connector expansion — Facebook social graph harvester (paired with facebook_games_sdk)"
+}

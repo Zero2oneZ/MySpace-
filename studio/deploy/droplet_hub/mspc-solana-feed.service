@@ -1,0 +1,21 @@
+[Unit]
+Description=MySpace++ Solana Pump.fun Feed + Orchestration Mapper
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public/solana
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+Environment="CUDA_VISIBLE_DEVICES=1"
+ExecStart=/usr/bin/python3 /opt/mspc-public/solana/pump_feed.py --poll 3 --out /opt/mspc-public/solana/feed/live_features.jsonl
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/solana-feed.log
+StandardError=append:/var/log/mspc/solana-feed.log
+
+[Install]
+WantedBy=multi-user.target

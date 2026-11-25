@@ -1,0 +1,91 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "meta_xr_bridge",
+  "state": "active",
+  "version": "v0",
+  "role": "BRIDGE · OPENXR_META_QUEST",
+  "tier": "L0",
+  "module_path": "studio/godot/project/src/meta_xr_bridge.gd",
+  "summary": "Godot autoload (class MetaXRBridge) that probes XRServer.find_interface('OpenXR'), initializes the interface when present, and detects Meta Quest extensions XR_FB_passthrough + XR_EXT_hand_tracking via OpenXRInterface. Stays in stub mode (defaults: false / Vector3.ZERO) when OpenXR is unavailable. Emits cross-process events to ~/.cc/godot_xr_events.jsonl for the cc side to ingest.",
+  "engine_pattern": "Singleton Node autoload. _ready() probes OpenXR once and caches _xr_available. Feature detection uses OpenXRInterface typed helpers (is_passthrough_supported / is_hand_tracking_supported) with fallback to is_extension_supported('XR_FB_passthrough' | 'XR_EXT_hand_tracking'). All public methods short-circuit to defaults in stub mode and log via print() + jsonl emit.",
+  "exports": [
+    "MetaXRBridge",
+    "enable_passthrough",
+    "disable_passthrough",
+    "start_hand_tracking",
+    "get_controller_position",
+    "emit_controller_input",
+    "is_xr_available",
+    "is_passthrough_supported",
+    "is_hand_tracking_supported"
+  ],
+  "signals": [
+    "xr_ready(interface_name: String)",
+    "passthrough_available(yes: bool)",
+    "hand_tracking_available(yes: bool)",
+    "controller_input(side: String, button: String, pressed: bool)"
+  ],
+  "env_vars": {
+    "META_QUEST_APP_ID": "Meta developer dashboard app id (used by deployment / store linking, not runtime probing)",
+    "META_QUEST_API_KEY": "Meta developer API key (used by build / submission tooling)"
+  },
+  "runtime_requirements": {
+    "godot": ">= 4.3 (4.6.3-stable target)",
+    "openxr_interface": "XRServer.find_interface('OpenXR') must return non-null",
+    "openxr_extensions_probed": ["XR_FB_passthrough", "XR_EXT_hand_tracking"],
+    "viewport": "main viewport.use_xr is set true on successful init"
+  },
+  "stub_mode": {
+    "trigger": "OpenXR interface null OR initialize() fails",
+    "log_line": "OpenXR interface unavailable; meta_xr_bridge in stub mode",
+    "method_defaults": {
+      "enable_passthrough": false,
+      "disable_passthrough": "no-op",
+      "start_hand_tracking": false,
+      "get_controller_position": "Vector3.ZERO"
+    }
+  },
+  "cross_process_events": {
+    "jsonl_path": "~/.cc/godot_xr_events.jsonl",
+    "fallback_path": "user://godot_xr_events.jsonl",
+    "schema": "{ ts: float, event: str, scene_uid: str, details: dict }",
+    "event_names": [
+      "xr_stub_mode", "xr_init_failed", "xr_ready",
+      "passthrough_enable_stub", "passthrough_enabled", "passthrough_disabled",
+      "hand_tracking_start_stub", "hand_tracking_started",
+      "controller_input"
+    ]
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "main_controller.gd::_ready (XR session setup)",
+      "avatar_rigged_controller.gd::on_hand_pose (hand tracking consumer)",
+      "realestate_walkthrough_full_controller.gd (passthrough toggle for mixed-reality tours)"
+    ],
+    "outbound_calls": [
+      "XRServer.find_interface('OpenXR')",
+      "OpenXRInterface.{start,stop}_passthrough",
+      "XRServer.get_tracker(left_hand|right_hand).get_pose('default')"
+    ],
+    "substrate_reads": "none (probes XR runtime only)",
+    "substrate_writes": "~/.cc/godot_xr_events.jsonl (append)"
+  },
+  "guarantees": [
+    "Graceful degradation — runs anywhere, no OpenXR required to load the project",
+    "Idempotent _probe_openxr — initialize() only called when not already initialized",
+    "No new project.godot sections added — [xr] is deferred to phase 2 (vendor plugin task)",
+    "Every significant event emits to ~/.cc/godot_xr_events.jsonl for cross-process visibility"
+  ],
+  "blockers_phase_2": [
+    "godot-openxr-vendors submodule (separate task) for the Meta XR Loader plugin",
+    "Android export template + signing keys (META_QUEST_API_KEY)",
+    "[xr] section in project.godot enabling shaders/xr/enabled"
+  ],
+  "autoload_registration": "MetaXRBridge=\"*res://src/meta_xr_bridge.gd\" in project.godot [autoload]",
+  "chain_runs": []
+}

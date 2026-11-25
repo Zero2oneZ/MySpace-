@@ -1,0 +1,9 @@
+{
+  "_doc": "REAL ASSET at the leaf: the canonical textured glTF Duck (mesh + PBR material), instanced 3× at different transforms. Same GLB leaf placed thrice = io_hash dedup / PLACE link = the russian-doll reuse (one object, many placements). Frame=MetaXR.",
+  "frame": "MetaXR",
+  "nodes": [
+    { "id": "duck_center", "glb": "/data/Projects/MySpace++/studio/.venv/lib/python3.13/site-packages/gradio/media_assets/models3d/Duck.glb", "pos": [0, 0, 0],    "rot_euler_deg": [0, 0, 0],   "scale": [0.01, 0.01, 0.01], "edit_mode": "link" },
+    { "id": "duck_left",   "glb": "/data/Projects/MySpace++/studio/.venv/lib/python3.13/site-packages/gradio/media_assets/models3d/Duck.glb", "pos": [-2, 0, 0],  "rot_euler_deg": [0, 35, 0],  "scale": [0.01, 0.01, 0.01], "edit_mode": "link" },
+    { "id": "duck_right",  "glb": "/data/Projects/MySpace++/studio/.venv/lib/python3.13/site-packages/gradio/media_assets/models3d/Duck.glb", "pos": [2, 0, 0],   "rot_euler_deg": [0, -35, 0], "scale": [0.01, 0.01, 0.01], "edit_mode": "link" }
+  ]
+}

@@ -1,0 +1,20 @@
+[Unit]
+Description=MySpace++ Smart Contract + AI Content Generator (:8526)
+After=network.target mspc-ai-orchestrator.service
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/smart_contract_gen.py --port 8526 --ai-endpoint http://127.0.0.1:8524
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/smart-contract-gen.log
+StandardError=append:/var/log/mspc/smart-contract-gen.log
+
+[Install]
+WantedBy=multi-user.target

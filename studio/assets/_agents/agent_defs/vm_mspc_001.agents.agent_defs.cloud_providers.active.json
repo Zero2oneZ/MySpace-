@@ -1,0 +1,72 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "cloud_providers",
+  "state": "active",
+  "version": "v0",
+  "role": "REGISTRY · UNIFIED_PROVIDER_TAXONOMY",
+  "tier": "L0",
+  "module_path": "core/lib/cloud_providers.py",
+
+  "summary": "The single source of truth for 'what providers exist' and their cost/latency/tier/family metadata. 15 ProviderSpec rows: 3 DeepSeek variants (chat/coder/reasoner), 7 HF router providers (groq, cerebras, fireworks-ai, together, novita, deepinfra, hf-inference), 1 ZeroGPU placeholder, 1 DO droplet placeholder, 1 browser-WebGPU placeholder, 1 local Ollama, 1 HF Inference Endpoint placeholder. Each spec carries kind, endpoint, key_env, cost_per_million_in/out, max_context, rate_limit_per_minute, tier (free|cheap|fast|premium), priority_speed/cost, families, supports_streaming. Convenience lookups: get(), list_by_tier/family/kind, list_active (checks env presence), pick() (v1 ranked fallback ladder; router_policy will subsume in Phase 1).",
+
+  "engine_pattern": "Pure-data module — immutable PROVIDERS tuple of frozen ProviderSpec dataclasses. is_active property checks studio/auth/keys.load_env for the provider's key_env. No DB; rebuilt on import. CLI subcommands: list, active, get <name>, pick --family --cost-class --latency-budget-ms, stats.",
+
+  "kinds_vocabulary": {
+    "hf_router": "router.huggingface.co/v1 unified across 7+ partner providers",
+    "openai_compat": "direct OpenAI-shape REST (DeepSeek today; could expand)",
+    "hf_inference_endpoint": "one persistent deployed model (per-data endpoint)",
+    "local_ollama": "local Ollama at 127.0.0.1:11434",
+    "local_gpu": "local CUDA / torch / diffusers (placeholder)",
+    "browser_ws": "chromium WebGPU worker via weave fabric (placeholder)",
+    "droplet_http": "DO droplet remote dispatch over WireGuard (placeholder)",
+    "zerogpu_space": "HF Spaces with @spaces.GPU (placeholder)"
+  },
+
+  "stats_2026_05_28": {
+    "total_providers": 15,
+    "active_with_keys_present": 5,
+    "by_tier": {"cheap": 8, "fast": 3, "free": 4},
+    "by_kind": {"openai_compat": 3, "hf_router": 7, "zerogpu_space": 1,
+                  "droplet_http": 1, "browser_ws": 1, "local_ollama": 1,
+                  "hf_inference_endpoint": 1}
+  },
+
+  "exports": ["ProviderSpec", "PROVIDERS", "HF_INFERENCE_SPECS", "get", "pick",
+               "list_by_tier", "list_by_family", "list_by_kind", "list_active"],
+
+  "substrate": "in-memory tuple; cli prints JSON. No persistence beyond source code.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/model_api.py (reads PROVIDERS, calls pick per request)",
+      "core/lib/router_policy.py (Phase 1 #57 — subsumes pick with full decision tree)",
+      "studio_runtime._dispatch_cloud (reads spec by name)",
+      "core/cc.sh cloud-providers (future cmd)"
+    ],
+    "outbound_calls": [
+      "studio/auth/keys.load_env (only via is_active property check)"
+    ],
+    "substrate_reads": ".env via keys.load_env to mark providers active",
+    "substrate_writes": "none"
+  },
+
+  "pick_v1_logic": "Tier-aware ranking: cost_class='free|cheap' prefers (free, cheap, fast, premium) order with secondary sort on -priority_cost; cost_class='fast' prefers fast tier exclusively (returns only fast-tier providers) when latency_budget_ms <= 800; otherwise blends. Caps fallback at 4 attempts to avoid runaway. Use must_run_local=True for sensitive prompts.",
+
+  "guarantees": [
+    "Single source of truth — no provider list duplicated elsewhere",
+    "Immutable specs — frozen dataclasses prevent runtime drift",
+    "Auth-aware — is_active reflects current .env state without imports of secrets",
+    "Replaceable pick() — router_policy can swap in without breaking ModelAPI",
+    "OpenAI-compat shape preserved — kind='openai_compat' specs all use /v1/chat/completions"
+  ],
+
+  "usage_example": "from cloud_providers import pick, get\\ncands = pick(family='chat', cost_class='cheap')\\nfor spec in cands[:3]:\\n    if spec.is_active:\\n        print(spec.name, spec.kind, spec.tier)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.7 of lively-enchanting-parrot plan (promoted from #57 Phase 1)"
+}

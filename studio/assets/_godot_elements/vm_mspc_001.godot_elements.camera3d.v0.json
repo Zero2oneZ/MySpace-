@@ -1,0 +1,37 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "camera3d",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "Camera3D",
+  "godot_inherits": "Node3D < Node",
+  "summary": "3D viewport camera. Required for any 3D scene to render — at least one Camera3D with current=true. Use for first-person, third-person, orbit (chain_render_wall.gd auto-orbits a Camera3D around the tile grid), or fixed-angle views. Supports perspective or orthogonal projection. fov is vertical field of view in degrees (75 default ≈ standard 35mm photography); near/far clip planes define the visible depth range. Set current=true to make this the active camera; only one current Camera3D per viewport.",
+  "exports": [
+    { "name": "fov", "type": "float", "default": "75.0" },
+    { "name": "near", "type": "float", "default": "0.05" },
+    { "name": "far", "type": "float", "default": "4000.0" },
+    { "name": "current", "type": "bool", "default": "false" },
+    { "name": "projection", "type": "int", "default": "0", "hint": "Camera3D.PROJECTION_PERSPECTIVE" },
+    { "name": "size", "type": "float", "default": "1.0", "hint": "orthogonal/frustum size" },
+    { "name": "frustum_offset", "type": "Vector2", "default": "Vector2(0, 0)" },
+    { "name": "h_offset", "type": "float", "default": "0.0" },
+    { "name": "v_offset", "type": "float", "default": "0.0" },
+    { "name": "cull_mask", "type": "int", "default": "1048575" },
+    { "name": "environment", "type": "Environment", "default": "null" },
+    { "name": "attributes", "type": "CameraAttributes", "default": "null" },
+    { "name": "doppler_tracking", "type": "int", "default": "0" },
+    { "name": "keep_aspect", "type": "int", "default": "1", "hint": "Camera3D.KEEP_HEIGHT" }
+  ],
+  "signals": [],
+  "layer_stack_hooks": [
+    { "layer": "post", "godot_property": "environment" },
+    { "layer": "exposure", "godot_property": "attributes" }
+  ],
+  "default_child_of": "Node3D",
+  "can_have_children": true,
+  "dim_pack_tint_property": "environment",
+  "example_tscn_snippet": "[node name=\"MyCam\" type=\"Camera3D\" parent=\".\"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 8)\nfov = 70.0\nnear = 0.1\nfar = 200.0\ncurrent = true\n",
+  "phase": "Atomic 3D element"
+}

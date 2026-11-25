@@ -1,0 +1,172 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "autonomous_3d_asset",
+  "category": "assets",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Claude → Blender autonomous modeler. Plan-LLM produces a structured ModelPlan; Pinterest harvests style refs by layer-role; ComfyUI bakes each PBR layer; Blender assembles the shader graph + bakes PBR + exports GLB; CLIP scores preview vs prompt; refinement iterates only the layers Claude flags. Convergence on CLIP threshold, max_iter, no-progress, or polycount-blown.",
+
+  "inputs": [
+    {"name": "prompt", "type": "str", "required": true},
+    {"name": "style_refs", "type": "list[image]", "required": false, "default": []},
+    {"name": "seed_fbx", "type": "path", "required": false,
+      "notes": "Optional Mixamo FBX; mixamo_fbx_picker auto-elects if absent and prompt matches verb pattern"},
+    {"name": "max_iter", "type": "int", "required": false, "default": 3,
+      "notes": "Hard ceiling 10 regardless of user arg"},
+    {"name": "clip_threshold", "type": "float", "required": false, "default": 0.28},
+    {"name": "polycount_budget", "type": "int", "required": false, "default": 50000,
+      "notes": "Hard-stop at 1.25× this"}
+  ],
+
+  "outputs": [
+    {"name": "asset_glb_path", "type": "path"},
+    {"name": "bake_layer_paths", "type": "dict[str, path]"},
+    {"name": "preview_png_path", "type": "path"},
+    {"name": "trace_json_path", "type": "path"},
+    {"name": "asset_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "harvest_style_refs",
+      "agent": "pinterest_curator",
+      "model_path": "core/lib/pinterest_curator.py::harvest_curated",
+      "engine": "deterministic",
+      "in": ["prompt"],
+      "out": "layer_role_images",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Per-layer-role mapping: albedo→interior, normal→furniture, emission→lighting, etc. Skipped when style_refs already supplied."
+    },
+    {
+      "id": "generate_model_plan",
+      "agent": "kimi_k2_instruct",
+      "model_path": "moonshotai/Kimi-K2-Instruct",
+      "engine": "hf_hub",
+      "in": ["prompt", "layer_role_images"],
+      "out": "model_plan",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Strict JSON ModelPlan. Validated against workflow_generator.CANONICAL_LAYERS (14 layers, 13 blend modes). Non-canonical → pt.status=error. Fallback chain via hf_hub.inference."
+    },
+    {
+      "id": "pick_seed_fbx_if_animated",
+      "agent": "mixamo_fbx_picker",
+      "model_path": "core/lib/mixamo_fbx_picker.py::pick",
+      "engine": "deterministic",
+      "in": ["prompt", "seed_fbx"],
+      "out": "elected_fbx",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Only fires when seed_fbx unset AND prompt contains run|walk|idle|jump|dance|sit|stand. ~/.cc/mixamo_index.json TTL 24h."
+    },
+    {
+      "id": "bake_pbr_layers",
+      "agent": "comfyui_mcp",
+      "model_path": "core/lib/third_party/comfyui_mcp.py::submit_workflow",
+      "engine": "comfyui",
+      "in": ["model_plan"],
+      "out": "bake_layer_paths",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Per LayerSpec(source='comfyui'): submit normal_from_albedo / ao_from_geometry / roughness_from_albedo / emission_from_mask templates. Poll /history every 1s. Cache via BLAKE3(template+inputs)."
+    },
+    {
+      "id": "assemble_in_blender",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::material.bake_pbr",
+      "engine": "blender",
+      "in": ["model_plan", "bake_layer_paths", "elected_fbx"],
+      "out": "asset_glb_path",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "mesh.import_fbx (if seed) or mesh.create → per-layer material.set → material.bake_pbr → mesh.export_gltf. Shader graph spec validated via _compose_shader_graph."
+    },
+    {
+      "id": "preview_render",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::render_image",
+      "engine": "blender",
+      "in": ["asset_glb_path"],
+      "out": "preview_png_path",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "samples=64 Cycles render. Output at studio/assets/_bakes/<crystal_short>/preview.png."
+    },
+    {
+      "id": "clip_score_iteration",
+      "agent": "clip_score",
+      "model_path": "openai/clip-vit-large-patch14",
+      "engine": "hf_hub",
+      "in": ["preview_png_path", "prompt"],
+      "out": "clip_similarity",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Local open_clip if installed else hf_hub.inference fallback. Stop-criteria evaluated post-score."
+    },
+    {
+      "id": "refine_or_stop",
+      "agent": "autonomous_modeler",
+      "model_path": "core/lib/autonomous_modeler.py::evaluate_stop",
+      "engine": "deterministic",
+      "in": ["clip_similarity", "max_iter", "clip_threshold", "polycount_budget"],
+      "out": "iteration_decision",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "OR-gate: clip≥threshold | iter≥max | empty refinements 2x in a row | polycount>1.25× | |Δclip|<0.001 2x in a row. Hard ceiling max_iter=10."
+    },
+    {
+      "id": "anchor_asset",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["asset_glb_path", "bake_layer_paths", "preview_png_path", "clip_similarity"],
+      "out": "asset_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='autonomous_modeler', model='claude+blender+comfyui', chain_context='asset_baked'. Coords carry final CLIP, iter count, polycount, layer count."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "albedo", "source": "pass:bake_pbr_layers", "blend": "base"},
+    {"name": "normal", "source": "pass:bake_pbr_layers", "blend": "normal_map"},
+    {"name": "roughness", "source": "pass:bake_pbr_layers", "blend": "multiply"},
+    {"name": "metallic", "source": "pass:bake_pbr_layers", "blend": "base"},
+    {"name": "emission", "source": "pass:bake_pbr_layers", "blend": "additive"},
+    {"name": "preview", "source": "pass:preview_render", "blend": "alpha"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/autonomous_3d_asset_proto.py.j2",
+      "out_path": "studio/web/streamlit/autonomous_3d_asset.py"
+    },
+    "blender": {
+      "template": "templates/autonomous_3d_asset_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/autonomous_3d_asset_bake.py"
+    }
+  },
+
+  "leaves_surfaced": [
+    "text-to-3d",
+    "image-to-image",
+    "controlnet-normal",
+    "controlnet-depth",
+    "feature-extraction"
+  ],
+
+  "depends_on": [
+    "core/lib/autonomous_modeler.py",
+    "core/lib/mixamo_fbx_picker.py",
+    "core/lib/pinterest_curator.py",
+    "core/lib/third_party/comfyui_mcp.py",
+    "core/lib/third_party/blender_mcp.py",
+    "core/lib/hf_hub.py",
+    "core/lib/workflow_generator.py (CANONICAL_LAYERS)",
+    "studio/assets/_comfy_workflows/{normal_from_albedo,ao_from_geometry,roughness_from_albedo,emission_from_mask}.json"
+  ]
+}

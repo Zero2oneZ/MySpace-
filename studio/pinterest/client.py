@@ -28,6 +28,7 @@ from typing import Optional
 # the studio.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from auth import keys  # noqa: E402
+import paths  # noqa: E402
 
 try:
     import httpx
@@ -36,7 +37,7 @@ except ImportError:
 
 
 PINTEREST_API_BASE = "https://api.pinterest.com/v5"
-FETCH_URL_SH = Path(__file__).resolve().parent.parent / "media" / ".tools" / "fetch-url.sh"
+FETCH_URL_SH = paths.TOOLS_DIR / "fetch-url.sh"
 
 
 @dataclass

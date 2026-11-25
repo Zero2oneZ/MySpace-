@@ -1,0 +1,84 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "embedding_index",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · COSINE_RETRIEVAL_INDEX",
+  "tier": "L0",
+  "module_path": "core/lib/embedding_index.py",
+
+  "summary": "In-memory cosine-similarity index over stream_encoder's continuous output. Lets dim_pack look up a real CLIP vector by crystal_id, and supports semantic retrieval ('find me the 10 events nearest to the sentence: golden vortex memecoin launch'). Stdlib path uses linear scan; numpy path uses a single matmul. Below ~100k entries the difference is invisible; above that, swap in FAISS via the same find_nearest body.",
+
+  "engine_pattern": "Lazy module-level singleton. Loaded on first use (auto-loads packed binary from disk if present). Add/query/save/load API. Numpy is optional; if absent we fall back to a stdlib list-of-lists with dot-product cosine.",
+
+  "persistence": {
+    "packed_binary": "~/.cc/embeddings/_index.bin  (header [n,dim] then float32 row-major)",
+    "metadata_jsonl": "~/.cc/embeddings/_index_meta.jsonl  (one IndexedEvent per row, in row order)"
+  },
+
+  "api": [
+    "EmbeddingIndex().add(vec, IndexedEvent) -> int",
+    "find_nearest(query_vec, k=10, source_filter='', kind_prefix='')",
+    "find_by_crystal(crystal_anchor) -> Optional[(IndexedEvent, vec)]",
+    "ingest_jsonl(path)",
+    "save(), load()",
+    "get_singleton() -> module-level lazy instance",
+    "reload_today() -> int   (wipe + ingest today's encoder JSONL)"
+  ],
+
+  "cli": [
+    "ingest --from PATH",
+    "save",
+    "load [--reload-today]",
+    "query-by-crystal <crystal> [--k 10]",
+    "query-by-sentence \"...\" [--k 10] [--source X] [--kind-prefix X]",
+    "stats"
+  ],
+
+  "cc_dispatchers": [
+    "cc embed-ingest [path]                # default: today's encoder JSONL",
+    "cc embed-save",
+    "cc embed-load [--reload-today]",
+    "cc embed-stats",
+    "cc embed-query \"sentence\" [--k 10]"
+  ],
+
+  "smoke_test_2026_05_29": {
+    "stdlib_path": "verified (have_numpy=false; linear-scan cosine works for v0)",
+    "numpy_path": "lazily-detected — if numpy lands later via venv, persistence stays binary-compatible (same row-major float32 layout)"
+  },
+
+  "wires_dim_pack": "dimension_pack._vector_hex_64 calls embedding_index.get_singleton().find_by_crystal(crystal_id). When the encoder has seen the event, dim_pack returns the first 32 bytes of its real CLIP vector as the vec64. Otherwise falls through to SHA-256.",
+
+  "exports": ["EmbeddingIndex", "IndexedEvent", "hex_to_vec", "vec_to_hex",
+              "get_singleton", "reload_today",
+              "INDEX_PATH", "META_PATH", "HAVE_NUMPY"],
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/dimension_pack._vector_hex_64 (looks up by crystal)",
+      "cc embed-* dispatchers",
+      "future: chain_event_render render-trigger classifier (top-K novelty)"
+    ],
+    "outbound_calls": [
+      "core/lib/stream_encoder.StreamEncoder.encode_text (lazy on query-by-sentence)",
+      "numpy.ndarray operations (optional)"
+    ],
+    "substrate_reads": [
+      "~/.cc/embeddings/YYYY-MM-DD.jsonl (encoder output)",
+      "~/.cc/embeddings/_index.bin + _index_meta.jsonl (own persistence)"
+    ],
+    "substrate_writes": [
+      "~/.cc/embeddings/_index.bin",
+      "~/.cc/embeddings/_index_meta.jsonl"
+    ]
+  },
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Inference · retrieval substrate"
+}

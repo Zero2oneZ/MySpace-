@@ -1,0 +1,76 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "datasets_index",
+  "state": "active",
+  "version": "v0",
+  "role": "INDEXER · DATASETS_GOLDMINE",
+  "tier": "L0",
+  "module_path": "core/scripts/datasets_index.sh",
+  "summary": "Indexes /home/tom/Datasets (the 'hot fire' goldmine): 295 rigged Mixamo FBX animations (dance/combat/gesture/action/idle/sport), 3,432 ground-truth PNG frames, 30 motion-capture MOV references, Godot 4.6.3 builds, Unreal Project Clean.zip, VDB volumetric assets, RUN20 spec docs. Classifies every asset by extension + dir hint + size bucket. Cross-joinable with model_index/comfy_dag/scan_chain via shared ngram hashes.",
+  "engine_pattern": "bash + python3 json. Deterministic walk. Two classification axes (file extension + dir hint). Five size buckets.",
+  "kinds": {
+    "3d_mesh":         ".fbx .obj .gltf .glb .blend .dae .3ds .stl .ply",
+    "image":           ".png .jpg .jpeg .webp .tga .bmp .gif",
+    "hdri_or_env":     ".exr .hdr",
+    "design_source":   ".psd .ai .xcf",
+    "vector":          ".svg",
+    "video":           ".mp4 .mov .mkv .webm .avi",
+    "audio":           ".wav .mp3 .flac .ogg .aiff",
+    "tabular":         ".csv .tsv .parquet .arrow .feather",
+    "structured_data": ".json .jsonl .ndjson .yaml .yml",
+    "animation":       ".bvh .anim (or in animation/mocap/motion dirs)",
+    "model_weight":    ".safetensors .ckpt .pt .pth .gguf .bin .onnx",
+    "text":            ".txt .md .rst .html .htm",
+    "blueprint":       "dir contains 'blueprint' / 'floorplan'",
+    "furniture":       "dir contains 'furniture'",
+    "texture":         "dir contains 'texture' / 'material'",
+    "sprite":          "dir contains 'sprite'",
+    "character":       "dir contains 'character' / 'avatar' / 'humanoid'",
+    "scene":           "dir contains 'room' / 'scene' / 'environment'"
+  },
+  "size_buckets": {
+    "tiny":   "< 100 KB",
+    "small":  "< 10 MB",
+    "medium": "< 100 MB",
+    "large":  "< 1 GB",
+    "huge":   ">= 1 GB"
+  },
+  "storage": {
+    "default_out":  "~/.cc/datasets_index.jsonl",
+    "default_root": "/home/tom/Datasets"
+  },
+  "exports": ["bash script + classify() + size_bucket()"],
+  "substrate": "datasets_index (JSONL — joinable with model_index, comfy_dag, scan_chain, crystal chain)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_datasets_index (to be added: cc datasets-index)",
+      "core/lib/workflow_generator.py (when resolving asset references in cards)",
+      "core/lib/moe_router.py (when cross-joining ngram hashes across substrates)"
+    ],
+    "outbound_calls": ["std find + du + stat"],
+    "substrate_reads": "/home/tom/Datasets (and any other roots given)",
+    "substrate_writes": "~/.cc/datasets_index.jsonl"
+  },
+  "highlight_assets": {
+    "rigged_mixamo_fbx_count": 295,
+    "ground_truth_png_frames": 3432,
+    "motion_capture_mov_refs": 30,
+    "godot_builds_present": 3,
+    "unreal_project_clean": "input/Unreal_Project_Clean.zip (573 MB)",
+    "vdb_volumetric_assets": ["Cloudy_Alphabet_VDB", "Cloudy_Symbols_VDB"],
+    "run20_specs": "DAG triangulation, spatial bounding, tensor trees, SVG layer DAG"
+  },
+  "guarantees": [
+    "Deterministic — same filesystem → same JSONL bytes",
+    "Read-only over /home/tom/Datasets — never mutates assets",
+    "Walkable — ParserCursor reads identically to other chains",
+    "Cross-substrate joinable — kind labels match workflow_card asset-reference vocabulary"
+  ],
+  "usage_example": "cd /data/Projects/MySpace++ && bash core/scripts/datasets_index.sh > ~/.cc/datasets_index.jsonl && python3 -c \"import json; n=sum(1 for l in open('/home/tom/.cc/datasets_index.jsonl') if json.loads(l).get('name')=='asset'); print(f'assets indexed: {n}')\"",
+  "chain_runs": ["moe_chain_router_v0"]
+}

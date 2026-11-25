@@ -1,0 +1,152 @@
+# ────────────────────────────────────────────────────────────────────────────
+# MySpace++ Droplet Hub — Caddy handles (imported inside existing site blocks)
+# ────────────────────────────────────────────────────────────────────────────
+# Place at: /etc/caddy/Caddyfile.d/mspc-droplet-hub
+# Imported inside trollz.fun and gentlyos.io blocks in the main Caddyfile.
+#
+# Services (all loopback-only, Caddy is the only public surface):
+#   :8540  mspc-callback         (terms/policies/token issuance)
+#   :8521  mspc-model-api      (proprietary unified model API)
+#   :8522  mspc-solana-feed    (Pump.fun RPC feed + orchestration)
+#   :8767  mspc-pattern-dashboard (Pattern Intelligence Dashboard)
+#   :8091  mspc-mcp-host       (MCP endpoint for web services)
+#   :8523  mspc-gpu-gateway    (GPU inference tunnel, token-gated)
+#   :8524  mspc-ai-orchestrator (Ollama + Claude + cc hub)
+#   :8526  mspc-smart-contract-gen (Free public tools + AI content)
+# ────────────────────────────────────────────────────────────────────────────
+
+# ── MySpace++ routes ─────────────────────────────────────────────────────────
+
+# Terms / policies / callback
+handle_path /terms/policies/callback* {
+    reverse_proxy 127.0.0.1:8540 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+handle /terms* {
+    reverse_proxy 127.0.0.1:8540 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Model API (proprietary)
+handle /v1/* {
+    reverse_proxy 127.0.0.1:8521 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Pattern Dashboard (public read-only) — strips /patterns/ prefix
+handle_path /patterns/* {
+    reverse_proxy 127.0.0.1:8767 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# MCP Host (public tools) — strips /mcp/ prefix
+handle_path /mcp/* {
+    reverse_proxy 127.0.0.1:8091 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Free Public Tools (traffic generation)
+handle /tools/* {
+    reverse_proxy 127.0.0.1:8526 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Smart Contract + AI Content Generator
+handle /generate/* {
+    reverse_proxy 127.0.0.1:8526 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# GPU Gateway (friend-token gated)
+handle /gpu/* {
+    reverse_proxy 127.0.0.1:8523 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# IDE Surface (gentlyos-ide.html wired via reverse SSH tunnel to z21 localhost:7338)
+handle_path /ide/* {
+    reverse_proxy 127.0.0.1:7338 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Godot Instant Games
+handle_path /play/* {
+    root * /opt/mspc-public/games
+    header {
+        Cross-Origin-Embedder-Policy   "require-corp"
+        Cross-Origin-Opener-Policy     "same-origin"
+        Cross-Origin-Resource-Policy   "cross-origin"
+        Content-Security-Policy        "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com https://www.messenger.com"
+        X-Content-Type-Options         "nosniff"
+        Referrer-Policy                "no-referrer-when-downgrade"
+        Cache-Control                  "public, max-age=3600"
+    }
+    @wasm  path *.wasm
+    @pck   path *.pck
+    @data  path *.data
+    @audio_worklet path *.audio.worklet.js
+    header @wasm  Content-Type "application/wasm"
+    header @pck   Content-Type "application/octet-stream"
+    header @data  Content-Type "application/octet-stream"
+    header @audio_worklet Content-Type "text/javascript"
+    file_server {
+        index index.html
+    }
+}
+
+# Health check
+handle /healthz {
+    reverse_proxy 127.0.0.1:8540 {
+        header_up X-Forwarded-For   {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host  {host}
+        header_up Host              {host}
+    }
+}
+
+# Catch-all redirect (only effective if no other handle matched)
+handle {
+    redir / /terms/ 302
+}
+
+# Logging disabled — permission issue on /var/log/caddy
+# log {
+#     output file /var/log/caddy/mspc-hub.log
+#     format json
+# }

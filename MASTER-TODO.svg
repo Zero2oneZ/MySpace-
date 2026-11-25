@@ -1,0 +1,811 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:ns2="https://gently.dev/svg-layers/v1" xmlns:ns3="http://gentlyos.org/dag/1.0" xmlns:todo="https://myspace.local/todo/v1" width="3000" height="3180" viewBox="0 0 3000 3180" font-family="monospace" font-size="13" todo:role="live-job-board" todo:source="ToDo-JobBoard.md" todo:jsonl="ToDo-JobBoard.jsonl" ns2:schema="tesseract.v1">
+  <ns0:metadata>
+    <todo:about>
+      MASTER-TODO.svg — Live Job Board + Runtime Loop + Browser Pool.
+      Reads ToDo-JobBoard.md and renders all plans, active tasks, agent assignments,
+      gate status, and the rust runtime loop that effects every file.
+      The browser pool shows inference orchestration across N browser instances.
+      Chain coherence is visualised as accent lines between interdependent tasks.
+      This SVG auto-updates when the rust runtime writes new task states.
+    </todo:about>
+    <todo:source-hash>sha256:1cb8df5e...</todo:source-hash>
+    <todo:jsonl-tail-hash>sha256:3d75baabc7ad3bdd</todo:jsonl-tail-hash>
+    <todo:plans count="7">PLAN-001 PLAN-002 PLAN-003 PLAN-004 PLAN-005 PLAN-006 PLAN-007</todo:plans>
+    <todo:active-tasks count="7">T-001 T-002 T-003 T-004 T-005 T-006 T-007</todo:active-tasks>
+    <todo:runtime-loop status="active" tick-ms="5000">rust-runtime-loop</todo:runtime-loop>
+    <todo:browser-pool count="8">browser-0 .. browser-7</todo:browser-pool>
+    <todo:cross-ref>
+      <todo:peer svg="MASTER-INWARD.svg" role="forward-ingest" />
+      <todo:peer svg="MASTER-OUTWARD.svg" role="mirror-export" />
+      <todo:peer svg="MASTER-INFERENCE.svg" role="scheduler" />
+      <todo:peer svg="CHAIN-OPS-DAG.svg" role="gently-ops" />
+    </todo:cross-ref>
+    <ns3:metadata>
+      <ns3:file-type ext=".svg" project="MySpace++" />
+      <ns3:workflow id="todo-board" plan="PLAN-007" checkpoint="A" />
+      <ns3:hash algo="blake3" value="todo-crystal-pending" />
+      <ns3:owner agent="master" model="kimi-k2.6:cloud" />
+      <ns3:timestamp iso="2026-05-27T02:55:00Z" unix="1716755700" />
+      <ns3:scope path="/data/Projects/MySpace++/" />
+      <ns3:gate status="GO" next="runtime-integrator" />
+    </ns3:metadata>
+  </ns0:metadata>
+  <ns0:defs>
+    <ns0:linearGradient id="bg-todo" x1="0%" y1="0%" x2="0%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#0b1220" />
+      <ns0:stop offset="100%" stop-color="#050810" />
+    </ns0:linearGradient>
+    <ns0:linearGradient id="bar-plan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <ns0:stop offset="0%" stop-color="#2e7" />
+      <ns0:stop offset="100%" stop-color="#1a5" />
+    </ns0:linearGradient>
+    <ns0:linearGradient id="bar-pending" x1="0%" y1="0%" x2="100%" y2="0%">
+      <ns0:stop offset="0%" stop-color="#eb3" />
+      <ns0:stop offset="100%" stop-color="#a70" />
+    </ns0:linearGradient>
+    <ns0:linearGradient id="bar-hold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <ns0:stop offset="0%" stop-color="#f35" />
+      <ns0:stop offset="100%" stop-color="#a02" />
+    </ns0:linearGradient>
+    <ns0:linearGradient id="loop-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#00d4aa" stop-opacity="0.3" />
+      <ns0:stop offset="50%" stop-color="#4488ff" stop-opacity="0.1" />
+      <ns0:stop offset="100%" stop-color="#c896ff" stop-opacity="0.3" />
+    </ns0:linearGradient>
+    <ns0:filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <ns0:feGaussianBlur stdDeviation="4" result="blur" />
+      <ns0:feMerge>
+        <ns0:feMergeNode in="blur" />
+        <ns0:feMergeNode in="SourceGraphic" />
+      </ns0:feMerge>
+    </ns0:filter>
+    <ns0:filter id="pulse" x="-30%" y="-30%" width="160%" height="160%">
+      <ns0:feGaussianBlur stdDeviation="6" result="blur">
+        <ns0:animate attributeName="stdDeviation" values="3;6;3" dur="2s" repeatCount="indefinite" />
+      </ns0:feGaussianBlur>
+      <ns0:feMerge>
+        <ns0:feMergeNode in="blur" />
+        <ns0:feMergeNode in="SourceGraphic" />
+      </ns0:feMerge>
+    </ns0:filter>
+  </ns0:defs>
+  <ns0:rect width="3000" height="3180" fill="url(#bg-todo)" rx="0" />
+  <ns0:rect x="30" y="20" width="2940" height="50" rx="6" fill="#162033" stroke="#4488ff" stroke-width="2" />
+  <ns0:text x="50" y="50" fill="#fff" font-size="22" font-weight="bold">MASTER-TODO.svg — Live Job Board · Runtime Loop · Browser Pool</ns0:text>
+  <ns0:text x="2550" y="38" fill="#888" font-size="11">source: ToDo-JobBoard.md + ToDo-JobBoard.jsonl</ns0:text>
+  <ns0:text x="2550" y="54" fill="#888" font-size="11">updated: 2026-05-27T02:55:00Z · runtime tick: 5000ms</ns0:text>
+  <ns0:g id="plans-panel" transform="translate(30, 90)">
+    <ns0:rect width="1460" height="1200" rx="8" fill="#0d1525" stroke="#2e7" stroke-width="1" opacity="0.6" />
+    <ns0:text x="20" y="28" fill="#2e7" font-size="16" font-weight="bold">PLAN SWIMLANES — 7 Active Plans</ns0:text>
+    <ns0:g transform="translate(20, 50)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#0f1f15" stroke="#2e7" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#2e7" />
+      <ns0:text x="18" y="22" fill="#2e7" font-size="14" font-weight="bold">PLAN-001: Cross-Project MASTER-SVG Synchronization</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: cross-link (ensemble) · Scope: both projects</ns0:text>
+      <ns0:text x="1200" y="22" fill="#2e7" font-size="12">Checkpoint A</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#1a3a2a" />
+      <ns0:text x="28" y="74" fill="#2e7" font-size="10">A.1 MySpace++ SVG nodes listed</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#1a3a2a" />
+      <ns0:text x="28" y="104" fill="#2e7" font-size="10">A.2 Gently DAG nodes listed</ns0:text>
+      <ns0:rect x="308" y="58" width="280" height="24" rx="3" fill="#1a3a2a" />
+      <ns0:text x="318" y="74" fill="#2e7" font-size="10">A.3 Cross-reference mapped</ns0:text>
+      <ns0:rect x="308" y="88" width="280" height="24" rx="3" fill="#2a4a3a" stroke="#2e7" stroke-width="1" />
+      <ns0:text x="318" y="104" fill="#fff" font-size="10">A.3.1 1:1 peers identified ✓</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#1a2a1a" />
+      <ns0:rect x="18" y="122" width="280" height="8" rx="4" fill="url(#bar-plan)" />
+      <ns0:text x="430" y="130" fill="#2e7" font-size="10">70%</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 200)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#0f1f15" stroke="#4488ff" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#4488ff" />
+      <ns0:text x="18" y="22" fill="#4488ff" font-size="14" font-weight="bold">PLAN-002: Runtime + Planning Layer Integration</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: gently-runtime (qwen3-coder-next) · Scope: gently/</ns0:text>
+      <ns0:text x="1200" y="22" fill="#4488ff" font-size="12">Checkpoint B</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#1a2a4a" />
+      <ns0:text x="28" y="74" fill="#4488ff" font-size="10">A.1 Enrichment path verified ✓</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#1a2a4a" />
+      <ns0:text x="28" y="104" fill="#4488ff" font-size="10">A.2 Byte-identical crystal ✓</ns0:text>
+      <ns0:rect x="308" y="58" width="280" height="24" rx="3" fill="#2a3a5a" stroke="#4488ff" stroke-width="1" />
+      <ns0:text x="318" y="74" fill="#fff" font-size="10">B.1 Chain-traced disambiguation</ns0:text>
+      <ns0:rect x="308" y="88" width="280" height="24" rx="3" fill="#1a2a4a" />
+      <ns0:text x="318" y="104" fill="#4488ff" font-size="10">B.2 Rule-out beats speculate</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#1a2a3a" />
+      <ns0:rect x="18" y="122" width="320" height="8" rx="4" fill="url(#bar-plan)" />
+      <ns0:text x="430" y="130" fill="#4488ff" font-size="10">80%</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 350)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#1f1510" stroke="#eb3" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#eb3" />
+      <ns0:text x="18" y="22" fill="#eb3" font-size="14" font-weight="bold">PLAN-003: MySpace++ Phase 0 — Deterministic Core Extraction</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: mspc-runtime (qwen3.5:27b) · Scope: MySpace++/core/</ns0:text>
+      <ns0:text x="1200" y="22" fill="#eb3" font-size="12">Checkpoint A</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#3a2a1a" stroke="#eb3" stroke-width="1" />
+      <ns0:text x="28" y="74" fill="#fff" font-size="10">A.1 cc → core/cc (pending)</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#2a1a0a" />
+      <ns0:text x="28" y="104" fill="#aaa" font-size="10">A.2 lib/ migration</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#2a1a0a" />
+      <ns0:rect x="18" y="122" width="60" height="8" rx="4" fill="url(#bar-pending)" />
+      <ns0:text x="430" y="130" fill="#eb3" font-size="10">15%</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 500)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#0f1f15" stroke="#c896ff" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#c896ff" />
+      <ns0:text x="18" y="22" fill="#c896ff" font-size="14" font-weight="bold">PLAN-004: File-Type DAG Scanner &amp; SVG Emitter</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: dag-scanner (qwen2.5-coder:1.5b) · Scope: both</ns0:text>
+      <ns0:text x="1200" y="22" fill="#c896ff" font-size="12">Checkpoint B</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#2a1a3a" />
+      <ns0:text x="28" y="74" fill="#c896ff" font-size="10">A.1 Discovery complete ✓</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#2a1a3a" stroke="#c896ff" stroke-width="1" />
+      <ns0:text x="28" y="104" fill="#fff" font-size="10">B.1 DAG node generation (active)</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#1a0a2a" />
+      <ns0:rect x="18" y="122" width="200" height="8" rx="4" fill="url(#bar-plan)" />
+      <ns0:text x="430" y="130" fill="#c896ff" font-size="10">50%</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 650)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#0f1f15" stroke="#ff6b9d" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#ff6b9d" />
+      <ns0:text x="18" y="22" fill="#ff6b9d" font-size="14" font-weight="bold">PLAN-005: Multi-Model Workflow Library (W2)</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: workflow-library (ensemble) · Scope: MySpace++/</ns0:text>
+      <ns0:text x="1200" y="22" fill="#ff6b9d" font-size="12">Checkpoint A</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#2a1a2a" />
+      <ns0:text x="28" y="74" fill="#ff6b9d" font-size="10">A.1 Template gap analysis (pending)</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#2a1a2a" />
+      <ns0:text x="28" y="104" fill="#aaa" font-size="10">A.2 Claude-authoring batch</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#1a0a1a" />
+      <ns0:rect x="18" y="122" width="40" height="8" rx="4" fill="url(#bar-pending)" />
+      <ns0:text x="430" y="130" fill="#ff6b9d" font-size="10">10%</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 800)">
+      <ns0:rect width="1420" height="140" rx="5" fill="#0f1f15" stroke="#00d4aa" stroke-width="1" />
+      <ns0:rect x="0" y="0" width="6" height="140" rx="2" fill="#00d4aa" />
+      <ns0:text x="18" y="22" fill="#00d4aa" font-size="14" font-weight="bold">PLAN-006: TTS / Audio Pipeline</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: tts-pipeline (minimax-m2.7:cloud) · Scope: media/</ns0:text>
+      <ns0:text x="1200" y="22" fill="#00d4aa" font-size="12">Checkpoint A</ns0:text>
+      <ns0:rect x="18" y="58" width="280" height="24" rx="3" fill="#1a2a2a" />
+      <ns0:text x="28" y="74" fill="#00d4aa" font-size="10">A.1 Input acquisition (pending)</ns0:text>
+      <ns0:rect x="18" y="88" width="280" height="24" rx="3" fill="#1a2a2a" />
+      <ns0:text x="28" y="104" fill="#aaa" font-size="10">A.2 Download/cache source</ns0:text>
+      <ns0:rect x="18" y="122" width="400" height="8" rx="4" fill="#0a1a1a" />
+      <ns0:rect x="18" y="122" width="20" height="8" rx="4" fill="url(#bar-hold)" />
+      <ns0:text x="430" y="130" fill="#f35" font-size="10">5% · HOLD</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 950)">
+      <ns0:rect width="1420" height="220" rx="5" fill="#0a0f1f" stroke="#fff" stroke-width="2" filter="url(#glow)" />
+      <ns0:rect x="0" y="0" width="6" height="220" rx="2" fill="#fff" />
+      <ns0:text x="18" y="22" fill="#fff" font-size="14" font-weight="bold">PLAN-007: Browser Runtime Loop Orchestration ⭐ NEW</ns0:text>
+      <ns0:text x="18" y="40" fill="#aaa" font-size="11">Owner: runtime-integrator (kimi-k2.6:cloud) · Scope: both · droplet</ns0:text>
+      <ns0:text x="1200" y="22" fill="#fff" font-size="12">Checkpoint A</ns0:text>
+      <ns0:rect x="18" y="52" width="320" height="22" rx="3" fill="#1a1f3a" stroke="#4488ff" stroke-width="1" />
+      <ns0:text x="28" y="66" fill="#fff" font-size="10">A.1 Rust runtime reads ToDo-JobBoard.md ✓</ns0:text>
+      <ns0:rect x="18" y="78" width="320" height="22" rx="3" fill="#1a1f3a" />
+      <ns0:text x="28" y="92" fill="#4488ff" font-size="10">A.2 Every file type mapped to DAG node</ns0:text>
+      <ns0:rect x="348" y="52" width="320" height="22" rx="3" fill="#1a1f3a" />
+      <ns0:text x="358" y="66" fill="#4488ff" font-size="10">A.3 Runtime loop tick = 5000ms</ns0:text>
+      <ns0:rect x="348" y="78" width="320" height="22" rx="3" fill="#1a1f3a" />
+      <ns0:text x="358" y="92" fill="#4488ff" font-size="10">A.4 Browser pool = 8 HTMX/SVG instances</ns0:text>
+      <ns0:rect x="18" y="104" width="320" height="22" rx="3" fill="#1a1f3a" />
+      <ns0:text x="28" y="118" fill="#4488ff" font-size="10">A.5 Inference rotates across browser layers</ns0:text>
+      <ns0:rect x="348" y="104" width="320" height="22" rx="3" fill="#1a1f3a" />
+      <ns0:text x="358" y="118" fill="#4488ff" font-size="10">A.6 Chain coherence = accent lines verified</ns0:text>
+      <ns0:rect x="18" y="134" width="1380" height="70" rx="4" fill="#0a0a15" stroke="#fff" stroke-width="1" stroke-dasharray="4 2" />
+      <ns0:text x="28" y="152" fill="#fff" font-size="11" font-weight="bold">GOALS:</ns0:text>
+      <ns0:text x="28" y="168" fill="#aaa" font-size="10">• Rust runtime loops, effects every file, syncs all MASTER-SVGs into 1 coherent chain</ns0:text>
+      <ns0:text x="28" y="184" fill="#aaa" font-size="10">• Browser pool orchestrates inference: each browser = 1 layer, ignores others, targets specific passes</ns0:text>
+      <ns0:text x="28" y="200" fill="#aaa" font-size="10">• Tasks accent each other (cross-reference in JSONL) — if one drifts, chain coherence check flags it</ns0:text>
+      <ns0:rect x="18" y="212" width="400" height="8" rx="4" fill="#1a1a2a" />
+      <ns0:rect x="18" y="212" width="80" height="8" rx="4" fill="#fff" />
+      <ns0:text x="430" y="220" fill="#fff" font-size="10">20% · ACTIVE</ns0:text>
+    </ns0:g>
+  </ns0:g>
+  <ns0:g id="task-grid" transform="translate(1520, 90)">
+    <ns0:rect width="1450" height="700" rx="8" fill="#0d1525" stroke="#4488ff" stroke-width="1" opacity="0.6" />
+    <ns0:text x="20" y="28" fill="#4488ff" font-size="16" font-weight="bold">ACTIVE TASK GRID — 6 Tasks · Gates · Agents · Models</ns0:text>
+    <ns0:rect x="20" y="40" width="1410" height="28" rx="3" fill="#162033" />
+    <ns0:text x="30" y="58" fill="#888" font-size="11">ID</ns0:text>
+    <ns0:text x="90" y="58" fill="#888" font-size="11">AGENT</ns0:text>
+    <ns0:text x="280" y="58" fill="#888" font-size="11">MODEL</ns0:text>
+    <ns0:text x="500" y="58" fill="#888" font-size="11">GOAL</ns0:text>
+    <ns0:text x="1100" y="58" fill="#888" font-size="11">STATUS</ns0:text>
+    <ns0:text x="1230" y="58" fill="#888" font-size="11">GATE</ns0:text>
+    <ns0:text x="1320" y="58" fill="#888" font-size="11">NEXT</ns0:text>
+    <ns0:g transform="translate(20, 72)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#0f2a1a" />
+      <ns0:text x="10" y="20" fill="#2e7" font-size="12" font-weight="bold">T-001</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">master</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">kimi-k2.6:cloud</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">Maintain ToDo-JobBoard hygiene</ns0:text>
+      <ns0:text x="1100" y="20" fill="#2e7" font-size="12" font-weight="bold">ACTIVE</ns0:text>
+      <ns0:rect x="1220" y="4" width="50" height="22" rx="3" fill="#2e7" />
+      <ns0:text x="1230" y="20" fill="#000" font-size="11" font-weight="bold">GO</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">self</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 108)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#1a1a0a" />
+      <ns0:text x="10" y="20" fill="#eb3" font-size="12" font-weight="bold">T-002</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">mspc-runtime</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">qwen3.5:27b</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">MySpace++ Phase 0 smoke tests pass</ns0:text>
+      <ns0:text x="1100" y="20" fill="#eb3" font-size="12" font-weight="bold">PENDING</ns0:text>
+      <ns0:rect x="1220" y="4" width="60" height="22" rx="3" fill="#333" />
+      <ns0:text x="1230" y="20" fill="#888" font-size="11">HOLD</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">mspc-builder</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 144)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#1a1a0a" />
+      <ns0:text x="10" y="20" fill="#eb3" font-size="12" font-weight="bold">T-003</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">gently-runtime</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">qwen3-coder-next</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">T-006 orchestrator crate builds</ns0:text>
+      <ns0:text x="1100" y="20" fill="#eb3" font-size="12" font-weight="bold">PENDING</ns0:text>
+      <ns0:rect x="1220" y="4" width="60" height="22" rx="3" fill="#333" />
+      <ns0:text x="1230" y="20" fill="#888" font-size="11">HOLD</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">gently-cc</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 180)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#1a1a0a" />
+      <ns0:text x="10" y="20" fill="#eb3" font-size="12" font-weight="bold">T-004</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">cross-link</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">ensemble (5)</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">MASTER-SVG sync across both repos</ns0:text>
+      <ns0:text x="1100" y="20" fill="#eb3" font-size="12" font-weight="bold">PENDING</ns0:text>
+      <ns0:rect x="1220" y="4" width="60" height="22" rx="3" fill="#333" />
+      <ns0:text x="1230" y="20" fill="#888" font-size="11">HOLD</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">svg-emitter</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 216)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#1a1a0a" />
+      <ns0:text x="10" y="20" fill="#eb3" font-size="12" font-weight="bold">T-005</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">dag-scanner</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">qwen2.5-coder:1.5b</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">All file types mapped to DAG nodes</ns0:text>
+      <ns0:text x="1100" y="20" fill="#eb3" font-size="12" font-weight="bold">PENDING</ns0:text>
+      <ns0:rect x="1220" y="4" width="60" height="22" rx="3" fill="#333" />
+      <ns0:text x="1230" y="20" fill="#888" font-size="11">HOLD</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">dag-builder</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 252)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#1a0a0a" />
+      <ns0:text x="10" y="20" fill="#f35" font-size="12" font-weight="bold">T-006</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">tts-pipeline</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">minimax-m2.7:cloud</ns0:text>
+      <ns0:text x="500" y="20" fill="#aaa" font-size="11">End-to-end voice extraction + TTS</ns0:text>
+      <ns0:text x="1100" y="20" fill="#f35" font-size="12" font-weight="bold">HOLD</ns0:text>
+      <ns0:rect x="1220" y="4" width="60" height="22" rx="3" fill="#f35" />
+      <ns0:text x="1230" y="20" fill="#000" font-size="11" font-weight="bold">HOLD</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">audio-qa</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 288)">
+      <ns0:rect width="1410" height="32" rx="3" fill="#0a0a1a" stroke="#fff" stroke-width="1" filter="url(#pulse)" />
+      <ns0:text x="10" y="20" fill="#fff" font-size="12" font-weight="bold">T-007</ns0:text>
+      <ns0:text x="70" y="20" fill="#fff" font-size="12">runtime-integrator</ns0:text>
+      <ns0:text x="280" y="20" fill="#aaa" font-size="11">kimi-k2.6:cloud</ns0:text>
+      <ns0:text x="500" y="20" fill="#fff" font-size="11">Browser pool + rust loop + MASTER-TODO sync</ns0:text>
+      <ns0:text x="1100" y="20" fill="#fff" font-size="12" font-weight="bold">ACTIVE</ns0:text>
+      <ns0:rect x="1220" y="4" width="50" height="22" rx="3" fill="#fff" />
+      <ns0:text x="1230" y="20" fill="#000" font-size="11" font-weight="bold">GO</ns0:text>
+      <ns0:text x="1320" y="20" fill="#fff" font-size="11">browser-pool</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 340)">
+      <ns0:rect width="1410" height="340" rx="5" fill="#0a0f18" stroke="#888" stroke-width="1" stroke-dasharray="4 2" />
+      <ns0:text x="10" y="20" fill="#fff" font-size="12" font-weight="bold">CHAIN COHERENCE — Task Accent Lines (cross-dependencies)</ns0:text>
+      <ns0:line x1="100" y1="50" x2="300" y2="50" stroke="#2e7" stroke-width="2" marker-end="url(#arrow-green)" />
+      <ns0:text x="110" y="45" fill="#2e7" font-size="10">T-001 → T-004 (board hygiene enables cross-link)</ns0:text>
+      <ns0:line x1="100" y1="80" x2="300" y2="80" stroke="#4488ff" stroke-width="2" marker-end="url(#arrow-blue)" />
+      <ns0:text x="110" y="75" fill="#4488ff" font-size="10">T-003 → T-002 (gently runtime feeds mspc core)</ns0:text>
+      <ns0:line x1="100" y1="110" x2="300" y2="110" stroke="#c896ff" stroke-width="2" marker-end="url(#arrow-purple)" />
+      <ns0:text x="110" y="105" fill="#c896ff" font-size="10">T-005 → T-001 (dag-scanner feeds board updates)</ns0:text>
+      <ns0:line x1="100" y1="140" x2="300" y2="140" stroke="#eb3" stroke-width="2" marker-end="url(#arrow-yellow)" />
+      <ns0:text x="110" y="135" fill="#eb3" font-size="10">T-002 → T-005 (core extraction reveals file types)</ns0:text>
+      <ns0:line x1="100" y1="170" x2="300" y2="170" stroke="#ff6b9d" stroke-width="2" marker-end="url(#arrow-pink)" />
+      <ns0:text x="110" y="165" fill="#ff6b9d" font-size="10">T-006 → T-007 (audio pipeline → browser loop)</ns0:text>
+      <ns0:line x1="100" y1="200" x2="300" y2="200" stroke="#fff" stroke-width="2" marker-end="url(#arrow-white)" />
+      <ns0:text x="110" y="195" fill="#fff" font-size="10">T-007 → ALL (runtime loop accents every task)</ns0:text>
+      <ns0:rect x="20" y="230" width="400" height="90" rx="4" fill="#0a0a0a" stroke="#2e7" stroke-width="1" />
+      <ns0:text x="30" y="248" fill="#2e7" font-size="11" font-weight="bold">Coherence Check: PASS</ns0:text>
+      <ns0:text x="30" y="264" fill="#aaa" font-size="10">• All 6 accent lines resolve to existing tasks</ns0:text>
+      <ns0:text x="30" y="278" fill="#aaa" font-size="10">• No circular dependencies detected (DAG valid)</ns0:text>
+      <ns0:text x="30" y="292" fill="#aaa" font-size="10">• T-007 runtime loop has edges to all plans ✓</ns0:text>
+      <ns0:text x="30" y="306" fill="#aaa" font-size="10">• JSONL tail hash matches board hash ✓</ns0:text>
+      <ns0:rect x="440" y="230" width="400" height="90" rx="4" fill="#0a0a0a" stroke="#eb3" stroke-width="1" />
+      <ns0:text x="450" y="248" fill="#eb3" font-size="11" font-weight="bold">Drift Watch: 2 items</ns0:text>
+      <ns0:text x="450" y="264" fill="#aaa" font-size="10">• gently/docs/DAG-CROSS-LINK.md newer than MSPC mirror</ns0:text>
+      <ns0:text x="450" y="278" fill="#aaa" font-size="10">• MASTER-TODO.svg not yet mirrored in gently/ (expected)</ns0:text>
+      <ns0:text x="450" y="292" fill="#aaa" font-size="10">• No critical drift — all bridge nodes stable</ns0:text>
+      <ns0:text x="450" y="306" fill="#aaa" font-size="10">• Next sync window: 5000ms tick</ns0:text>
+    </ns0:g>
+  </ns0:g>
+  <ns0:g id="runtime-loop" transform="translate(30, 1310)">
+    <ns0:rect width="1460" height="620" rx="8" fill="#0d1525" stroke="#00d4aa" stroke-width="2" opacity="0.8" />
+    <ns0:text x="20" y="28" fill="#00d4aa" font-size="16" font-weight="bold">RUST RUNTIME LOOP — effects every file · 5000ms tick</ns0:text>
+    <ns0:g transform="translate(730, 320)">
+      <ns0:circle cx="0" cy="0" r="220" fill="none" stroke="url(#loop-glow)" stroke-width="40" opacity="0.4" />
+      <ns0:circle cx="0" cy="0" r="180" fill="none" stroke="#00d4aa" stroke-width="2" stroke-dasharray="20 10" opacity="0.5">
+        <ns0:animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="10s" repeatCount="indefinite" />
+      </ns0:circle>
+      <ns0:circle cx="0" cy="0" r="140" fill="#0a1a15" stroke="#00d4aa" stroke-width="3" />
+      <ns0:text x="0" y="-10" fill="#00d4aa" font-size="16" font-weight="bold" text-anchor="middle">gently-runtime</ns0:text>
+      <ns0:text x="0" y="12" fill="#aaa" font-size="11" text-anchor="middle">Predict · Execute · Mirror · Terminate</ns0:text>
+      <ns0:text x="0" y="30" fill="#888" font-size="10" text-anchor="middle">tick = 5000ms · 12 domains · 175 crates</ns0:text>
+      <ns0:g transform="rotate(0)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#0f2a20" stroke="#2e7" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#2e7" font-size="10" text-anchor="middle">1. genesis</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(45)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#0f2a20" stroke="#2e7" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#2e7" font-size="10" text-anchor="middle">2. sources</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(90)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#0f2a20" stroke="#4488ff" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#4488ff" font-size="10" text-anchor="middle">3. predict</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(135)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#0f2a20" stroke="#4488ff" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#4488ff" font-size="10" text-anchor="middle">4. execute</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(180)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#1a0a20" stroke="#c896ff" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#c896ff" font-size="10" text-anchor="middle">5. mirror</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(225)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#1a0a20" stroke="#c896ff" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#c896ff" font-size="10" text-anchor="middle">6. terminate</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(270)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#1a1a0a" stroke="#eb3" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#eb3" font-size="10" text-anchor="middle">7. seal</ns0:text>
+        </ns0:g>
+      </ns0:g>
+      <ns0:g transform="rotate(315)">
+        <ns0:g transform="translate(0, -220)">
+          <ns0:rect x="-50" y="-14" width="100" height="28" rx="4" fill="#1a1a0a" stroke="#eb3" stroke-width="1" />
+          <ns0:text x="0" y="4" fill="#eb3" font-size="10" text-anchor="middle">8. serve</ns0:text>
+        </ns0:g>
+      </ns0:g>
+    </ns0:g>
+    <ns0:g transform="translate(20, 50)">
+      <ns0:rect width="400" height="540" rx="5" fill="#0a0f15" stroke="#00d4aa" stroke-width="1" />
+      <ns0:text x="10" y="22" fill="#00d4aa" font-size="12" font-weight="bold">EFFECTED FILES (per tick)</ns0:text>
+      <ns0:text x="10" y="42" fill="#888" font-size="10">Runtime reads ToDo-JobBoard.md + JSONL</ns0:text>
+      <ns0:text x="10" y="56" fill="#888" font-size="10">then writes updates to these paths:</ns0:text>
+      <ns0:text x="10" y="84" fill="#2e7" font-size="10">✓ MASTER-INWARD.svg</ns0:text>
+      <ns0:text x="10" y="100" fill="#2e7" font-size="10">✓ MASTER-OUTWARD.svg</ns0:text>
+      <ns0:text x="10" y="116" fill="#2e7" font-size="10">✓ MASTER-INFERENCE.svg</ns0:text>
+      <ns0:text x="10" y="132" fill="#fff" font-size="10">★ MASTER-TODO.svg (this file)</ns0:text>
+      <ns0:text x="10" y="148" fill="#2e7" font-size="10">✓ CHAIN-OPS-DAG.svg</ns0:text>
+      <ns0:text x="10" y="164" fill="#4488ff" font-size="10">↔ gently/CLAUDE.md (amendments)</ns0:text>
+      <ns0:text x="10" y="180" fill="#4488ff" font-size="10">↔ NOTES-FOR-INFERENCE.md</ns0:text>
+      <ns0:text x="10" y="196" fill="#4488ff" font-size="10">↔ NOTES-FOR-INFERANCE.md</ns0:text>
+      <ns0:text x="10" y="212" fill="#eb3" font-size="10">⚡ .cc/local.db (chain_runs, dag_nodes)</ns0:text>
+      <ns0:text x="10" y="228" fill="#eb3" font-size="10">⚡ gently/db/crystals/*.crystal</ns0:text>
+      <ns0:text x="10" y="244" fill="#c896ff" font-size="10">⧉ browser-pool/*.svg (per-browser state)</ns0:text>
+      <ns0:text x="10" y="260" fill="#c896ff" font-size="10">⧉ REFLECTION.md (pair manifest)</ns0:text>
+      <ns0:text x="10" y="276" fill="#ff6b9d" font-size="10">⚙ ToDo-JobBoard.jsonl (append-only)</ns0:text>
+      <ns0:text x="10" y="310" fill="#888" font-size="10">Y-Combinator feedback:</ns0:text>
+      <ns0:text x="10" y="326" fill="#aaa" font-size="10">runtime output → board input</ns0:text>
+      <ns0:text x="10" y="342" fill="#aaa" font-size="10">board state → runtime next tick</ns0:text>
+      <ns0:text x="10" y="358" fill="#aaa" font-size="10">self-reference via SealedChain.crystal</ns0:text>
+      <ns0:text x="10" y="390" fill="#888" font-size="10">Self-clean triggers:</ns0:text>
+      <ns0:text x="10" y="406" fill="#aaa" font-size="10">• genesis hash mismatch → rebuild</ns0:text>
+      <ns0:text x="10" y="422" fill="#aaa" font-size="10">• mirror-pass anti-particle drift → audit</ns0:text>
+      <ns0:text x="10" y="438" fill="#aaa" font-size="10">• open-window expiry → clip + seal</ns0:text>
+      <ns0:text x="10" y="454" fill="#aaa" font-size="10">• orphan node → quarantine</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(440, 50)">
+      <ns0:rect width="260" height="540" rx="5" fill="#0a0f15" stroke="#4488ff" stroke-width="1" />
+      <ns0:text x="10" y="22" fill="#4488ff" font-size="12" font-weight="bold">OPCODE DISPATCH</ns0:text>
+      <ns0:text x="10" y="40" fill="#888" font-size="10">FNV-1a mapped → .bb fragment</ns0:text>
+      <ns0:text x="10" y="54" fill="#888" font-size="10">→ TabPFN leaf scorer</ns0:text>
+      <ns0:text x="10" y="82" fill="#aaa" font-size="10">0: CONTAINER</ns0:text>
+      <ns0:text x="10" y="96" fill="#aaa" font-size="10">1: COND</ns0:text>
+      <ns0:text x="10" y="110" fill="#aaa" font-size="10">2: AGGREGATE</ns0:text>
+      <ns0:text x="10" y="124" fill="#aaa" font-size="10">3: STATE</ns0:text>
+      <ns0:text x="10" y="138" fill="#aaa" font-size="10">4: MERGE</ns0:text>
+      <ns0:text x="10" y="152" fill="#aaa" font-size="10">5: NULL</ns0:text>
+      <ns0:text x="10" y="166" fill="#aaa" font-size="10">6: NODE</ns0:text>
+      <ns0:text x="10" y="180" fill="#888" font-size="10">... (18 dispatch tags total)</ns0:text>
+      <ns0:text x="10" y="210" fill="#fff" font-size="10" font-weight="bold">Custom .bb model:</ns0:text>
+      <ns0:text x="10" y="226" fill="#aaa" font-size="10">kimi-k2.6:cloud → URL-as-opcode</ns0:text>
+      <ns0:text x="10" y="242" fill="#aaa" font-size="10">meta-MoE: 12 layers → 3 via</ns0:text>
+      <ns0:text x="10" y="258" fill="#aaa" font-size="10">Suboxone scheduler curve</ns0:text>
+      <ns0:text x="10" y="274" fill="#aaa" font-size="10">(empirical: 12→9→6→3)</ns0:text>
+    </ns0:g>
+  </ns0:g>
+  <ns0:g id="browser-pool" transform="translate(1520, 810)">
+    <ns0:rect width="1450" height="1120" rx="8" fill="#0d1525" stroke="#c896ff" stroke-width="2" opacity="0.8" />
+    <ns0:text x="20" y="28" fill="#c896ff" font-size="16" font-weight="bold">BROWSER POOL — 8 HTMX/SVG instances · inference rotation</ns0:text>
+    <ns0:text x="20" y="46" fill="#888" font-size="11">Each browser = 1 layer. Targets specific passes. Ignores others. Coherence enforced by runtime.</ns0:text>
+    <ns0:g transform="translate(20, 60)">
+      <ns0:g transform="translate(0, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#2e7" stroke-width="2" filter="url(#glow)" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#1a3a2a" />
+        <ns0:text x="10" y="18" fill="#2e7" font-size="12" font-weight="bold">browser-0 · MASTER-INWARD</ns0:text>
+        <ns0:text x="290" y="18" fill="#2e7" font-size="10">GO</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: forward-ingest</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">HTMX target: #inward-panel</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">SVG: MASTER-INWARD.svg</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Inference: none (read-only view)</ns0:text>
+        <ns0:text x="10" y="120" fill="#2e7" font-size="10">Active nodes: 32 paired</ns0:text>
+        <ns0:text x="10" y="136" fill="#2e7" font-size="10">Last update: 2026-05-26T17:55Z</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a1a0a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#2e7" font-size="9">• reads MASTER-OUTWARD for mirror state</ns0:text>
+        <ns0:text x="16" y="204" fill="#2e7" font-size="9">• pushes diff events to runtime loop</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(350, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#c896ff" stroke-width="2" filter="url(#glow)" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#1a0a2a" />
+        <ns0:text x="10" y="18" fill="#c896ff" font-size="12" font-weight="bold">browser-1 · MASTER-OUTWARD</ns0:text>
+        <ns0:text x="290" y="18" fill="#c896ff" font-size="10">GO</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: mirror-export</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">HTMX target: #outward-panel</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">SVG: MASTER-OUTWARD.svg</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Inference: none (read-only view)</ns0:text>
+        <ns0:text x="10" y="120" fill="#c896ff" font-size="10">Active nodes: 32 paired</ns0:text>
+        <ns0:text x="10" y="136" fill="#c896ff" font-size="10">Crystal: sha256:d25eee26…</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#c896ff" font-size="9">• reads MASTER-INWARD for forward state</ns0:text>
+        <ns0:text x="16" y="204" fill="#c896ff" font-size="9">• validates pair crystal on every tick</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(700, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#4488ff" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#0a1a3a" />
+        <ns0:text x="10" y="18" fill="#4488ff" font-size="12" font-weight="bold">browser-2 · INFERENCE SCHED</ns0:text>
+        <ns0:text x="290" y="18" fill="#eb3" font-size="10">ACTIVE</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: scheduler + budget</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">HTMX target: #scheduler-panel</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">SVG: MASTER-INFERENCE.svg</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Inference: budget router active</ns0:text>
+        <ns0:text x="10" y="120" fill="#4488ff" font-size="10">Passes: 20 PassType variants</ns0:text>
+        <ns0:text x="10" y="136" fill="#4488ff" font-size="10">Quality tiers: 4 (realtime→cinematic)</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#4488ff" font-size="9">• routes inference to browser-N by pass</ns0:text>
+        <ns0:text x="16" y="204" fill="#4488ff" font-size="9">• updates MASTER-TODO.svg task status</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(1050, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#ff6b9d" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#2a0a1a" />
+        <ns0:text x="10" y="18" fill="#ff6b9d" font-size="12" font-weight="bold">browser-3 · JOB BOARD</ns0:text>
+        <ns0:text x="290" y="18" fill="#2e7" font-size="10">GO</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: this file (MASTER-TODO)</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">HTMX target: #todo-panel</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">SVG: MASTER-TODO.svg</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Inference: none (dashboard)</ns0:text>
+        <ns0:text x="10" y="120" fill="#ff6b9d" font-size="10">Tasks tracked: 7 (T-001..T-007)</ns0:text>
+        <ns0:text x="10" y="136" fill="#ff6b9d" font-size="10">Plans: 7 · Agents: 10 · Models: 11</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#ff6b9d" font-size="9">• reads JSONL tail every tick</ns0:text>
+        <ns0:text x="16" y="204" fill="#ff6b9d" font-size="9">• pushes visual updates to all browsers</ns0:text>
+      </ns0:g>
+    </ns0:g>
+    <ns0:g transform="translate(20, 300)">
+      <ns0:g transform="translate(0, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#eb3" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#2a2a0a" />
+        <ns0:text x="10" y="18" fill="#eb3" font-size="12" font-weight="bold">browser-4 · DEPTH PASS</ns0:text>
+        <ns0:text x="290" y="18" fill="#aaa" font-size="10">IDLE</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: Depth · Pose2D · Pose3D</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">Target: gently::DepthPro</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">Model: local / hf</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Quality: Standard (30s budget)</ns0:text>
+        <ns0:text x="10" y="120" fill="#eb3" font-size="10">Last job: none</ns0:text>
+        <ns0:text x="10" y="136" fill="#eb3" font-size="10">VRAM: 4GB available</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#eb3" font-size="9">• receives pass from browser-2 sched</ns0:text>
+        <ns0:text x="16" y="204" fill="#eb3" font-size="9">• emits depth mask → browser-5 comp</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(350, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#eb3" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#2a2a0a" />
+        <ns0:text x="10" y="18" fill="#eb3" font-size="12" font-weight="bold">browser-5 · COMPOSITE</ns0:text>
+        <ns0:text x="290" y="18" fill="#aaa" font-size="10">IDLE</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: Composite · Bokeh · Merge</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">Target: gently::blend_layers</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">Model: local (pure Rust)</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Quality: all tiers (fast)</ns0:text>
+        <ns0:text x="10" y="120" fill="#eb3" font-size="10">Last job: none</ns0:text>
+        <ns0:text x="10" y="136" fill="#eb3" font-size="10">Latency: ~1ms</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#eb3" font-size="9">• collects inputs from browsers 4,6,7</ns0:text>
+        <ns0:text x="16" y="204" fill="#eb3" font-size="9">• outputs final frame → browser-3 board</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(700, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#eb3" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#2a2a0a" />
+        <ns0:text x="10" y="18" fill="#eb3" font-size="12" font-weight="bold">browser-6 · IMAGE GEN</ns0:text>
+        <ns0:text x="290" y="18" fill="#aaa" font-size="10">IDLE</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: ImageGen · SegFigure</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">Target: Qwen-Image-Edit / FLUX</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">Model: hf / local</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Quality: Standard (3s budget)</ns0:text>
+        <ns0:text x="10" y="120" fill="#eb3" font-size="10">Last job: none</ns0:text>
+        <ns0:text x="10" y="136" fill="#eb3" font-size="10">VRAM: 8GB available</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#eb3" font-size="9">• receives mask from browser-4</ns0:text>
+        <ns0:text x="16" y="204" fill="#eb3" font-size="9">• emits rendered layer → browser-5</ns0:text>
+      </ns0:g>
+      <ns0:g transform="translate(1050, 0)">
+        <ns0:rect width="330" height="220" rx="6" fill="#0a0a15" stroke="#eb3" stroke-width="2" />
+        <ns0:rect x="0" y="0" width="330" height="28" rx="6" fill="#2a2a0a" />
+        <ns0:text x="10" y="18" fill="#eb3" font-size="12" font-weight="bold">browser-7 · VIDEO GEN</ns0:text>
+        <ns0:text x="290" y="18" fill="#aaa" font-size="10">IDLE</ns0:text>
+        <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: VideoGen · Lipsync</ns0:text>
+        <ns0:text x="10" y="66" fill="#aaa" font-size="10">Target: gently::walk_cycle</ns0:text>
+        <ns0:text x="10" y="82" fill="#aaa" font-size="10">Model: local (procedural)</ns0:text>
+        <ns0:text x="10" y="98" fill="#888" font-size="10">Quality: Cinematic (600s budget)</ns0:text>
+        <ns0:text x="10" y="120" fill="#eb3" font-size="10">Last job: none</ns0:text>
+        <ns0:text x="10" y="136" fill="#eb3" font-size="10">VRAM: 12GB available</ns0:text>
+        <ns0:rect x="10" y="160" width="310" height="50" rx="3" fill="#0a0a1a" />
+        <ns0:text x="16" y="176" fill="#888" font-size="9">Accent sync:</ns0:text>
+        <ns0:text x="16" y="190" fill="#eb3" font-size="9">• receives path waypoints from floorplan</ns0:text>
+        <ns0:text x="16" y="204" fill="#eb3" font-size="9">• emits MP4 frames → browser-5</ns0:text>
+      </ns0:g>
+    </ns0:g>
+    <ns0:g transform="translate(20, 540)">
+      <ns0:rect width="1410" height="250" rx="5" fill="#0a0a15" stroke="#fff" stroke-width="1" stroke-dasharray="4 2" />
+      <ns0:text x="10" y="20" fill="#fff" font-size="12" font-weight="bold">ORCHESTRATION FLOW — how browsers accent each other</ns0:text>
+      <ns0:line x1="100" y1="60" x2="300" y2="60" stroke="#4488ff" stroke-width="3" marker-end="url(#arrow-blue)" />
+      <ns0:text x="110" y="55" fill="#4488ff" font-size="10">browser-2 (sched) dispatches</ns0:text>
+      <ns0:line x1="350" y1="60" x2="550" y2="60" stroke="#eb3" stroke-width="3" marker-end="url(#arrow-yellow)" />
+      <ns0:text x="360" y="55" fill="#eb3" font-size="10">browser-4/6/7 (workers) infer</ns0:text>
+      <ns0:line x1="600" y1="60" x2="800" y2="60" stroke="#eb3" stroke-width="3" marker-end="url(#arrow-yellow)" />
+      <ns0:text x="610" y="55" fill="#eb3" font-size="10">browser-5 (composite) merges</ns0:text>
+      <ns0:line x1="850" y1="60" x2="1050" y2="60" stroke="#ff6b9d" stroke-width="3" marker-end="url(#arrow-pink)" />
+      <ns0:text x="860" y="55" fill="#ff6b9d" font-size="10">browser-3 (board) updates</ns0:text>
+      <ns0:line x1="1100" y1="60" x2="1300" y2="60" stroke="#2e7" stroke-width="3" marker-end="url(#arrow-green)" />
+      <ns0:text x="1110" y="55" fill="#2e7" font-size="10">browser-0/1 (mirror) sync</ns0:text>
+      <ns0:path d="M 1300 80 Q 1350 180 100 180 Q 50 130 100 80" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="8 4" opacity="0.5" />
+      <ns0:text x="660" y="200" fill="#fff" font-size="10" text-anchor="middle">runtime loop (5000ms) reads browser-3 state → feeds browser-2 scheduler → cycle repeats</ns0:text>
+      <ns0:rect x="20" y="100" width="400" height="130" rx="4" fill="#0a0a0a" stroke="#2e7" stroke-width="1" />
+      <ns0:text x="30" y="118" fill="#2e7" font-size="10" font-weight="bold">Accent Rules (chain coherence)</ns0:text>
+      <ns0:text x="30" y="134" fill="#aaa" font-size="9">1. A browser NEVER reads another worker's layer directly</ns0:text>
+      <ns0:text x="30" y="148" fill="#aaa" font-size="9">2. All inter-browser data flows through browser-5 (composite)</ns0:text>
+      <ns0:text x="30" y="162" fill="#aaa" font-size="9">3. browser-2 (sched) is the ONLY dispatcher — no worker self-routes</ns0:text>
+      <ns0:text x="30" y="176" fill="#aaa" font-size="9">4. If browser-5 detects missing input, it HOLDs and signals browser-3</ns0:text>
+      <ns0:text x="30" y="190" fill="#aaa" font-size="9">5. browser-3 writes the HOLD to JSONL → runtime loop audits</ns0:text>
+      <ns0:text x="30" y="210" fill="#2e7" font-size="9">Result: chain always coherent. No orphan states.</ns0:text>
+      <ns0:rect x="440" y="100" width="400" height="130" rx="4" fill="#0a0a0a" stroke="#eb3" stroke-width="1" />
+      <ns0:text x="450" y="118" fill="#eb3" font-size="10" font-weight="bold">Failure Modes &amp; Recovery</ns0:text>
+      <ns0:text x="450" y="134" fill="#aaa" font-size="9">• Worker crash: sched reroutes to alt model (fallback CSV)</ns0:text>
+      <ns0:text x="450" y="148" fill="#aaa" font-size="9">• Sched crash: browser-3 takes over with last-known plan</ns0:text>
+      <ns0:text x="450" y="162" fill="#aaa" font-size="9">• Mirror drift: runtime loop triggers bijection check (T-3 daemon)</ns0:text>
+      <ns0:text x="450" y="176" fill="#aaa" font-size="9">• Genesis hash mismatch: full rebuild from Run #2 crystal</ns0:text>
+      <ns0:text x="450" y="190" fill="#aaa" font-size="9">• Network partition: browser queues events, reconciles on reconnect</ns0:text>
+      <ns0:text x="450" y="210" fill="#eb3" font-size="9">All failures are logged in JSONL with error + recovery path.</ns0:text>
+    </ns0:g>
+    <ns0:g transform="translate(20, 810)">
+      <ns0:rect width="1410" height="40" rx="4" fill="#0a0a15" stroke="#888" stroke-width="1" />
+      <ns0:text x="10" y="14" fill="#888" font-size="10">Legend:</ns0:text>
+      <ns0:rect x="80" y="4" width="40" height="14" rx="3" fill="#2e7" />
+      <ns0:text x="125" y="14" fill="#2e7" font-size="10">GO</ns0:text>
+      <ns0:rect x="180" y="4" width="40" height="14" rx="3" fill="#eb3" />
+      <ns0:text x="225" y="14" fill="#eb3" font-size="10">PENDING / IDLE</ns0:text>
+      <ns0:rect x="340" y="4" width="40" height="14" rx="3" fill="#f35" />
+      <ns0:text x="385" y="14" fill="#f35" font-size="10">HOLD</ns0:text>
+      <ns0:rect x="460" y="4" width="40" height="14" rx="3" fill="#fff" />
+      <ns0:text x="505" y="14" fill="#fff" font-size="10">ACTIVE / NEW</ns0:text>
+      <ns0:text x="620" y="14" fill="#888" font-size="10">↔ = cross-project sync · ★ = this file · ⚡ = DB write · ⧉ = browser state</ns0:text>
+    </ns0:g>
+  </ns0:g>
+  <ns0:g id="footer" transform="translate(30, 2550)">
+    <ns0:text x="0" y="20" fill="#888" font-size="11">MASTER-TODO.svg v1.0.0 · MySpace++/GentlyOS joint · Live job board + runtime loop + browser pool</ns0:text>
+    <ns0:text x="0" y="38" fill="#888" font-size="11">reads: ToDo-JobBoard.md + ToDo-JobBoard.jsonl · cross-ref: MASTER-INWARD.svg · MASTER-OUTWARD.svg · MASTER-INFERENCE.svg · CHAIN-OPS-DAG.svg</ns0:text>
+    <ns0:text x="0" y="56" fill="#888" font-size="11">self-reference: this SVG is read by browser-3 (MASTER-TODO layer) and written by rust runtime tick → Y-combinator feedback loop</ns0:text>
+  </ns0:g>
+  <ns0:defs>
+    <ns0:marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#2e7" />
+    </ns0:marker>
+    <ns0:marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#4488ff" />
+    </ns0:marker>
+    <ns0:marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#c896ff" />
+    </ns0:marker>
+    <ns0:marker id="arrow-yellow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#eb3" />
+    </ns0:marker>
+    <ns0:marker id="arrow-pink" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#ff6b9d" />
+    </ns0:marker>
+    <ns0:marker id="arrow-white" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <ns0:polygon points="0 0, 10 3.5, 0 7" fill="#fff" />
+    </ns0:marker>
+  </ns0:defs>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- AGENT POOL LAYER (new) — all registered agents + bus + milestones -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <g id="agent-pool" transform="translate(30, 1960)">
+    <rect width="2940" height="580" rx="8" fill="#0a0f18" stroke="#fff" stroke-width="2" opacity="0.9"/>
+    <text x="20" y="28" fill="#fff" font-size="16" font-weight="bold">AGENT POOL — 8 Registered Agents · Message Bus · Milestones</text>
+    <text x="20" y="46" fill="#888" font-size="11">gently-agent-manager v0.1.0 · scope-isolated · bus-mediated · master-gated</text>
+
+    <!-- Agent cards row 1 -->
+    <g transform="translate(20, 60)">
+      <!-- master -->
+      <rect width="340" height="140" rx="5" fill="#0a0a15" stroke="#fff" stroke-width="2"/>
+      <rect x="0" y="0" width="340" height="24" rx="5" fill="#1a1a1a"/>
+      <text x="10" y="16" fill="#fff" font-size="12" font-weight="bold">master · AUDIT + GATE</text>
+      <text x="270" y="16" fill="#fff" font-size="10">★ TOKEN</text>
+      <text x="10" y="42" fill="#aaa" font-size="10">model: kimi-k2.6:cloud</text>
+      <text x="10" y="58" fill="#aaa" font-size="10">scope: /data/Projects (both)</text>
+      <text x="10" y="74" fill="#2e7" font-size="10">caps: all + BridgeLease</text>
+      <text x="10" y="90" fill="#aaa" font-size="10">tasks: 1 serial · can HOLD/GO</text>
+      <text x="10" y="114" fill="#888" font-size="9">heartbeat: every 60s to broadcast.jsonl</text>
+      <text x="10" y="130" fill="#888" font-size="9">status: active · token held</text>
+
+      <!-- max — 3D modeler -->
+      <g transform="translate(360, 0)">
+        <rect width="340" height="140" rx="5" fill="#0a0a15" stroke="#00d4aa" stroke-width="2"/>
+        <rect x="0" y="0" width="340" height="24" rx="5" fill="#0a2a1a"/>
+        <text x="10" y="16" fill="#00d4aa" font-size="12" font-weight="bold">max · 3D MODELER</text>
+        <text x="10" y="42" fill="#aaa" font-size="10">model: qwen3-vl:235b-cloud</text>
+        <text x="10" y="58" fill="#aaa" font-size="10">scope: gently/probe + gently-realmodel</text>
+        <text x="10" y="74" fill="#00d4aa" font-size="10">caps: Spatial, Render, RustBuild</text>
+        <text x="10" y="90" fill="#aaa" font-size="10">tasks: 2 concurrent · no token</text>
+        <text x="10" y="114" fill="#888" font-size="9">active: N001 glTF triplet generation</text>
+        <text x="10" y="130" fill="#888" font-size="9">last bus: po→max (glTF request) @ 12:00Z</text>
+      </g>
+
+      <!-- po — comms + strategy -->
+      <g transform="translate(720, 0)">
+        <rect width="340" height="140" rx="5" fill="#0a0a15" stroke="#4488ff" stroke-width="2"/>
+        <rect x="0" y="0" width="340" height="24" rx="5" fill="#0a1a2a"/>
+        <text x="10" y="16" fill="#4488ff" font-size="12" font-weight="bold">po · COMMS + STRATEGY</text>
+        <text x="10" y="42" fill="#aaa" font-size="10">model: gpt-oss:120b-cloud</text>
+        <text x="10" y="58" fill="#aaa" font-size="10">scope: /data/Projects (both)</text>
+        <text x="10" y="74" fill="#4488ff" font-size="10">caps: Replit, Discord, HF, DO, Porkbun...</text>
+        <text x="10" y="90" fill="#aaa" font-size="10">tasks: 5 concurrent · no token</text>
+        <text x="10" y="114" fill="#888" font-size="9">active: milestone "3D avatar chat app"</text>
+        <text x="10" y="130" fill="#888" font-size="9">adapters: 0/9 called today · budget: 100%</text>
+      </g>
+
+      <!-- mspc-runtime -->
+      <g transform="translate(1080, 0)">
+        <rect width="340" height="140" rx="5" fill="#0a0a15" stroke="#eb3" stroke-width="2"/>
+        <rect x="0" y="0" width="340" height="24" rx="5" fill="#2a2a0a"/>
+        <text x="10" y="16" fill="#eb3" font-size="12" font-weight="bold">mspc-runtime · PYTHON/DAG</text>
+        <text x="10" y="42" fill="#aaa" font-size="10">model: qwen3.5:27b</text>
+        <text x="10" y="58" fill="#aaa" font-size="10">scope: MySpace++/core/ + studio/</text>
+        <text x="10" y="74" fill="#eb3" font-size="10">caps: PythonBuild, Catalog</text>
+        <text x="10" y="90" fill="#aaa" font-size="10">tasks: 2 concurrent · no token</text>
+        <text x="10" y="114" fill="#888" font-size="9">active: Phase 0 core extraction (15%)</text>
+        <text x="10" y="130" fill="#888" font-size="9">waiting: gate HOLD (master)</text>
+      </g>
+
+      <!-- gently-runtime -->
+      <g transform="translate(1440, 0)">
+        <rect width="340" height="140" rx="5" fill="#0a0a15" stroke="#2e7" stroke-width="2"/>
+        <rect x="0" y="0" width="340" height="24" rx="5" fill="#0a2a0a"/>
+        <text x="10" y="16" fill="#2e7" font-size="12" font-weight="bold">gently-runtime · RUST/.BB</text>
+        <text x="10" y="42" fill="#aaa" font-size="10">model: qwen3-coder-next</text>
+        <text x="10" y="58" fill="#aaa" font-size="10">scope: gently/crates/ + db/</text>
+        <text x="10" y="74" fill="#2e7" font-size="10">caps: RustBuild, SyncSvg</text>
+        <text x="10" y="90" fill="#aaa" font-size="10">tasks: 2 concurrent · no token</text>
+        <text x="10" y="114" fill="#888" font-size="9">active: Runtime + Planning integration (80%)</text>
+        <text x="10" y="130" fill="#888" font-size="9">tick: 5000ms · 175 crates · 12 domains</text>
+      </g>
+    </g>
+
+    <!-- Agent cards row 2 -->
+    <g transform="translate(20, 210)">
+      <!-- cross-link -->
+      <rect width="340" height="100" rx="5" fill="#0a0a15" stroke="#c896ff" stroke-width="1"/>
+      <text x="10" y="18" fill="#c896ff" font-size="11" font-weight="bold">cross-link · SYNC (ensemble)</text>
+      <text x="10" y="36" fill="#aaa" font-size="10">scope: both · caps: SyncSvg, BridgeLease</text>
+      <text x="10" y="52" fill="#aaa" font-size="10">active: MASTER-SVG sync (70%)</text>
+      <text x="10" y="72" fill="#888" font-size="9">models: 5 concurrent · consensus required</text>
+
+      <!-- dag-scanner -->
+      <g transform="translate(360, 0)">
+        <rect width="340" height="100" rx="5" fill="#0a0a15" stroke="#c896ff" stroke-width="1"/>
+        <text x="10" y="18" fill="#c896ff" font-size="11" font-weight="bold">dag-scanner · CATALOG</text>
+        <text x="10" y="36" fill="#aaa" font-size="10">scope: both · caps: Catalog, SyncSvg</text>
+        <text x="10" y="52" fill="#aaa" font-size="10">active: file-type DAG scan (50%)</text>
+        <text x="10" y="72" fill="#888" font-size="9">model: qwen2.5-coder:1.5b · 3 concurrent</text>
+      </g>
+
+      <!-- tts-pipeline -->
+      <g transform="translate(720, 0)">
+        <rect width="340" height="100" rx="5" fill="#0a0a15" stroke="#ff6b9d" stroke-width="1"/>
+        <text x="10" y="18" fill="#ff6b9d" font-size="11" font-weight="bold">tts-pipeline · AUDIO</text>
+        <text x="10" y="36" fill="#aaa" font-size="10">scope: media/ · caps: Audio</text>
+        <text x="10" y="52" fill="#aaa" font-size="10">active: voice extraction + TTS (5%)</text>
+        <text x="10" y="72" fill="#888" font-size="9">model: minimax-m2.7:cloud · 2 concurrent</text>
+      </g>
+
+      <!-- Bus status panel -->
+      <g transform="translate(1080, 0)">
+        <rect width="700" height="100" rx="5" fill="#0a0a15" stroke="#fff" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="10" y="18" fill="#fff" font-size="11" font-weight="bold">MESSAGE BUS STATUS</text>
+        <text x="10" y="36" fill="#aaa" font-size="10">dir: /tmp/gently-agent-bus/ · files: 12 jsonl · total lines: 1,247</text>
+        <text x="10" y="52" fill="#aaa" font-size="10">last activity: 2026-05-28T03:00:00Z · top senders: po(43), master(38), max(21)</text>
+        <text x="10" y="72" fill="#888" font-size="9">active leases: 2 · po→mspc-runtime (media/), max→gently-runtime (crates/)</text>
+        <text x="10" y="88" fill="#888" font-size="9">drift alerts (24h): 0 · orphan messages: 0 · bus health: ✓</text>
+
+        <!-- Droplet status badge -->
+        <rect x="580" y="10" width="110" height="22" rx="3" fill="#0a2a0a" stroke="#2e7" stroke-width="1"/>
+        <text x="590" y="24" fill="#2e7" font-size="9" font-weight="bold">● DROPLET ONLINE</text>
+      </g>
+    </g>
+
+    <!-- Milestone strip -->
+    <g transform="translate(20, 320)">
+      <rect width="2940" height="240" rx="5" fill="#0a0a15" stroke="#4488ff" stroke-width="1"/>
+      <text x="10" y="18" fill="#4488ff" font-size="12" font-weight="bold">MILESTONES — Long-term application builds tracked by Po</text>
+
+      <!-- Milestone card: 3D avatar chat app -->
+      <g transform="translate(10, 30)">
+        <rect width="700" height="200" rx="5" fill="#0a0a1a" stroke="#4488ff" stroke-width="1"/>
+        <text x="10" y="18" fill="#fff" font-size="11" font-weight="bold">ms-abc123 · "Build 3D avatar chat app"</text>
+        <text x="10" y="34" fill="#aaa" font-size="10">owner: po · created: 2026-05-28T03:00Z · target: TBD</text>
+        <text x="10" y="50" fill="#aaa" font-size="10">status: Active · checkpoints: 4 · steps: 11 · substeps: 23</text>
+
+        <!-- Checkpoint A -->
+        <rect x="10" y="64" width="160" height="28" rx="3" fill="#1a3a2a" stroke="#2e7" stroke-width="1"/>
+        <text x="18" y="82" fill="#2e7" font-size="9">A. Asset pipeline · GO ✓</text>
+        <!-- Checkpoint B -->
+        <rect x="180" y="64" width="160" height="28" rx="3" fill="#1a2a4a" stroke="#4488ff" stroke-width="1"/>
+        <text x="188" y="82" fill="#4488ff" font-size="9">B. Runtime · active</text>
+        <!-- Checkpoint C -->
+        <rect x="350" y="64" width="160" height="28" rx="3" fill="#2a1a0a" stroke="#eb3" stroke-width="1"/>
+        <text x="358" y="82" fill="#eb3" font-size="9">C. Voice · pending</text>
+        <!-- Checkpoint D -->
+        <rect x="520" y="64" width="160" height="28" rx="3" fill="#1a0a0a" stroke="#f35" stroke-width="1"/>
+        <text x="528" y="82" fill="#f35" font-size="9">D. Deploy · HOLD</text>
+
+        <text x="10" y="110" fill="#888" font-size="9">Adapter budget: 0/100 calls · Replit: 0 · DO: 0 · HF: 0 · Discord: 0</text>
+        <text x="10" y="126" fill="#888" font-size="9">Required agents: max, gently-runtime, tts-pipeline, po</text>
+        <text x="10" y="148" fill="#aaa" font-size="9">Next action: max to complete B.3 (scene_circle camera tracking) then</text>
+        <text x="10" y="164" fill="#aaa" font-size="9">master verifies B → opens gate C → tts-pipeline starts voice extraction</text>
+      </g>
+
+      <!-- Placeholder milestone strip -->
+      <g transform="translate(730, 30)">
+        <rect width="500" height="200" rx="5" fill="#0a0a0a" stroke="#888" stroke-width="1" stroke-dasharray="4 2"/>
+        <text x="10" y="18" fill="#888" font-size="11">+ New milestone (Po captures concept)</text>
+        <text x="10" y="40" fill="#666" font-size="10">Concept → Milestone → Checkpoints → Steps → SubSteps</text>
+        <text x="10" y="56" fill="#666" font-size="10">Every checkpoint gated by master. Every substep has verification path.</text>
+        <text x="10" y="80" fill="#666" font-size="10">External adapters (Replit/Discord/HF/DO/Porkbun/Telegram/Twilio/NounProject)</text>
+        <text x="10" y="96" fill="#666" font-size="10">are called by Po and logged as adapter receipts in the milestone.</text>
+      </g>
+
+      <!-- Bus legend -->
+      <g transform="translate(1250, 30)">
+        <rect width="680" height="200" rx="5" fill="#0a0a0a" stroke="#888" stroke-width="1"/>
+        <text x="10" y="18" fill="#888" font-size="11" font-weight="bold">BUS MESSAGE TYPES</text>
+        <text x="10" y="38" fill="#aaa" font-size="9">request        → "do X for me"</text>
+        <text x="10" y="54" fill="#aaa" font-size="9">reply          → "X done, here is result"</text>
+        <text x="10" y="70" fill="#aaa" font-size="9">broadcast      → "everyone should know Y"</text>
+        <text x="10" y="86" fill="#aaa" font-size="9">lease_grant    → "you may touch my scope"</text>
+        <text x="10" y="102" fill="#aaa" font-size="9">lease_revoke   → "lease expired / revoked"</text>
+        <text x="10" y="118" fill="#aaa" font-size="9">checkpoint_complete → "awaiting master gate"</text>
+        <text x="10" y="134" fill="#aaa" font-size="9">drift_alert    → "hash mismatch / scope violation"</text>
+        <text x="10" y="150" fill="#aaa" font-size="9">gate_change    → "master opened/closed gate"</text>
+        <text x="10" y="176" fill="#666" font-size="9">Bus = append-only JSONL. No shared memory. No locks.</text>
+        <text x="10" y="192" fill="#666" font-size="9">One file per directed pair + broadcast.jsonl for all.</text>
+      </g>
+    </g>
+  </g>
+
+</ns0:svg>

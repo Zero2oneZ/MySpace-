@@ -1,0 +1,82 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "spatial_anchor",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · MR_SPATIAL_RECONSTRUCTION",
+  "tier": "L0",
+  "module_path": "core/lib/spatial_anchor.py",
+  "implementation_status_2026_05_28": "MATH SUBSTRATE ACTIVE. Hardware capture layer (Web Audio API + Wi-Fi RTT API) remains TEXT-PLACEHOLDER. Synthetic-input pipeline fully tested.",
+  "summary": "The bridge from screen-bound rendering to physical-world rendering. Fuses three telemetry streams — acoustic echo (ultrasonic pings → wall distances), Wi-Fi RTT + GPS (cm-precision indoor position), and GPU coordinate graph (existing Godot + Remotion + SVG embeddings) — into a single coordinate origin anchored to a physical room. The avatar knows the floor. Textures snap onto real walls. Render target IS the room.",
+  "engine_pattern": "deterministic sensor fusion + coordinate transform. Acoustic time-of-arrival → triangulated wall mesh; Wi-Fi RTT → (x,y,z) within cm; merged into a 4×4 spatial transform that becomes the origin for every workflow_card render. Same crystal-chain pattern as time_vec — every spatial anchor event is a recorded crystal.",
+  "telemetry_streams": {
+    "acoustic_echo_map": {
+      "input": "ultrasonic impulse via Meta Glasses or local transceiver",
+      "math": "wall_distance_m = (ping_time_s * 343) / 2",
+      "output": "vector of distances to each detected surface (typically 4-6 walls + ceiling + floor)",
+      "embedding_axis": "matches wave_emb shape — DCT-II of distance vector gives a 'room signature'"
+    },
+    "wifi_rtt_position": {
+      "input": "Wi-Fi Round-Trip-Time to nearby APs + optional GPS",
+      "output": "(x, y, z, heading) in cm precision indoors, m outdoors",
+      "embedding_axis": "extends time_vec — 4 scalars sin/cos encoded same way as timestamp"
+    },
+    "coord_graph": {
+      "input": "acoustic_echo_map + wifi_rtt_position + Godot scene transforms + SVG bboxes",
+      "output": "unified 4×4 affine transform stack (room → scene → assets)",
+      "embedding_axis": "geometry_crystal — same shape-family lens as SVG, but applied to room mesh"
+    }
+  },
+  "rendering_inversion": {
+    "old_paradigm": "draw 3D model INSIDE viewport → pixel output → screen",
+    "new_paradigm": "map vector coordinates DIRECTLY onto physical room boundaries → output via WebXR / Meta Glasses HUD",
+    "code_pattern": "CSS transform: translate3d(targetX_real_meters * scale, targetY, targetZ_real_meters * scale)  + rotateY(heading_real_world)"
+  },
+  "exports": [
+    "(planned) SpatialAnchor dataclass — {origin_xyz, heading, wall_mesh, room_id, anchor_crystal}",
+    "(planned) AcousticEcho — ultrasonic ping + ToA → wall_distances",
+    "(planned) WifiRTTBeacon — round-trip-time → position",
+    "(planned) CoordGraph — merge sensor streams → unified transform",
+    "(planned) RealWorldRenderer — project workflow_card outputs onto physical surfaces"
+  ],
+  "substrate": "physical_room (real-world coordinates anchored to crystal chain)",
+  "routing_connections": {
+    "inbound_callers": [
+      "(planned) workflow_card *_xr surface (new) — Meta Glasses + WebXR target",
+      "(planned) Godot Studio when run in AR mode — anchors scene origin to spatial_anchor",
+      "(planned) Remotion overlay mode — renders captions/labels onto physical walls"
+    ],
+    "outbound_calls": [
+      "navigator.xr (WebXR — already detected in studio/godot/project src code)",
+      "Web Audio API (for ultrasonic ping emission/detection)",
+      "Wi-Fi RTT API (modern Chromium on Linux/Android)",
+      "GeolocationAPI (coarse position fallback)"
+    ],
+    "substrate_reads": "live sensor streams (audio, radio, GPS)",
+    "substrate_writes": "spatial_anchor events into the crystal chain (tier='spatial')"
+  },
+  "joins_existing_substrate": {
+    "vector_axis":   "spatial_origin_hash via BLAKE3 — same retrieval pattern as moe_router",
+    "wave_axis":     "DCT of acoustic_echo distances = 'room signature' — find similar rooms past harvested",
+    "time_axis":     "spatial_anchor events get same forward/inverted sin/cos encoding as inference timestamps",
+    "sentence_axis": "room descriptions ('living room with hardwood floor and bay window') feed sentence_chain",
+    "svg_axis":      "wall mesh exported as SVG floor plan → svg_vector_embed → geometry_crystal",
+    "antithesis":    "find rooms OPPOSITE in shape/echo signature — e.g., open-plan vs subdivided"
+  },
+  "the_two_lands_thesis": "DIGI LAND = the screen, Godot viewport, browser canvas. ME LAND = physical room measured by audio + radio. The coord_graph welds them into one continuous coordinate space. Everything the Studio renders can land in either, depending on the target surface.",
+  "use_case_realestate": "Friend walks into client's home → Meta Glasses fires ultrasonic sweep → wall mesh built in <2s → workflow_card mr_walkthrough renders the planned renovation (new paint, furniture placement, wall removal) directly onto her view of the real room → client sees AS-IF preview in their actual space.",
+  "use_case_avatar":    "Photo-to-avatar workflow renders the rigged mesh ANCHORED to physical floor (not clipping through couch, not floating). Real interaction.",
+  "guarantees": [
+    "Deterministic merge — same telemetry streams + same room → same spatial_anchor crystal",
+    "Tamper-evident — every anchor event blake3-chained like inference records",
+    "Privacy-preserving — telemetry stays local; only the room signature crystal goes to network if user opts in",
+    "Graceful degradation — when Wi-Fi RTT unavailable, falls back to acoustic-only (with reduced precision)"
+  ],
+  "next_wedge": "Build core/lib/spatial_anchor.py with the AcousticEcho + WifiRTTBeacon + CoordGraph dataclasses (math from the user's pseudocode). Spec a workflow_card category 'mr_walkthrough' that adds an 'xr' surface to the workflow_generator (8th surface).",
+  "chain_runs": ["moe_chain_router_v0"]
+}

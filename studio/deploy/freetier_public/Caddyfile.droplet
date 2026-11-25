@@ -1,0 +1,163 @@
+# ────────────────────────────────────────────────────────────────────────────
+# MySpace++ freetier public surface — Caddy reverse proxy
+# ────────────────────────────────────────────────────────────────────────────
+# Place at: /etc/caddy/Caddyfile.d/mspc-freetier-public  on the droplet
+# (and include it from the main Caddyfile: import /etc/caddy/Caddyfile.d/*)
+#
+# Caddy auto-acquires TLS certs via Let's Encrypt for both domains.
+# Both servers (freetier_callback :8540, model_api :8521) bind ONLY on
+# 127.0.0.1 — Caddy is the only thing the public sees.
+# ────────────────────────────────────────────────────────────────────────────
+
+# Common header snippet (forwarded info for both backends)
+(forwarded) {
+    header_up X-Forwarded-For   {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host  {host}
+    header_up Host              {host}
+}
+
+# ────────────────────────────────────────────────────────────────────────────
+# Godot Instant Games static-serving snippet (FB Instant Games compliant)
+# ────────────────────────────────────────────────────────────────────────────
+# Used inside the /play/* handle blocks for both trollz.fun and GentlyOS.io.
+# COEP/COOP are mandatory for WebAssembly SharedArrayBuffer (Godot 4 threads).
+# CORP=cross-origin so Facebook can iframe us. CSP frame-ancestors allows the
+# game to be embedded inside facebook.com and messenger.com surfaces.
+# Static files served from /opt/mspc-public/games/<game_slug>/.
+(games_headers) {
+    header {
+        Cross-Origin-Embedder-Policy   "require-corp"
+        Cross-Origin-Opener-Policy     "same-origin"
+        Cross-Origin-Resource-Policy   "cross-origin"
+        Content-Security-Policy        "frame-ancestors 'self' https://www.facebook.com https://*.facebook.com https://www.messenger.com"
+        X-Content-Type-Options         "nosniff"
+        Referrer-Policy                "no-referrer-when-downgrade"
+        # Caching: aggressive for hashed assets, short for the entry HTML
+        Cache-Control                  "public, max-age=3600"
+    }
+}
+
+# MIME overrides — Caddy's defaults are mostly right, but .wasm must be
+# application/wasm for streaming compilation, and a couple of Godot-specific
+# extensions are not in the default mime map.
+(games_mime) {
+    @wasm  path *.wasm
+    @pck   path *.pck
+    @data  path *.data
+    @audio_worklet path *.audio.worklet.js
+    header @wasm  Content-Type "application/wasm"
+    header @pck   Content-Type "application/octet-stream"
+    header @data  Content-Type "application/octet-stream"
+    header @audio_worklet Content-Type "text/javascript"
+}
+
+# ────────────────────────────────────────────────────────────────────────────
+# trollz.fun — primary product front
+# ────────────────────────────────────────────────────────────────────────────
+trollz.fun, www.trollz.fun {
+    encode gzip
+
+    # /terms/policies/callback — POST acceptance + token issuance
+    handle_path /terms/policies/callback* {
+        reverse_proxy 127.0.0.1:8540 {
+            import forwarded
+        }
+    }
+
+    # /terms (and /terms/...) — public terms + policies pages
+    handle /terms* {
+        reverse_proxy 127.0.0.1:8540 {
+            import forwarded
+        }
+    }
+
+    # /v1/* — proprietary model API (text/code/embed)
+    handle /v1/* {
+        reverse_proxy 127.0.0.1:8521 {
+            import forwarded
+        }
+    }
+
+    # /healthz — proxied to callback (it answers for both Host families)
+    handle /healthz {
+        reverse_proxy 127.0.0.1:8540 {
+            import forwarded
+        }
+    }
+
+    # /play/* — Godot Instant Games HTML5 static builds
+    # Layout on droplet: /opt/mspc-public/games/<game_slug>/index.html
+    # FB Instant Games requirements: COEP require-corp + COOP same-origin
+    # (enables SharedArrayBuffer / Godot 4 threaded WebAssembly).
+    handle_path /play/* {
+        root * /opt/mspc-public/games
+        import games_headers
+        import games_mime
+        file_server {
+            index index.html
+        }
+    }
+
+    # Catch-all: redirect to the public terms entry point
+    handle {
+        redir / /terms/ 302
+        respond "trollz.fun — see /terms/ for public surface" 404
+    }
+
+    log {
+        output file /var/log/caddy/mspc-trollz.log
+        format json
+    }
+}
+
+# ────────────────────────────────────────────────────────────────────────────
+# GentlyOS.io — substrate / developer front
+# ────────────────────────────────────────────────────────────────────────────
+GentlyOS.io, www.GentlyOS.io {
+    encode gzip
+
+    # /endpoint/freetier/* — full namespace for callback server
+    handle_path /endpoint/freetier/* {
+        reverse_proxy 127.0.0.1:8540 {
+            import forwarded
+        }
+    }
+
+    # /v1/* — same model API surface as trollz
+    handle /v1/* {
+        reverse_proxy 127.0.0.1:8521 {
+            import forwarded
+        }
+    }
+
+    # /healthz — proxied to callback
+    handle /healthz {
+        reverse_proxy 127.0.0.1:8540 {
+            import forwarded
+        }
+    }
+
+    # /play/* — Godot Instant Games HTML5 static builds
+    # Layout on droplet: /opt/mspc-public/games/<game_slug>/index.html
+    # FB Instant Games requirements: COEP require-corp + COOP same-origin
+    # (enables SharedArrayBuffer / Godot 4 threaded WebAssembly).
+    handle_path /play/* {
+        root * /opt/mspc-public/games
+        import games_headers
+        import games_mime
+        file_server {
+            index index.html
+        }
+    }
+
+    # Catch-all: friendly 404 (no implicit redirect — GentlyOS.io is a dev front)
+    handle {
+        respond "GentlyOS.io — developer surface. See /endpoint/freetier/terms/" 404
+    }
+
+    log {
+        output file /var/log/caddy/mspc-gentlyos.log
+        format json
+    }
+}

@@ -1,0 +1,196 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "workspace_stack",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "The Loom shell as workflow_card IR. A workspace = stacked morph.engine cards in a body, where every control is categorized by its zone, object, and blast radius. The three-zone law is structural, not cosmetic: card navbar acts on one engine (view-only, no mutation), left FLOW acts on the whole body/app (semantic + structural, crosses commitment boundaries), top SYSTEMS acts on launches (observe post-commit, no edit). Mixing them is the bug — visual proximity must equal scope. Canonical shell is studio/loom/morph_engine.html.",
+
+  "inputs": [
+    {"name": "stack", "type": "list[node_ref]", "required": true,
+      "notes": "Ordered list (top → bottom) of {name, kind, card_id}. kind ∈ {morph_engine, pipeline, scope, blend_engine, engine_morpher, leaf}"},
+    {"name": "title", "type": "str", "required": false, "default": "loom.workspace"},
+    {"name": "cascade", "type": "str", "required": false, "default": "top_down",
+      "notes": "Inter-engine evaluation flow. Bottom-up within one engine; top-down between engines."},
+    {"name": "auto_open_top", "type": "bool", "required": false, "default": true}
+  ],
+
+  "outputs": [
+    {"name": "html_path", "type": "path"},
+    {"name": "godot_scene_path", "type": "path"},
+    {"name": "composition_crystal", "type": "str"}
+  ],
+
+  "zones": [
+    {
+      "zone": "card_navbar",
+      "position": "inside_each_card",
+      "object": "one_engine",
+      "axis": "depth",
+      "effect_type": "view_only",
+      "mutates_model": false,
+      "reversibility": "instant",
+      "commitment_boundary": false,
+      "controls": [
+        {"id": "view.modifier", "kind": "toggle", "domain": "card.view"},
+        {"id": "view.engine",   "kind": "toggle", "domain": "card.view"},
+        {"id": "view.scaffold", "kind": "toggle", "domain": "card.view"},
+        {"id": "view.scene",    "kind": "toggle", "domain": "card.view"}
+      ],
+      "law": "A control here changes which panes you see on ONE card. Geometry + data are identical after every toggle. Local, non-destructive, reversible."
+    },
+    {
+      "zone": "left_flow",
+      "position": "left_shelf",
+      "object": "whole_body_or_app",
+      "axis": "breadth_plus_lifecycle",
+      "effect_type": "semantic_and_structural",
+      "mutates_model": true,
+      "reversibility": "mixed",
+      "commitment_boundary": true,
+      "controls": [
+        {"id": "flow.eval",     "kind": "tristate", "values": ["isolate", "full", "freeze"],
+         "domain": "body.global",
+         "rationale": "evaluation cutoff is a chain property; engine A's export into B can't be card-local"},
+        {"id": "flow.routing",  "kind": "toggle",   "domain": "body.graph",
+         "rationale": "circle routing is a relationship BETWEEN engines (last out → first in); no engine owns it"},
+        {"id": "flow.collapse_to_nodes", "kind": "toggle", "domain": "body.layout",
+         "rationale": "re-lays-out the entire body; body-level not card-level"},
+        {"id": "flow.branch",   "kind": "action",   "domain": "app.lineage",
+         "rationale": "forks all engines into a new app lineage; one level above any engine",
+         "irreversible": false, "creates_lineage": true},
+        {"id": "flow.launch",   "kind": "action",   "domain": "app.lifecycle",
+         "rationale": "crosses PRESENT→PAST: editable → hashed/running; same temporal law as the .bb crystal chain",
+         "irreversible": true, "crosses_commitment_boundary": true}
+      ],
+      "law": "Acts on relationships between engines or the app as a whole. The only zone that crosses commitment boundaries — branch creates lineage, launch hashes the body. Putting a commitment operator next to a view toggle would tell the user they're the same kind of action; they categorically are not."
+    },
+    {
+      "zone": "top_systems",
+      "position": "top_ribbon",
+      "object": "launch",
+      "axis": "lifespan",
+      "effect_type": "observe_only",
+      "mutates_model": false,
+      "reversibility": "n/a",
+      "commitment_boundary": false,
+      "post_commit": true,
+      "controls": [
+        {"id": "systems.launchchip", "kind": "select", "domain": "launches",
+         "shows": ["name", "hash", "uptime", "address"]},
+        {"id": "systems.fork_to_body", "kind": "action", "domain": "launch_snapshot",
+         "rationale": "copies a frozen launch snapshot BACK into an editable body — the only path from post-commit to PRESENT"}
+      ],
+      "law": "Acts on launches — running things you read, never edit. A different lifecycle phase entirely. The fork action is the only escape hatch from post-commit; it re-enters PRESENT as a new lineage."
+    }
+  ],
+
+  "passes": [
+    {
+      "id": "validate_stack",
+      "agent": "kernel_registry",
+      "model_path": "core/lib/kernel_registry.py::resolve",
+      "engine": "deterministic",
+      "in": ["stack"],
+      "out": "validated_stack",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Every node's kind must resolve in the registry. Unknown kinds → reject with reasons[]."
+    },
+    {
+      "id": "validate_zones",
+      "agent": "workspace_zone_validator",
+      "model_path": "core/lib/workspace_zone_validator.py::validate",
+      "engine": "deterministic",
+      "in": ["zones"],
+      "out": "zone_report",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Categorical safety gate. Reject if (a) a control's domain doesn't match its zone's object, (b) a mutates_model=false zone declares an action that touches body/app state, (c) a commitment_boundary=true control sits outside the left_flow zone. Same shape as kernel_registry.resolve — a closed safety set."
+    },
+    {
+      "id": "emit_workspace_html",
+      "agent": "workflow_generator",
+      "model_path": "core/lib/workflow_generator.py::gen_streamlit",
+      "engine": "deterministic",
+      "in": ["validated_stack", "title", "cascade", "zones"],
+      "out": "html_path",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Jinja2 template emits studio/loom/workspace_<crystal>.html. Template clones the morph_engine.html shell (top ribbon = systems, left shelf = flow, body = stacked cards, per-card cardnav = view). Zone position is structurally enforced — controls cannot leak into wrong zones."
+    },
+    {
+      "id": "emit_godot_scene",
+      "agent": "godot_element_compiler",
+      "model_path": "core/lib/godot_element_compiler.py::compile_tscn",
+      "engine": "deterministic",
+      "in": ["validated_stack", "zones"],
+      "out": "godot_scene_path",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Same composition rendered as a Godot 4 scene_tree with 3 sibling Control roots — TopRibbon (SystemsView), LeftShelf (FlowControls), BodyFeed (CardStack). Per-card view toggles live INSIDE each SubViewport so they cannot reach across to siblings."
+    },
+    {
+      "id": "anchor_composition",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["validated_stack", "zones"],
+      "out": "composition_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='loom_composition'. Coords carry [card_count, zone_count=3, commitment_boundary_count, launch_actions_count]. The launch crystal anchored here is the body's PRESENT→PAST transition record."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "card_navbar_zone", "source": "zone:card_navbar", "blend": "alpha",
+     "rationale": "view-only — composites without mutating underlying"},
+    {"name": "body_cards",       "source": "pass:validate_stack", "blend": "base",
+     "rationale": "the body itself — the substrate the other zones act on"},
+    {"name": "left_flow_zone",   "source": "zone:left_flow", "blend": "additive",
+     "rationale": "structural mutations that change body shape + lifecycle"},
+    {"name": "top_systems_zone", "source": "zone:top_systems", "blend": "screen",
+     "rationale": "post-commit overlay — observable launches above the editing surface"}
+  ],
+
+  "surfaces": {
+    "html_shell": {
+      "canonical": "studio/loom/morph_engine.html",
+      "embodies_three_zones": true,
+      "ribbon_selector": "#ribbon",
+      "shelf_selector":  "#shelf",
+      "body_selector":   "#feed",
+      "cardnav_selector": ".cardnav"
+    },
+    "streamlit": {
+      "template": "templates/workspace_stack_proto.py.j2",
+      "out_path": "studio/web/streamlit/workspace_stack.py"
+    },
+    "godot": {
+      "language": "gd",
+      "scene": "templates/workspace_stack_scene.tscn.j2",
+      "script": "templates/workspace_stack_controller.gd.j2",
+      "out_scene": "studio/godot/project/scenes/workspace_stack.tscn",
+      "out_script": "studio/godot/project/src/workspace_stack_controller.gd"
+    }
+  },
+
+  "depends_on": [
+    "studio/loom/morph_engine.html (canonical 3-zone shell, 456 lines)",
+    "core/lib/kernel_registry.py (stack node validation)",
+    "core/lib/workspace_zone_validator.py (zone categorical gate — PLANNED)",
+    "core/lib/workflow_generator.py (HTML emit)",
+    "core/lib/godot_element_compiler.py (Godot scene_tree emit)",
+    "core/lib/inference_logger.py (composition + launch crystals)"
+  ],
+
+  "invariants": [
+    "card_navbar.mutates_model === false (any toggle MUST be a pure view)",
+    "left_flow is the ONLY zone with commitment_boundary === true",
+    "top_systems.post_commit === true (read-only on hashed snapshots; fork is the only re-entry)",
+    "no control may declare a domain that crosses zones (e.g. card.view cannot touch body.*)"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "energy_inversion",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · ANTIPODAL_TWIN_AND_HEX_STORAGE",
+  "tier": "L0",
+  "module_path": "core/lib/energy_inversion.py",
+  "summary": "For every L2-normalized embedding (any of the 5 axes: vector/wave/time/sentence/svg), compute the antipodal twin (-vec) and encode both as hex via int8 quantization. The pair (forward_hex, inverted_hex, energy, crystal) is self-verifying via differential-amplifier residual check: byte-wise sign-flip must hold. Adds NEGATION RETRIEVAL — for every forward query, also retrieve the antithesis. Effectively doubles the MoE retrieval surface from 5 axes to 10 (5 forward + 5 inverted) with zero new compute.",
+  "engine_pattern": "stateless transform. int8 quantization → hex pack → optional crystal hash. Same math invariants as the inverted-time arm in tri_modal_embedder, generalized to any embedding.",
+  "the_three_capabilities": {
+    "1_compact_storage": "int8 hex is 1/8 the size of JSON-encoded float64. 64-d vector → 128 hex chars (64 bytes) vs ~1000 chars JSON.",
+    "2_tamper_evident": "Pair (forward_hex, inverted_hex) is byte-wise antipodal. Any single-byte flip breaks the antipodal residual (max_residual jumps from ~0 to >0.1) AND the crystal hash mismatches. Differential-amplifier at every embedding.",
+    "3_negation_retrieval": "For query q, look up matches AGAINST -q to find the antithesis. 'find me modern minimalist' + look at -q → 'find me cluttered traditional'. The chain learns by both proximity AND opposition. Same cost as forward retrieval."
+  },
+  "exports": ["EmbeddingPair", "make_pair", "verify_pair", "to_hex_int8", "from_hex_int8",
+              "invert_vec", "energy_of", "cosine_similarity", "find_antithesis",
+              "hex_pair_for_lookup"],
+  "substrate": "stateless (caller persists hex strings)",
+  "quantization": {
+    "scheme": "int8 symmetric ([-127, 127]) — drops -128 for sign symmetry",
+    "per_component_max_error": 0.00787,
+    "storage_per_64d_vec": "64 bytes / 128 hex chars (forward) + same (inverted) = 256 hex chars per pair"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "tri_modal_embedder (every wave_emb gets an antipodal twin)",
+      "sentence_chain (every sentence_emb gets a twin)",
+      "svg_vector_embed (every svg_path_emb gets a twin)",
+      "tri_modal_embedder.time_vector (already has forward + inverted arms — energy_inversion makes hex-stable)",
+      "(planned) moe_router.find_antithesis on each axis"
+    ],
+    "outbound_calls": ["blake3 / blake2b for pair crystal", "stdlib math only"],
+    "substrate_reads": "none",
+    "substrate_writes": "none"
+  },
+  "smoke_test_results_2026_05_28": {
+    "pair_generation":         "64-d L2-normed vec → 128-char hex forward + 128-char hex inverted + energy=1.0 + 64-char crystal",
+    "verify_clean_pair":       "antipodal_ok=true · max_residual=0.0 · energy_ok=true · crystal_ok=true · all_ok=true",
+    "tamper_one_byte_flip":    "antipodal_ok=false (residual 0.15) · crystal_ok=false · INSTANT detection",
+    "negation_retrieval":      "query q against fake corpus → antipodal beta sim=1.0 · identical alpha sim=-1.0 · orthogonal gamma sim=~0 (correct)"
+  },
+  "what_changes_with_this": {
+    "before": "5 forward retrieval axes: vector / wave / time / sentence / svg",
+    "after":  "10 effective retrieval lenses: 5 forward + 5 antitheses",
+    "storage":"crystal chain records can now carry compact int8 hex twins instead of JSON float arrays — 8× smaller",
+    "verification": "every embedding in the chain has byte-level tamper detection (was only on time vector before)"
+  },
+  "guarantees": [
+    "Deterministic — same vec → same hex pair → same crystal, byte-exact",
+    "Tamper-evident at the byte level (single-byte flip breaks pair)",
+    "Energy-preserving — quantization noise bounded by 1/127 ≈ 0.008 per component",
+    "L2 norm preserved within quantization tolerance",
+    "Pure stdlib — no numpy, no struct, no msgpack"
+  ],
+  "usage_example": "from energy_inversion import make_pair, find_antithesis\\npair = make_pair(my_wave_emb)            # → forward_hex + inverted_hex + crystal\\nantitheses = find_antithesis(query_emb, corpus, k=5)  # negation lens",
+  "chain_runs": ["moe_chain_router_v0"]
+}

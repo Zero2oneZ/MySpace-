@@ -1,0 +1,59 @@
+<h1>Planet map · embed</h1>
+<p class="meta">Godot HTML5 build running inside an iframe. The SDK bridge below relays
+window-messages from the iframe to <code>/dapp/api/fb_event</code> (bearer-gated).</p>
+
+<div class="panel" style="padding:0;overflow:hidden;">
+  <iframe id="godot-frame"
+          src="{embed_src}"
+          width="100%"
+          height="640"
+          style="border:0;display:block;background:#000;"
+          allow="autoplay; fullscreen; gamepad; cross-origin-isolated"
+          referrerpolicy="strict-origin-when-cross-origin"
+          loading="eager"
+          title="planet_map_scene · Godot Instant Games"></iframe>
+</div>
+
+<div class="panel tight">
+  <h3 style="margin-top:0;">Event log
+    <span class="htmx-indicator">…</span>
+  </h3>
+  <div id="event-log" class="meta">
+    (no events yet — interact with the game to see fb_event POSTs land here)
+  </div>
+</div>
+
+<p class="stamp">Iframe src: <code>{embed_src}</code> · bridge: <code>/dapp/play/sdk-bridge.js</code></p>
+
+<script src="/dapp/play/sdk-bridge.js"></script>
+<script>
+(function(){
+  // Window-message bridge: iframe posts {type:'mspc_fb_event', ...} → server POST.
+  var logEl = document.getElementById('event-log');
+  var seen = 0;
+  window.addEventListener('message', function(ev){
+    var msg = ev.data || {};
+    if (!msg || msg.type !== 'mspc_fb_event') { return; }
+    if (!window.MspcDappBridge) { return; }
+    window.MspcDappBridge.sendEvent(
+      msg.event_name || 'unknown',
+      msg.player_id  || '',
+      msg.context_id || '',
+      msg.signed_data|| '',
+      msg.payload    || {}
+    ).then(function(res){
+      seen += 1;
+      var line = document.createElement('div');
+      line.textContent =
+        '[' + seen + '] ' + (msg.event_name || '?') +
+        ' → ' + (res && res.ok ? 'ok' : 'err') +
+        (res && res.crystal ? ' · ' + String(res.crystal).slice(0,12) : '');
+      logEl.appendChild(line);
+    }).catch(function(err){
+      var line = document.createElement('div');
+      line.textContent = 'ERR ' + String(err);
+      logEl.appendChild(line);
+    });
+  }, false);
+})();
+</script>

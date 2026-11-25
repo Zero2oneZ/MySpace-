@@ -1,0 +1,2991 @@
+{
+  "generated_at": "2026-05-28T22:33:37.788270+00:00",
+  "generated_by": "agent J (audit subagent)",
+  "agent_dir": "studio/assets/_agents/agent_defs",
+  "total_cards": 60,
+  "by_state": {
+    "active": 60
+  },
+  "by_tier": {
+    "L0": 60
+  },
+  "by_category": {
+    "SUBSTRATE": 13,
+    "CONNECTOR": 12,
+    "ENGINE": 3,
+    "GATEWAY": 3,
+    "INDEXER": 3,
+    "BRIDGE": 2,
+    "PLATFORM": 2,
+    "REGISTRY": 2,
+    "ROUTER": 2,
+    "ARCHITECTURAL_INVARIANT": 1,
+    "AUTH": 1,
+    "CACHE": 1,
+    "DAEMON": 1,
+    "DEPLOY": 1,
+    "ENHANCER": 1,
+    "GENERATOR": 1,
+    "HTTP": 1,
+    "INBOUND": 1,
+    "INSTALLER": 1,
+    "META-CONNECTOR": 1,
+    "OUTBOUND": 1,
+    "PRIMITIVE": 1,
+    "PROJECTOR": 1,
+    "QUEUE": 1,
+    "SCHEDULER": 1,
+    "SIDECAR": 1,
+    "SURFACE": 1
+  },
+  "headline_counts": {
+    "live": 56,
+    "partial": 1,
+    "blocked_upstream": 3,
+    "smoke_tested": 24,
+    "with_blocking_dependency": 3,
+    "with_cross_half_refs": 6,
+    "with_env_vars": 23,
+    "connectors": 13,
+    "substrates": 13,
+    "missing_module_paths": 2
+  },
+  "cards": [
+    {
+      "name": "blender_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.blender_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 BLENDER_CLAUDE_MCP",
+      "module_paths": [
+        "core/lib/third_party/blender_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "BLENDER_MCP_TOKEN",
+        "BLENDER_MCP_ENDPOINT"
+      ],
+      "expected_tools_count": 15,
+      "exports_count": 2,
+      "tools": [
+        "mesh.create",
+        "mesh.import_fbx",
+        "mesh.export_gltf",
+        "material.set",
+        "material.bake_pbr",
+        "light.add",
+        "camera.set",
+        "scene.list_objects",
+        "scene.clear",
+        "render.image",
+        "render.animation",
+        "bone.list",
+        "bone.set_rotation",
+        "modifier.add",
+        "python.exec"
+      ],
+      "exports": [
+        "BlenderMCPConnector",
+        "EXPECTED_TOOLS"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "studio_runtime",
+        "third_party"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "chat_gateway",
+      "file": "vm_mspc_001.agents.agent_defs.chat_gateway.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "GATEWAY",
+      "role": "GATEWAY \u00b7 DETERMINISTIC_CHAT",
+      "module_paths": [
+        "core/lib/chat.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "CC_SCOPE_CWD",
+        "CC_FORWARD_POSTHOC",
+        "CC_AGENT_UUID",
+        "CC_CORRELATION_ID",
+        "CC_SESSION_ID",
+        "CC_TIMESTAMP"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 12,
+      "tools": [],
+      "exports": [
+        "cmd_enhance",
+        "cmd_route",
+        "cmd_chain",
+        "cmd_full",
+        "cmd_downward",
+        "cmd_godot",
+        "_log_inference",
+        "_read_prev_forward",
+        "_user_graph_predict",
+        "_user_graph_record",
+        "_moe_find_experts",
+        "_posthoc_enabled"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "forward_projector",
+        "inference_logger",
+        "model_registry",
+        "moe_router",
+        "prompt_enhancer",
+        "token_router",
+        "user_graph"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "cloud_providers",
+      "file": "vm_mspc_001.agents.agent_defs.cloud_providers.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "REGISTRY",
+      "role": "REGISTRY \u00b7 UNIFIED_PROVIDER_TAXONOMY",
+      "module_paths": [
+        "core/lib/cloud_providers.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "ProviderSpec",
+        "PROVIDERS",
+        "HF_INFERENCE_SPECS",
+        "get",
+        "pick",
+        "list_by_tier",
+        "list_by_family",
+        "list_by_kind",
+        "list_active"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "model_api",
+        "studio_runtime"
+      ],
+      "phase": "D.7 of lively-enchanting-parrot plan (promoted from #57 Phase 1)",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "comfy_dag",
+      "file": "vm_mspc_001.agents.agent_defs.comfy_dag.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "INDEXER",
+      "role": "INDEXER \u00b7 COMFYUI_NODE_GRAPH",
+      "module_paths": [
+        "core/scripts/comfy_dag.sh"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 1,
+      "tools": [],
+      "exports": [
+        "bash script + python3 AST helpers inline"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "comfyui_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.comfyui_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 COMFYUI_HTTP_WORKFLOW_RUNNER",
+      "module_paths": [
+        "core/lib/third_party/comfyui_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "COMFYUI_BASE_URL",
+        "CC_COMFY_INSTALL"
+      ],
+      "expected_tools_count": 7,
+      "exports_count": 5,
+      "tools": [
+        "submit_workflow",
+        "get_status",
+        "get_history",
+        "download_output",
+        "interrupt",
+        "get_node_info",
+        "system_stats"
+      ],
+      "exports": [
+        "ComfyUIMCPConnector",
+        "EXPECTED_TOOLS",
+        "TEMPLATE_PLACEHOLDERS",
+        "WORKFLOW_TEMPLATE_DIR",
+        "BAKES_DIR"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "studio_runtime",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "dapp_server",
+      "file": "vm_mspc_001.agents.agent_defs.dapp_server.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "HTTP",
+      "role": "HTTP \u00b7 SINGLE_TENANT_DAPP_SURFACE_FOR_SERVICES_MINT_WALLET",
+      "module_paths": [
+        "studio/dapp/server.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "MSPC_DAPP_PORT",
+        "MSPC_DAPP_LOG",
+        "SUI_FALLBACK",
+        "STRIPE_SECRET_KEY",
+        "SUI_WALLET",
+        "TENSORCHAIN_RPC"
+      ],
+      "expected_tools_count": 7,
+      "exports_count": 4,
+      "tools": [
+        "main(port=8520, bind='127.0.0.1')",
+        "DappHandler.do_GET",
+        "DappHandler.do_POST",
+        "_load_products() -> List[Dict]",
+        "_render_product_card(prod) -> str",
+        "_anchor(tier, model, scope, source_file, payload, rc) -> crystal_id",
+        "_fanout_balance(addr) -> {sui, tensorchain}"
+      ],
+      "exports": [
+        "DappHandler",
+        "main",
+        "BRANDING",
+        "MAX_PHOTO_BYTES"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "freetier_gate",
+        "inference_logger",
+        "stripe_mcp",
+        "sui_mcp",
+        "tensorchain_mcp",
+        "third_party"
+      ],
+      "phase": "A.6 \u2014 public dApp surface. Pairs with freetier_callback (auth) + the three connectors (stripe/sui/tensorchain). Next: A.7 IPFS pin + on-chain indexer for /dapp/wallet recent-NFTs.",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "datasets_index",
+      "file": "vm_mspc_001.agents.agent_defs.datasets_index.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "INDEXER",
+      "role": "INDEXER \u00b7 DATASETS_GOLDMINE",
+      "module_paths": [
+        "core/scripts/datasets_index.sh"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 1,
+      "tools": [],
+      "exports": [
+        "bash script + classify() + size_bucket()"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "deepseek_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.deepseek_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 DEEPSEEK_CHEAP_TIER_INFERENCE",
+      "module_paths": [
+        "core/lib/third_party/deepseek_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "DEEPSEEK_API_KEY",
+        "INFERENCE_API_KEY",
+        "DEEPSEEK_BASE_URL",
+        "INFERENCE_BASE_URL"
+      ],
+      "expected_tools_count": 3,
+      "exports_count": 4,
+      "tools": [
+        "chat_complete",
+        "embed",
+        "models_list"
+      ],
+      "exports": [
+        "DeepSeekMCPConnector",
+        "EXPECTED_TOOLS",
+        "KNOWN_MODELS",
+        "DEFAULT_BASE_URL"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "generative_mcp",
+        "inference_logger",
+        "model_api",
+        "studio_runtime",
+        "third_party"
+      ],
+      "phase": "D.2 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "defi_loop",
+      "file": "vm_mspc_001.agents.agent_defs.defi_loop.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "PRIMITIVE",
+      "role": "PRIMITIVE \u00b7 CANONICAL_DEFI_LEVERAGE_LOOP",
+      "module_paths": [
+        "core/lib/defi_loop.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "studio_runtime",
+        "sui_mcp",
+        "third_party"
+      ],
+      "phase": "A.5 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "dialectic_walker",
+      "file": "vm_mspc_001.agents.agent_defs.dialectic_walker.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 BACKWARD_DIALECTICAL_CLOSURE",
+      "module_paths": [
+        "core/lib/dialectic_walker.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 2,
+      "tools": [],
+      "exports": [
+        "DialecticalStep",
+        "DialecticWalker"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "energy_inversion",
+        "inference_logger",
+        "moe_router"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "doc_parser",
+      "file": "vm_mspc_001.agents.agent_defs.doc_parser.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ENGINE",
+      "role": "ENGINE \u00b7 DOC_ADAPTER",
+      "module_paths": [
+        "core/lib/doc_parser.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 12,
+      "tools": [],
+      "exports": [
+        "DocAdapter",
+        "GodotDocAdapter",
+        "BlenderPyAdapter",
+        "BlenderCompositorAdapter",
+        "SubstanceNodeAdapter",
+        "MariProjectAdapter",
+        "FacebookSapiensAdapter",
+        "ADAPTERS",
+        "ADAPTER_STATE",
+        "parse_html_file",
+        "parse_url",
+        "get_adapter"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "parser_cursor"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "endpoints",
+      "file": "vm_mspc_001.agents.agent_defs.endpoints.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "INBOUND",
+      "role": "INBOUND \u00b7 LISTENER_FABRIC",
+      "module_paths": [
+        "core/lib/endpoints/base.py",
+        "core/lib/endpoints/registry.py",
+        "core/lib/endpoints/router.py",
+        "core/lib/endpoints/rest_server.py",
+        "core/lib/endpoints/webhook.py",
+        "core/lib/endpoints/__init__.py",
+        "core/lib/endpoints_cli.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "EndpointConfig",
+        "ReceiveEvent",
+        "EndpointRegistry",
+        "RoutingOperator",
+        "RouteRule"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "third_party"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "energy_inversion",
+      "file": "vm_mspc_001.agents.agent_defs.energy_inversion.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 ANTIPODAL_TWIN_AND_HEX_STORAGE",
+      "module_paths": [
+        "core/lib/energy_inversion.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 10,
+      "tools": [],
+      "exports": [
+        "EmbeddingPair",
+        "make_pair",
+        "verify_pair",
+        "to_hex_int8",
+        "from_hex_int8",
+        "invert_vec",
+        "energy_of",
+        "cosine_similarity",
+        "find_antithesis",
+        "hex_pair_for_lookup"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router",
+        "sentence_chain",
+        "svg_vector_embed",
+        "tri_modal_embedder"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "facebook_games_docs",
+      "file": "vm_mspc_001.agents.agent_defs.facebook_games_docs.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ENGINE",
+      "role": "ENGINE \u00b7 DOC_ADAPTER \u00b7 FACEBOOK_GAMES",
+      "module_paths": [
+        "core/lib/doc_parser_facebook_games.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 4,
+      "tools": [],
+      "exports": [
+        "FacebookGamesAdapter",
+        "register",
+        "_detect_language",
+        "_is_games_doc_link"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "doc_parser",
+        "inference_logger",
+        "parser_cursor"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0",
+        "facebook_games_ingest"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "facebook_games_sdk",
+      "file": "vm_mspc_001.agents.agent_defs.facebook_games_sdk.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 FACEBOOK_GAMES_SDK_REST",
+      "module_paths": [
+        "core/lib/third_party/facebook_games_sdk.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "FB_APP_ID",
+        "FB_APP_SECRET",
+        "FB_USER_ACCESS_TOKEN",
+        "FB_GRAPH_API_VERSION",
+        "FB_GRAPH_API_BASE"
+      ],
+      "expected_tools_count": 8,
+      "exports_count": 4,
+      "tools": [
+        "debug_token",
+        "send_app_event",
+        "register_instant_game",
+        "leaderboard_get",
+        "notification_send",
+        "graph_get_me",
+        "app_secret_proof_compute",
+        "verify_credentials"
+      ],
+      "exports": [
+        "FacebookGamesSDKConnector",
+        "EXPECTED_TOOLS",
+        "DEFAULT_GRAPH_VERSION",
+        "DEFAULT_GRAPH_HOST"
+      ],
+      "cross_half_hits": [
+        "/gently/",
+        "/data/Projects/gently"
+      ],
+      "routing_wires_to": [
+        "inference_logger",
+        "studio_runtime"
+      ],
+      "phase": "third_party connector expansion \u2014 Facebook Games SDK surface",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "facebook_sdk_bridge",
+      "file": "vm_mspc_001.agents.agent_defs.facebook_sdk_bridge.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "BRIDGE",
+      "role": "BRIDGE \u00b7 FACEBOOK_SDK_WEB_NATIVE",
+      "module_paths": [
+        "studio/godot/project/src/facebook_sdk_bridge.gd"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "BLOCKED-UPSTREAM",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": true,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "FB_APP_ID"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "FacebookSDKBridge",
+        "init",
+        "login",
+        "log_app_event",
+        "share_link",
+        "get_player_id",
+        "is_logged_in",
+        "is_web_build",
+        "is_sdk_initialized"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "forward_projector",
+      "file": "vm_mspc_001.agents.agent_defs.forward_projector.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "PROJECTOR",
+      "role": "PROJECTOR \u00b7 FORWARD_CHAIN",
+      "module_paths": [
+        "core/lib/forward_projector.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "CC_TINY_MODEL",
+        "CC_FORWARD_TIMEOUT"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "ForwardResult",
+        "extract_inline",
+        "strip_inline",
+        "project_posthoc",
+        "project",
+        "_is_placeholder",
+        "_strip_ansi",
+        "TINY_MODEL",
+        "POSTHOC_TIMEOUT_S"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "frame_clock",
+      "file": "vm_mspc_001.agents.agent_defs.frame_clock.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 FPS_QUANTIZED_TIME_DATA",
+      "module_paths": [
+        "core/lib/frame_clock.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 7,
+      "tools": [],
+      "exports": [
+        "FrameClock",
+        "CANONICAL_FPS",
+        "timestamp_to_frame",
+        "frame_to_timestamp",
+        "convert_frame",
+        "find_frame_neighbors",
+        "find_synced_records"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "spatial_anchor",
+        "tri_modal_embedder"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "freetier_gate",
+      "file": "vm_mspc_001.agents.agent_defs.freetier_gate.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "AUTH",
+      "role": "AUTH \u00b7 PUBLIC_TIER_TOKEN_GATE_BETWEEN_TWO_DOMAINS_AND_PROPRIETARY_MCPS",
+      "module_paths": [
+        "core/lib/freetier_gate.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "MYSPACE_KEY_MASTER",
+        "MYSPACE_FREETIER_LEDGER"
+      ],
+      "expected_tools_count": 7,
+      "exports_count": 9,
+      "tools": [
+        "issue_token(user_id, domain, accepted_terms_hash, ttl_seconds=30d)",
+        "verify_token(token, expected_domain=None) -> TokenClaims|None",
+        "record_acceptance(user_id, domain, ip, user_agent, accepted_terms_hash)",
+        "lookup_acceptance(user_id, domain)",
+        "list_acceptances(domain=None, limit=50)",
+        "require_token(headers, expected_domain=None) -> TokenClaims|None",
+        "extract_token_from_headers(headers) -> str"
+      ],
+      "exports": [
+        "TokenClaims",
+        "DOMAINS",
+        "issue_token",
+        "verify_token",
+        "record_acceptance",
+        "lookup_acceptance",
+        "list_acceptances",
+        "require_token",
+        "extract_token_from_headers"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "generative_mcp",
+        "inference_logger",
+        "model_api",
+        "third_party"
+      ],
+      "phase": "Public-vs-private architecture foundation (the only gate between callback URLs and proprietary MCPs)",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "freetier_public_deploy",
+      "file": "vm_mspc_001.agents.agent_defs.freetier_public_deploy.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "DEPLOY",
+      "role": "DEPLOY \u00b7 PRODUCTION_PUBLIC_SURFACE_DROPLET",
+      "module_paths": [
+        "studio/deploy/freetier_public/Caddyfile.droplet",
+        "studio/deploy/freetier_public/mspc-callback.service",
+        "studio/deploy/freetier_public/mspc-model-api.service",
+        "studio/deploy/freetier_public/deploy.sh",
+        "studio/deploy/freetier_public/README.md"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [
+        "/gently/",
+        "/data/Projects/gently"
+      ],
+      "routing_wires_to": [
+        "endpoints",
+        "model_api"
+      ],
+      "phase": "production hand-off bundle for public freetier surface (post lively-enchanting-parrot D.7)",
+      "chain_runs": [],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "generative_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.generative_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "META-CONNECTOR",
+      "role": "META-CONNECTOR \u00b7 GENERATIVE_FANOUT",
+      "module_paths": [
+        "core/lib/third_party/generative_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "REPLIT_BRIDGE_URL"
+      ],
+      "expected_tools_count": 6,
+      "exports_count": 4,
+      "tools": [
+        "generate_text",
+        "generate_code",
+        "generate_card",
+        "generate_image",
+        "generate_3d",
+        "generate_app"
+      ],
+      "exports": [
+        "GenerativeMCPConnector",
+        "EXPECTED_TOOLS",
+        "KIND_DIR",
+        "REPLIT_BRIDGE_URL"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "comfyui_mcp",
+        "inference_logger",
+        "model_api",
+        "studio_runtime",
+        "third_party"
+      ],
+      "phase": "D.4 of plan \u2014 meta-MCP fan-out front door",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "godot_ssot_proxy",
+      "file": "vm_mspc_001.agents.agent_defs.godot_ssot_proxy.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SIDECAR",
+      "role": "SIDECAR \u00b7 GODOT_SCENE_SSoT_HTTP_PROXY",
+      "module_paths": [
+        "core/lib/godot_ssot_proxy.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "SSOT_PORT",
+        "SSOT_LOG",
+        "CC_HOME"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 1,
+      "tools": [],
+      "exports": [
+        "GodotSSoTHandler"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "freetier_gate",
+        "inference_logger",
+        "task_queue"
+      ],
+      "phase": "C.1 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "godot_ssot_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "gpu_scheduler",
+      "file": "vm_mspc_001.agents.agent_defs.gpu_scheduler.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SCHEDULER",
+      "role": "SCHEDULER \u00b7 VRAM_AWARE_GPU_SLOTS",
+      "module_paths": [
+        "core/lib/gpu_scheduler.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "GPUScheduler",
+        "GPUDevice",
+        "GPUReservation"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "task_queue",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "harvest_loop",
+      "file": "vm_mspc_001.agents.agent_defs.harvest_loop.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "DAEMON",
+      "role": "DAEMON \u00b7 HARVEST_ORCHESTRATOR",
+      "module_paths": [
+        "core/scripts/harvest_loop.sh"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "MYSPACE_ROOT",
+        "HARVEST_FORCE_ALL",
+        "PYTHON_BIN",
+        "PINTREST_API",
+        "NOUN_PROJECT_KEY",
+        "NOUNPROJECT_API_KEY",
+        "NOUN_PROJECT_SECRET",
+        "NOUNPROJECT_SECRET_KEY"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "doc_parser",
+        "noun_project",
+        "third_party"
+      ],
+      "phase": "2.3",
+      "chain_runs": [
+        "pinterest_harvest_loop_v1",
+        "noun_project_harvest_loop_v1",
+        "doc_parser_drain_v1"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "hf_endpoints",
+      "file": "vm_mspc_001.agents.agent_defs.hf_endpoints.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 HUGGINGFACE_INFERENCE_ENDPOINTS (dedicated, paid)",
+      "module_paths": [
+        "core/lib/hf_endpoints.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 14,
+      "tools": [],
+      "exports": [
+        "HFEndpointsClient",
+        "list_endpoints",
+        "get_endpoint",
+        "deploy_endpoint",
+        "deploy_canonical",
+        "pause_endpoint",
+        "resume_endpoint",
+        "delete_endpoint",
+        "predict",
+        "EndpointRef",
+        "CANONICAL_TEXT_MODEL",
+        "DEFAULT_HARDWARE",
+        "DEFAULT_REGION",
+        "DEFAULT_ACCELERATOR"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "hf_hub",
+        "studio_runtime"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "hf_hub",
+      "file": "vm_mspc_001.agents.agent_defs.hf_hub.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 HUGGINGFACE_HUB + 19_INFERENCE_PROVIDERS",
+      "module_paths": [
+        "core/lib/hf_hub.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 8,
+      "tools": [],
+      "exports": [
+        "INFERENCE_PROVIDERS",
+        "search_models",
+        "get_model_card",
+        "list_datasets",
+        "inference",
+        "stream_dataset",
+        "HFModelRef",
+        "InferenceResult"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "model_installer",
+        "studio_runtime",
+        "task_queue"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "inference_logger",
+      "file": "vm_mspc_001.agents.agent_defs.inference_logger.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 CRYSTAL_CHAIN",
+      "module_paths": [
+        "core/lib/inference_logger.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 4,
+      "tools": [],
+      "exports": [
+        "InferenceRecord",
+        "InferenceLogger",
+        "SemanticIndex",
+        "crystal_hash"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "infra_orchestrator",
+      "file": "vm_mspc_001.agents.agent_defs.infra_orchestrator.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "PLATFORM",
+      "role": "PLATFORM \u00b7 INFRASTRUCTURE",
+      "module_paths": [],
+      "module_path_exists": null,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "run_20_avatar_pipeline"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "light_source",
+      "file": "vm_mspc_001.agents.agent_defs.light_source.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 DERIVED_LIGHT_FIELD",
+      "module_paths": [
+        "core/lib/light_source.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "LightSource",
+        "WorldLightField",
+        "rgb_to_hsl",
+        "rgb_to_warmth",
+        "estimated_color_temperature_k",
+        "find_lights_at_frame",
+        "find_lights_by_hue",
+        "find_lights_near",
+        "find_lights_by_warmth"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "frame_clock",
+        "inference_logger",
+        "spatial_anchor",
+        "svg_vector_embed"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "meta_model",
+      "file": "vm_mspc_001.agents.agent_defs.meta_model.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ARCHITECTURAL_INVARIANT",
+      "role": "ARCHITECTURAL_INVARIANT \u00b7 META_MODEL_ANCHOR",
+      "module_paths": [
+        "(see canonical sources)"
+      ],
+      "module_path_exists": false,
+      "missing_paths": [
+        "(see canonical sources)"
+      ],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [
+        "/gently/",
+        "/data/Projects/gently"
+      ],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "meta_xr_bridge",
+      "file": "vm_mspc_001.agents.agent_defs.meta_xr_bridge.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "BRIDGE",
+      "role": "BRIDGE \u00b7 OPENXR_META_QUEST",
+      "module_paths": [
+        "studio/godot/project/src/meta_xr_bridge.gd"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "BLOCKED-UPSTREAM",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": true,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "META_QUEST_APP_ID",
+        "META_QUEST_API_KEY"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "MetaXRBridge",
+        "enable_passthrough",
+        "disable_passthrough",
+        "start_hand_tracking",
+        "get_controller_position",
+        "emit_controller_input",
+        "is_xr_available",
+        "is_passthrough_supported",
+        "is_hand_tracking_supported"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "model_api",
+      "file": "vm_mspc_001.agents.agent_defs.model_api.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "GATEWAY",
+      "role": "GATEWAY \u00b7 UNIFIED_PROPRIETARY_MODEL_API",
+      "module_paths": [
+        "core/lib/model_api.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "MSPC_MODEL_API_PORT",
+        "MODEL_API_LOG"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "ModelAPI",
+        "GenerateResult",
+        "ModelAPIHandler"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "cloud_providers",
+        "deepseek_mcp",
+        "freetier_gate",
+        "hf_hub",
+        "inference_logger",
+        "studio_runtime",
+        "third_party"
+      ],
+      "phase": "D.1 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "model_index",
+      "file": "vm_mspc_001.agents.agent_defs.model_index.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "INDEXER",
+      "role": "INDEXER \u00b7 LOCAL_MODEL_REGISTRY",
+      "module_paths": [
+        "core/scripts/model_index.sh"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 1,
+      "tools": [],
+      "exports": [
+        "bash script + classify() function"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "forward_projector",
+        "model_registry",
+        "token_router",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "model_installer",
+      "file": "vm_mspc_001.agents.agent_defs.model_installer.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "INSTALLER",
+      "role": "INSTALLER \u00b7 MODEL_LIFECYCLE",
+      "module_paths": [
+        "core/lib/model_installer.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "search()",
+        "install()",
+        "list_models()",
+        "taxonomy()",
+        "sync_registry()"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "model_registry",
+      "file": "vm_mspc_001.agents.agent_defs.model_registry.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "REGISTRY",
+      "role": "REGISTRY \u00b7 MODEL_LOOKUP",
+      "module_paths": [
+        "core/lib/model_registry.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 2,
+      "tools": [],
+      "exports": [
+        "ModelRegistry",
+        "ModelCard"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "forward_projector",
+        "token_router"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "moe_chain_router",
+      "file": "vm_mspc_001.agents.agent_defs.moe_chain_router.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "PLATFORM",
+      "role": "PLATFORM \u00b7 INFRASTRUCTURE",
+      "module_paths": [],
+      "module_path_exists": null,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "CC_FORWARD_POSTHOC",
+        "CC_TINY_MODEL",
+        "CC_FORWARD_TIMEOUT",
+        "CC_HOME",
+        "CC_AGENT_UUID",
+        "CC_CORRELATION_ID",
+        "CC_SESSION_ID"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 0,
+      "tools": [],
+      "exports": [],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "moe_router",
+      "file": "vm_mspc_001.agents.agent_defs.moe_router.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ROUTER",
+      "role": "ROUTER \u00b7 MIXTURE_OF_EXPERTS_RETRIEVAL",
+      "module_paths": [
+        "core/lib/moe_router.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "CrystalChainCursor",
+        "MoERouter",
+        "ExpertMatch"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "parser_cursor"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "multi_layer_hex",
+      "file": "vm_mspc_001.agents.agent_defs.multi_layer_hex.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 SIDECAR_MULTI_MODAL_HEX_PACKER",
+      "module_paths": [
+        "core/lib/multi_layer_hex.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "SLOT_NAMES",
+        "pack_layers",
+        "unpack_layers",
+        "slot_distance",
+        "has_slot"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "dialectic_walker",
+        "energy_inversion",
+        "inference_logger",
+        "moe_router",
+        "sentence_chain",
+        "svg_vector_embed"
+      ],
+      "phase": "Phase 1 foundation \u2014 task #57",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "noun_project",
+      "file": "vm_mspc_001.agents.agent_defs.noun_project.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 NOUN_PROJECT_FREE_TRAINING_DATA",
+      "module_paths": [
+        "core/lib/third_party/noun_project.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "NOUNPROJECT_API_KEY",
+        "NOUNPROJECT_SECRET_KEY",
+        "NOUN_PROJECT_KEY",
+        "NOUN_PROJECT_SECRET"
+      ],
+      "expected_tools_count": 4,
+      "exports_count": 4,
+      "tools": [
+        "search",
+        "harvest_query",
+        "get_icon",
+        "list_terms_for_collection"
+      ],
+      "exports": [
+        "NounProjectConnector",
+        "EXPECTED_TOOLS",
+        "NOUN_API_ROOT",
+        "ICON_CORPUS_DIR"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "moe_chain_router",
+        "studio_runtime"
+      ],
+      "phase": "Phase 2 #58 \u2014 Noun Project connector \u2014 lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "ops_dag",
+      "file": "vm_mspc_001.agents.agent_defs.ops_dag.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 OPERATIONAL_DAG",
+      "module_paths": [
+        "core/lib/ops_dag.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "OpNode",
+        "OpEdge",
+        "build_ops_dag",
+        "emit_jsonl",
+        "topo_sort",
+        "parallel_groups",
+        "find_placeholders",
+        "find_ready",
+        "find_path"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "task_queue",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "parser_cursor",
+      "file": "vm_mspc_001.agents.agent_defs.parser_cursor.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ENGINE",
+      "role": "ENGINE \u00b7 CURSOR_BASE",
+      "module_paths": [
+        "core/lib/parser_cursor.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "ParserCursor",
+        "ParserWriter",
+        "CursorNode",
+        "NODE_* constants",
+        "OK / ERR_* constants"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router",
+        "user_graph"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "prompt_enhancer",
+      "file": "vm_mspc_001.agents.agent_defs.prompt_enhancer.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ENHANCER",
+      "role": "ENHANCER \u00b7 DETERMINISTIC_REWRITE",
+      "module_paths": [
+        "core/lib/prompt_enhancer.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "SpellFixer",
+        "StructuralEnhancer",
+        "PromptEnhancer",
+        "DEFAULT_KEYWORDS",
+        "DEFAULT_TYPOS"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "remotion",
+      "file": "vm_mspc_001.agents.agent_defs.remotion.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SURFACE",
+      "role": "SURFACE \u00b7 VIDEO_COMPOSITION_ENGINE",
+      "module_paths": [
+        "studio/remotion (full remotion-monorepo fork)"
+      ],
+      "module_path_exists": false,
+      "missing_paths": [
+        "studio/remotion (full remotion-monorepo fork)"
+      ],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "@remotion/core",
+        "@remotion/cli",
+        "@remotion/lambda",
+        "@remotion/cloudrun",
+        "@remotion/compositor",
+        "@remotion/captions",
+        "@remotion/effects",
+        "@remotion/elevenlabs",
+        "@remotion/convert"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "third_party",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "result_cache",
+      "file": "vm_mspc_001.agents.agent_defs.result_cache.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CACHE",
+      "role": "CACHE \u00b7 CONTENT_ADDRESSED_RESULTS",
+      "module_paths": [
+        "core/lib/result_cache.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 2,
+      "tools": [],
+      "exports": [
+        "ResultCache",
+        "compute_key"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "forward_projector",
+        "task_queue",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "sentence_chain",
+      "file": "vm_mspc_001.agents.agent_defs.sentence_chain.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 FREE_SYNTACTIC_EMBEDDING_AXIS",
+      "module_paths": [
+        "core/lib/sentence_chain.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 18,
+      "tools": [],
+      "exports": [
+        "SentenceFeatures",
+        "SentenceNode",
+        "split_sentences",
+        "tokenize",
+        "pos_class",
+        "featurize",
+        "sentence_embedding",
+        "embed_chain",
+        "cosine_similarity",
+        "find_sentence_neighbors",
+        "STOP_WORDS",
+        "PRONOUNS",
+        "PREPOSITIONS",
+        "CONJUNCTIONS",
+        "DETERMINERS",
+        "AUX_VERBS",
+        "QUESTION_WORDS",
+        "NEGATIONS"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "spatial_anchor",
+      "file": "vm_mspc_001.agents.agent_defs.spatial_anchor.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 MR_SPATIAL_RECONSTRUCTION",
+      "module_paths": [
+        "core/lib/spatial_anchor.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "(planned) SpatialAnchor dataclass \u2014 {origin_xyz, heading, wall_mesh, room_id, anchor_crystal}",
+        "(planned) AcousticEcho \u2014 ultrasonic ping + ToA \u2192 wall_distances",
+        "(planned) WifiRTTBeacon \u2014 round-trip-time \u2192 position",
+        "(planned) CoordGraph \u2014 merge sensor streams \u2192 unified transform",
+        "(planned) RealWorldRenderer \u2014 project workflow_card outputs onto physical surfaces"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "stripe_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.stripe_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 STRIPE_FIAT_RAIL",
+      "module_paths": [
+        "core/lib/third_party/stripe_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_API_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_LIVE_MODE"
+      ],
+      "expected_tools_count": 5,
+      "exports_count": 3,
+      "tools": [
+        "create_payment_intent",
+        "create_subscription",
+        "customer_create",
+        "retrieve_payment_intent",
+        "webhook_route"
+      ],
+      "exports": [
+        "StripeMCPConnector",
+        "EXPECTED_TOOLS",
+        "STRIPE_API_ROOT"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "inference_logger",
+        "studio_runtime"
+      ],
+      "phase": "A.2 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "studio_runtime",
+      "file": "vm_mspc_001.agents.agent_defs.studio_runtime.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "GATEWAY",
+      "role": "GATEWAY \u00b7 UNIFIED_PIPELINE_ORCHESTRATOR",
+      "module_paths": [
+        "core/lib/studio_runtime.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "StudioRuntime",
+        "TraceRecord",
+        "PassTrace"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "blender_mcp",
+        "frame_clock",
+        "inference_logger",
+        "light_source",
+        "ops_dag",
+        "spatial_anchor",
+        "svg_vector_embed",
+        "task_queue",
+        "third_party",
+        "transition_field",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "sui_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.sui_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 SUI_ON_CHAIN_RAIL",
+      "module_paths": [
+        "core/lib/third_party/sui_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "SUI_NETWORK",
+        "SUI_WALLET",
+        "SUI_KEYPAIR",
+        "TROLLN_PACKAGE_ID",
+        "SYNTH_PACKAGE_ID",
+        "TROLLN_TREASURY_CAP_ID",
+        "SYNTH_TREASURY_CAP_ID",
+        "AGENT_REGISTRY_ID",
+        "WALLET_ENCRYPTION_KEY",
+        "SUI_LENDING_PACKAGE_ID",
+        "SUI_USDC_COIN_TYPE"
+      ],
+      "expected_tools_count": 6,
+      "exports_count": 4,
+      "tools": [
+        "query_balance",
+        "transfer_usdc",
+        "nft_mint",
+        "lend_pool_deposit",
+        "lend_pool_borrow",
+        "tx_status"
+      ],
+      "exports": [
+        "SuiMCPConnector",
+        "EXPECTED_TOOLS",
+        "DEFAULT_USDC_COIN_TYPE",
+        "DEFAULT_GAS_BUDGET"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "defi_loop",
+        "inference_logger",
+        "studio_runtime",
+        "tensorchain_mcp"
+      ],
+      "phase": "A.3 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "svg_vector_embed",
+      "file": "vm_mspc_001.agents.agent_defs.svg_vector_embed.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 GEOMETRIC_VECTOR_EMBEDDING_AXIS",
+      "module_paths": [
+        "core/lib/svg_vector_embed.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "SvgPathRecord",
+        "parse_path",
+        "normalize_points",
+        "resample_linear",
+        "svg_path_embedding",
+        "extract_paths_from_file",
+        "embed_svg_file",
+        "cosine_similarity",
+        "find_svg_neighbors"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "moe_router"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "task_queue",
+      "file": "vm_mspc_001.agents.agent_defs.task_queue.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "QUEUE",
+      "role": "QUEUE \u00b7 ASYNC_DISPATCH",
+      "module_paths": [
+        "core/lib/task_queue.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "CC_OLLAMA_POOL",
+        "CC_OLLAMA_TIMEOUT",
+        "CC_CLOUD_RATE_CLAUDE",
+        "CC_CLOUD_RATE_OPENAI",
+        "CC_CLOUD_RATE_GEMINI",
+        "CC_CLOUD_RATE_DEFAULT",
+        "CC_GAP_FILL_THRESHOLD"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 4,
+      "tools": [],
+      "exports": [
+        "TaskQueue",
+        "Task",
+        "TaskKind",
+        "TaskResult"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "forward_projector",
+        "gpu_scheduler",
+        "inference_logger",
+        "result_cache",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "tensorchain_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.tensorchain_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 TENSORCHAIN_DAPP_MINT_AND_ESCROW",
+      "module_paths": [
+        "core/lib/third_party/tensorchain_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "PARTIAL",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "TENSORCHAIN_RPC",
+        "SUI_WALLET",
+        "SUI_FALLBACK"
+      ],
+      "expected_tools_count": 6,
+      "exports_count": 4,
+      "tools": [
+        "mint_nft",
+        "deploy_contract",
+        "escrow_settle",
+        "royalty_split",
+        "query_balance",
+        "tx_broadcast"
+      ],
+      "exports": [
+        "TensorChainMCPConnector",
+        "EXPECTED_TOOLS",
+        "RPC_METHOD",
+        "SUI_BRIDGEABLE"
+      ],
+      "cross_half_hits": [
+        "/gently/",
+        "/data/Projects/gently"
+      ],
+      "routing_wires_to": [
+        "inference_logger",
+        "stripe_mcp",
+        "studio_runtime",
+        "sui_mcp",
+        "third_party"
+      ],
+      "phase": "A.4 of lively-enchanting-parrot plan",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "third_party",
+      "file": "vm_mspc_001.agents.agent_defs.third_party.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "OUTBOUND",
+      "role": "OUTBOUND \u00b7 CONNECTOR_FABRIC",
+      "module_paths": [
+        "core/lib/third_party/base.py",
+        "core/lib/third_party/manager.py",
+        "core/lib/third_party/discord.py",
+        "core/lib/third_party/telegram.py",
+        "core/lib/third_party/twitter.py",
+        "core/lib/third_party/facebook.py",
+        "core/lib/third_party/whatsapp.py",
+        "core/lib/third_party/__init__.py",
+        "core/lib/third_party_cli.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "ConnectionConfig",
+        "Connector (abstract)",
+        "ThirdPartyManager"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "endpoints",
+        "inference_logger"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "token_router",
+      "file": "vm_mspc_001.agents.agent_defs.token_router.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "ROUTER",
+      "role": "ROUTER \u00b7 TOKEN_BUDGET_ROUTING",
+      "module_paths": [
+        "core/lib/token_router.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 3,
+      "tools": [],
+      "exports": [
+        "ModelRouter",
+        "TokenCounter",
+        "ComplexityScorer"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "model_registry"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    },
+    {
+      "name": "topstep_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.topstep_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR - TOPSTEPX_FUTURES_RAIL",
+      "module_paths": [
+        "core/lib/third_party/topstep_mcp.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "TOPSTEP_USERNAME",
+        "TOPSTEP_API_KEY",
+        "TOPSTEP_LIVE_TRADING"
+      ],
+      "expected_tools_count": 9,
+      "exports_count": 5,
+      "tools": [
+        "account_status",
+        "positions",
+        "health_check",
+        "order_market",
+        "order_limit",
+        "cancel_order",
+        "flatten_all",
+        "quote_subscribe",
+        "pnl_intraday"
+      ],
+      "exports": [
+        "TopStepMCPConnector",
+        "EXPECTED_TOOLS",
+        "WRITE_TOOLS",
+        "READ_TOOLS",
+        "LIVE_ENV_VAR"
+      ],
+      "cross_half_hits": [
+        "trade-blob/"
+      ],
+      "routing_wires_to": [
+        "inference_logger",
+        "studio_runtime"
+      ],
+      "phase": "D.5 of TopStep MCP integration (Phase D - external broker rails)",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "transition_field",
+      "file": "vm_mspc_001.agents.agent_defs.transition_field.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 MEASUREMENT_FIRST_DELTA_FIELD",
+      "module_paths": [
+        "core/lib/transition_field.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 4,
+      "tools": [],
+      "exports": [
+        "Transition",
+        "TransitionField",
+        "find_similar_flows",
+        "cosine_similarity"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "light_source",
+        "moe_router",
+        "spatial_anchor",
+        "svg_vector_embed",
+        "user_graph"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "tri_modal_embedder",
+      "file": "vm_mspc_001.agents.agent_defs.tri_modal_embedder.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 4D_ADJACENT_POSSIBLE",
+      "module_paths": [
+        "core/lib/tri_modal_embedder.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 9,
+      "tools": [],
+      "exports": [
+        "TriModalCrystal",
+        "vector_embedding",
+        "wave_embedding",
+        "time_vector",
+        "verify_time_residual",
+        "cosine_similarity",
+        "time_distance",
+        "find_wave_neighbors",
+        "find_time_neighbors"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "inference_logger",
+        "moe_router",
+        "workflow_generator"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "twitter_mcp",
+      "file": "vm_mspc_001.agents.agent_defs.twitter_mcp.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "CONNECTOR",
+      "role": "CONNECTOR \u00b7 X_API_SINGLE_PROFILE_FEEDER",
+      "module_paths": [
+        "core/lib/third_party/twitter.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "BLOCKED-UPSTREAM",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": true,
+      "blocking_dependency": "X plan credits depleted on enrolled_account_id 2041735171829911552. The connector is wired and tested; X is the bottleneck. Resolution: Tom either (a) refills at developer.x.com \u2014 instant unblock, or (b) provisions a new X dev account and stores its bearer; the env var name can stay X_BEARER_TOKEN.",
+      "env_vars_required": [
+        "X_BEARER_TOKEN",
+        "X_CONSUMER_KEY",
+        "X_CONSUMER_SECRET_KEY",
+        "X_ACCESS_TOKEN",
+        "X_ACCESS_SECRET_TOKEN",
+        "X_CLIENT_ID",
+        "X_CLIENT_SECRET"
+      ],
+      "expected_tools_count": 5,
+      "exports_count": 2,
+      "tools": [
+        "verify_credentials()",
+        "get_user(username)",
+        "recent_tweets(query, max_results)",
+        "send(recipient='tweet'|user_id, message)  [requires tweepy]",
+        "history(thread_id, limit)"
+      ],
+      "exports": [
+        "TwitterConnector",
+        "_load_env_for_profile"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "generative_mcp",
+        "harvest_loop",
+        "model_api",
+        "third_party"
+      ],
+      "phase": "D.3 of lively-enchanting-parrot plan (Twitter MCP activation \u2014 wiring complete, awaiting X credits)",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": true,
+      "is_substrate": false
+    },
+    {
+      "name": "user_graph",
+      "file": "vm_mspc_001.agents.agent_defs.user_graph.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "SUBSTRATE",
+      "role": "SUBSTRATE \u00b7 USER_CHAIN_OF_THOUGHT",
+      "module_paths": [
+        "core/lib/user_graph.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": false,
+      "smoke_key": null,
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [],
+      "expected_tools_count": 0,
+      "exports_count": 5,
+      "tools": [],
+      "exports": [
+        "UserGraph",
+        "UserGraphIndex",
+        "TurnRecord",
+        "Prediction",
+        "extract_ngrams"
+      ],
+      "cross_half_hits": [],
+      "routing_wires_to": [
+        "parser_cursor"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": true
+    },
+    {
+      "name": "workflow_generator",
+      "file": "vm_mspc_001.agents.agent_defs.workflow_generator.active.json",
+      "state": "active",
+      "tier": "L0",
+      "category": "GENERATOR",
+      "role": "GENERATOR \u00b7 WORKFLOW_CARD_TO_5_SURFACES",
+      "module_paths": [
+        "core/lib/workflow_generator.py"
+      ],
+      "module_path_exists": true,
+      "missing_paths": [],
+      "live_status": "LIVE",
+      "smoke_tested": true,
+      "smoke_key": "smoke_test_results_2026_05_28",
+      "has_blocking_dependency": false,
+      "blocking_dependency": null,
+      "env_vars_required": [
+        "CC_NANO_MODEL",
+        "CC_COMFY_INSTALL"
+      ],
+      "expected_tools_count": 0,
+      "exports_count": 11,
+      "tools": [],
+      "exports": [
+        "WorkflowGenerator",
+        "NanoDescriber",
+        "load_card",
+        "compute_card_crystal",
+        "gen_streamlit",
+        "gen_godot_tscn",
+        "gen_godot_gd",
+        "gen_godot_cpp",
+        "gen_blender",
+        "gen_spriteforge",
+        "gen_comfyui"
+      ],
+      "cross_half_hits": [
+        "ComfyUI/"
+      ],
+      "routing_wires_to": [
+        "task_queue"
+      ],
+      "phase": "",
+      "chain_runs": [
+        "moe_chain_router_v0"
+      ],
+      "is_connector": false,
+      "is_substrate": false
+    }
+  ],
+  "env_var_cross_ref": {
+    "SUI_WALLET": [
+      "dapp_server",
+      "sui_mcp",
+      "tensorchain_mcp"
+    ],
+    "CC_AGENT_UUID": [
+      "chat_gateway",
+      "moe_chain_router"
+    ],
+    "CC_COMFY_INSTALL": [
+      "comfyui_mcp",
+      "workflow_generator"
+    ],
+    "CC_CORRELATION_ID": [
+      "chat_gateway",
+      "moe_chain_router"
+    ],
+    "CC_FORWARD_POSTHOC": [
+      "chat_gateway",
+      "moe_chain_router"
+    ],
+    "CC_FORWARD_TIMEOUT": [
+      "forward_projector",
+      "moe_chain_router"
+    ],
+    "CC_HOME": [
+      "godot_ssot_proxy",
+      "moe_chain_router"
+    ],
+    "CC_SESSION_ID": [
+      "chat_gateway",
+      "moe_chain_router"
+    ],
+    "CC_TINY_MODEL": [
+      "forward_projector",
+      "moe_chain_router"
+    ],
+    "FB_APP_ID": [
+      "facebook_games_sdk",
+      "facebook_sdk_bridge"
+    ],
+    "NOUNPROJECT_API_KEY": [
+      "harvest_loop",
+      "noun_project"
+    ],
+    "NOUNPROJECT_SECRET_KEY": [
+      "harvest_loop",
+      "noun_project"
+    ],
+    "NOUN_PROJECT_KEY": [
+      "harvest_loop",
+      "noun_project"
+    ],
+    "NOUN_PROJECT_SECRET": [
+      "harvest_loop",
+      "noun_project"
+    ],
+    "STRIPE_SECRET_KEY": [
+      "dapp_server",
+      "stripe_mcp"
+    ],
+    "SUI_FALLBACK": [
+      "dapp_server",
+      "tensorchain_mcp"
+    ],
+    "TENSORCHAIN_RPC": [
+      "dapp_server",
+      "tensorchain_mcp"
+    ],
+    "AGENT_REGISTRY_ID": [
+      "sui_mcp"
+    ],
+    "BLENDER_MCP_ENDPOINT": [
+      "blender_mcp"
+    ],
+    "BLENDER_MCP_TOKEN": [
+      "blender_mcp"
+    ],
+    "CC_CLOUD_RATE_CLAUDE": [
+      "task_queue"
+    ],
+    "CC_CLOUD_RATE_DEFAULT": [
+      "task_queue"
+    ],
+    "CC_CLOUD_RATE_GEMINI": [
+      "task_queue"
+    ],
+    "CC_CLOUD_RATE_OPENAI": [
+      "task_queue"
+    ],
+    "CC_GAP_FILL_THRESHOLD": [
+      "task_queue"
+    ],
+    "CC_NANO_MODEL": [
+      "workflow_generator"
+    ],
+    "CC_OLLAMA_POOL": [
+      "task_queue"
+    ],
+    "CC_OLLAMA_TIMEOUT": [
+      "task_queue"
+    ],
+    "CC_SCOPE_CWD": [
+      "chat_gateway"
+    ],
+    "CC_TIMESTAMP": [
+      "chat_gateway"
+    ],
+    "COMFYUI_BASE_URL": [
+      "comfyui_mcp"
+    ],
+    "DEEPSEEK_API_KEY": [
+      "deepseek_mcp"
+    ],
+    "DEEPSEEK_BASE_URL": [
+      "deepseek_mcp"
+    ],
+    "FB_APP_SECRET": [
+      "facebook_games_sdk"
+    ],
+    "FB_GRAPH_API_BASE": [
+      "facebook_games_sdk"
+    ],
+    "FB_GRAPH_API_VERSION": [
+      "facebook_games_sdk"
+    ],
+    "FB_USER_ACCESS_TOKEN": [
+      "facebook_games_sdk"
+    ],
+    "HARVEST_FORCE_ALL": [
+      "harvest_loop"
+    ],
+    "INFERENCE_API_KEY": [
+      "deepseek_mcp"
+    ],
+    "INFERENCE_BASE_URL": [
+      "deepseek_mcp"
+    ],
+    "META_QUEST_API_KEY": [
+      "meta_xr_bridge"
+    ],
+    "META_QUEST_APP_ID": [
+      "meta_xr_bridge"
+    ],
+    "MODEL_API_LOG": [
+      "model_api"
+    ],
+    "MSPC_DAPP_LOG": [
+      "dapp_server"
+    ],
+    "MSPC_DAPP_PORT": [
+      "dapp_server"
+    ],
+    "MSPC_MODEL_API_PORT": [
+      "model_api"
+    ],
+    "MYSPACE_FREETIER_LEDGER": [
+      "freetier_gate"
+    ],
+    "MYSPACE_KEY_MASTER": [
+      "freetier_gate"
+    ],
+    "MYSPACE_ROOT": [
+      "harvest_loop"
+    ],
+    "PINTREST_API": [
+      "harvest_loop"
+    ],
+    "PYTHON_BIN": [
+      "harvest_loop"
+    ],
+    "REPLIT_BRIDGE_URL": [
+      "generative_mcp"
+    ],
+    "SSOT_LOG": [
+      "godot_ssot_proxy"
+    ],
+    "SSOT_PORT": [
+      "godot_ssot_proxy"
+    ],
+    "STRIPE_API_KEY": [
+      "stripe_mcp"
+    ],
+    "STRIPE_LIVE_MODE": [
+      "stripe_mcp"
+    ],
+    "STRIPE_WEBHOOK_SECRET": [
+      "stripe_mcp"
+    ],
+    "SUI_KEYPAIR": [
+      "sui_mcp"
+    ],
+    "SUI_LENDING_PACKAGE_ID": [
+      "sui_mcp"
+    ],
+    "SUI_NETWORK": [
+      "sui_mcp"
+    ],
+    "SUI_USDC_COIN_TYPE": [
+      "sui_mcp"
+    ],
+    "SYNTH_PACKAGE_ID": [
+      "sui_mcp"
+    ],
+    "SYNTH_TREASURY_CAP_ID": [
+      "sui_mcp"
+    ],
+    "TOPSTEP_API_KEY": [
+      "topstep_mcp"
+    ],
+    "TOPSTEP_LIVE_TRADING": [
+      "topstep_mcp"
+    ],
+    "TOPSTEP_USERNAME": [
+      "topstep_mcp"
+    ],
+    "TROLLN_PACKAGE_ID": [
+      "sui_mcp"
+    ],
+    "TROLLN_TREASURY_CAP_ID": [
+      "sui_mcp"
+    ],
+    "WALLET_ENCRYPTION_KEY": [
+      "sui_mcp"
+    ],
+    "X_ACCESS_SECRET_TOKEN": [
+      "twitter_mcp"
+    ],
+    "X_ACCESS_TOKEN": [
+      "twitter_mcp"
+    ],
+    "X_BEARER_TOKEN": [
+      "twitter_mcp"
+    ],
+    "X_CLIENT_ID": [
+      "twitter_mcp"
+    ],
+    "X_CLIENT_SECRET": [
+      "twitter_mcp"
+    ],
+    "X_CONSUMER_KEY": [
+      "twitter_mcp"
+    ],
+    "X_CONSUMER_SECRET_KEY": [
+      "twitter_mcp"
+    ]
+  }
+}

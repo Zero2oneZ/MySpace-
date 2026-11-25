@@ -1,0 +1,182 @@
+{# -----------------------------------------------------------------------------
+   Jinja2 template :: workflow_card_v0 → Godot GDScript controller (Node3D)
+   card:      {{ card.name }}
+   category:  {{ card.category }}
+   schema:    {{ card._schema }}
+
+   Consumed by core/lib/workflow_generator.py (godot surface, gd script).
+   Renders alongside the f-string-generated controller as `_generated.gd`
+   so the diff with the handwritten controller is reviewable.
+   ----------------------------------------------------------------------------- #}
+# GENERATED from workflow_card: {{ card.name }}
+# card_crystal: {{ card_crystal }}
+# target: godot_gd
+# schema: {{ card._schema }}
+# DO NOT EDIT BY HAND — regenerate via: cc workflow generate {{ card.name }}
+extends Node3D
+## {{ card.name }} — auto-generated from workflow_card_v0
+##
+## Category : {{ card.category }}
+## State    : {{ card.state }}
+## Version  : {{ card.version }}
+## Crystal  : {{ card_crystal[:24] }}…
+##
+## Summary  : {{ (card.summary or "")[:240] }}
+##
+## Pipeline walks `_passes` in order. Each pass dispatches via
+## `_dispatch_pass(pass)`, switching on `pass.engine`:
+##   comfyui  → ChainRunner.fire_comfy_workflow()
+##   mcp      → CCBridge.dispatch() (task_queue enqueue)
+##   blender  → POST /webhook/blender   (stub today)
+##   other    → push_warning + ""
+## A `pass_completed(pass_id, crystal)` signal fires per pass.
+
+# ── exports (inputs from card) ───────────────────────────────────────────────
+{% for inp in card.inputs -%}
+{% set t = inp.type | lower -%}
+{% if t == "image" -%}
+@export var {{ inp.name }}: String = {% if inp.default is defined %}{{ inp.default | tojson }}{% else %}""{% endif %}  # image path
+{% elif t == "int" -%}
+@export var {{ inp.name }}: int = {% if inp.default is defined %}{{ inp.default | int }}{% else %}0{% endif %}
+{% elif t == "float" -%}
+@export var {{ inp.name }}: float = {% if inp.default is defined %}{{ inp.default | float }}{% else %}0.0{% endif %}
+{% elif t in ("str", "string") -%}
+@export var {{ inp.name }}: String = {% if inp.default is defined %}{{ inp.default | tojson }}{% else %}""{% endif %}
+{% elif t.startswith("list") or t.startswith("array") -%}
+@export var {{ inp.name }}: Array = {% if inp.default is defined %}{{ inp.default | tojson }}{% else %}[]{% endif %}  # raw type: {{ inp.type }}
+{% else -%}
+@export var {{ inp.name }}: String = {% if inp.default is defined and inp.default is string %}{{ inp.default | tojson }}{% else %}""{% endif %}  # raw type: {{ inp.type }}
+{% endif -%}
+{% endfor %}
+
+# ── signals (outputs from card + universal pass marker) ──────────────────────
+{% for out in card.outputs -%}
+signal {{ out.name }}_ready(payload)
+{% endfor -%}
+signal pass_completed(pass_id: String, crystal: String)
+
+# ── constants ────────────────────────────────────────────────────────────────
+const CARD_NAME: String = {{ card.name | tojson }}
+const CARD_CRYSTAL: String = {{ card_crystal | tojson }}
+
+# ── internal pass list (mirrors card.passes[]) ───────────────────────────────
+var _passes: Array = []
+
+func _ready() -> void:
+	_passes = [
+		{%- for p in card.passes %}
+		{
+			"id":     {{ p.id | tojson }},
+			"agent":  {{ (p.agent or "") | tojson }},
+			"engine": {{ (p.engine or "") | tojson }},
+			"in":     {{ p["in"] | default([]) | tojson }},
+			"out":    {{ (p.out or "") | tojson }},
+			"tier":   {{ (p.tier or "") | tojson }},
+			"status": {{ (p.status or "") | tojson }},
+		},
+		{%- endfor %}
+	]
+	print("[", CARD_NAME, "] booted — crystal=", CARD_CRYSTAL.substr(0, 16),
+			" passes=", _passes.size())
+	if Engine.has_singleton("CCBridge") or CCBridge != null:
+		CCBridge.packet_received.connect(_on_cc_packet)
+
+
+# ── pipeline driver ──────────────────────────────────────────────────────────
+
+func run_pipeline() -> void:
+	## Walk `_passes` in order. Emits `pass_completed(pass_id, crystal)` per pass.
+	for p in _passes:
+		var crystal: String = await _dispatch_pass(p)
+		emit_signal("pass_completed", String(p.get("id", "?")), crystal)
+
+
+# ── per-pass dispatch (engine switch) ────────────────────────────────────────
+
+func _dispatch_pass(p: Dictionary) -> String:
+	## Returns a crystal hash string (may be empty if engine unsupported).
+	var engine: String = String(p.get("engine", ""))
+	var pass_id: String = String(p.get("id", "?"))
+	match engine:
+		"comfyui":
+			# Production: hand off to ChainRunner which posts the workflow JSON
+			# to the local ComfyUI install and returns the run crystal.
+			if ChainRunner != null and ChainRunner.has_method("fire_comfy_workflow"):
+				return await ChainRunner.fire_comfy_workflow(CARD_NAME, pass_id, p)
+			push_warning("[%s] comfyui pass '%s' has no ChainRunner.fire_comfy_workflow" % [CARD_NAME, pass_id])
+			return ""
+		"mcp", "deterministic", "hf", "remotion", "diffusers", "spriteforge":
+			# Generic enqueue path — task_queue routes by agent/engine.
+			if CCBridge != null:
+				var packet := {
+					"protocol":     "cc_godot_bridge_v1",
+					"card_crystal": CARD_CRYSTAL,
+					"pass_id":      pass_id,
+					"agent":        String(p.get("agent", "")),
+					"engine":       engine,
+					"in":           p.get("in", []),
+					"out":          String(p.get("out", "")),
+				}
+				var result = await CCBridge.dispatch(packet)
+				if typeof(result) == TYPE_DICTIONARY:
+					return String(result.get("crystal", ""))
+				return ""
+			push_warning("[%s] %s pass '%s' has no CCBridge" % [CARD_NAME, engine, pass_id])
+			return ""
+		"blender":
+			# Stub: forward to Blender MCP via the (planned) webhook endpoint.
+			# When the bridge wires in, this becomes an HTTPRequest to /webhook/blender.
+			var http := HTTPRequest.new()
+			add_child(http)
+			var url := "http://127.0.0.1:8766/webhook/blender"
+			var body := JSON.stringify({
+				"card_crystal": CARD_CRYSTAL,
+				"pass_id": pass_id,
+				"agent":   String(p.get("agent", "")),
+				"in":      p.get("in", []),
+				"out":     String(p.get("out", "")),
+			})
+			var err := http.request(url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, body)
+			if err != OK:
+				push_warning("[%s] blender pass '%s' http err=%d" % [CARD_NAME, pass_id, err])
+				http.queue_free()
+				return ""
+			var done = await http.request_completed
+			http.queue_free()
+			# done = [result, code, headers, body_bytes]
+			if done.size() >= 4 and int(done[1]) == 200:
+				var parsed := JSON.parse_string(PackedByteArray(done[3]).get_string_from_utf8())
+				if typeof(parsed) == TYPE_DICTIONARY:
+					return String(parsed.get("crystal", ""))
+			return ""
+		_:
+			push_warning("[%s] unsupported engine '%s' for pass '%s'" % [CARD_NAME, engine, pass_id])
+			return ""
+
+
+# ── cc bridge sink ───────────────────────────────────────────────────────────
+
+func _on_cc_packet(packet: Dictionary) -> void:
+	# Side-channel inbound from the cc terminal — surface as a pass_completed
+	# event if the packet's card_crystal matches ours.
+	if String(packet.get("card_crystal", "")) != CARD_CRYSTAL:
+		return
+	emit_signal("pass_completed",
+			String(packet.get("pass_id", "?")),
+			String(packet.get("crystal", "")))
+
+
+# ── layer_stack vocabulary (queryable from GDScript) ─────────────────────────
+# Mirrors the workflow_card's `layer_stack[]`. Drives shader uniforms,
+# Blender material sockets, SpriteForge layers, ComfyUI mix nodes — same
+# names everywhere (architectural invariant #3).
+var _layer_stack: Array = [
+{%- for layer in card.layer_stack %}
+	{
+		"name":           {{ layer.name | tojson }},
+		"source":         {{ layer.source | tojson }},
+		"blend":          {{ layer.blend | tojson }},
+		"target_uniform": {{ (layer.target_uniform or "") | tojson }},
+	},
+{%- endfor %}
+]

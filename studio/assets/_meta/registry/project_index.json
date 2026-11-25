@@ -1,0 +1,33 @@
+{
+  "_schema": "project_index_v1",
+  "_description": "Canonical index of all projects in studio/assets/projects/",
+  "projects": [
+    {
+      "name": "default",
+      "display_name": "Default Studio Project",
+      "vm_id": "vm_mspc_godot_001",
+      "path": "projects/default/",
+      "engine": "godot",
+      "godot_version": "4.6.3-stable",
+      "manifest": "projects/default/project.manifest.json",
+      "created_at": "2026-05-27T23:00:00Z",
+      "status": "active"
+    }
+  ],
+  "templates": [
+    {
+      "name": "blank_godot",
+      "display_name": "Blank Godot Project",
+      "engine": "godot",
+      "source": "_godot/templates/blank_project/",
+      "description": "Minimal scaffold with autoloads + C++ bridge"
+    },
+    {
+      "name": "blank_defold",
+      "display_name": "Blank Defold Project",
+      "engine": "defold",
+      "source": "_godot/templates/blank_defold/",
+      "description": "Minimal scaffold with VM navigator + chain runner"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "sui_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · SUI_ON_CHAIN_RAIL",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/sui_mcp.py",
+
+  "summary": "Sui on-chain connector — settlement, NFT mint, and DeFi lend/borrow for the dApp. Stdlib-only (subprocess + json) shelling out to the `sui` CLI binary on PATH. Wallet resolved through studio/auth/keys.upstream_key('sui'); package IDs (TROLLN, SYNTH, lending) pulled from .env via load_env. Every successful tool call appends one InferenceRecord with model='sui'; tier='monetization' for balance/transfer/mint/tx_status, tier='defi_loop' for lend_pool_deposit / lend_pool_borrow. Scope=f'sui_<tool>'. Mainnet writes are hard-gated behind an explicit confirm=true parameter — devnet/testnet treat the playground as free-fire. Sensitive params (keypair, encryption_key, confirm) are redacted before crystallization.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp + deepseek_mcp shape. SERVICE='sui'. Each tool composes a `sui client …` argv, dispatched via subprocess.run(capture_output=True, timeout=60s). Smoke-validates connection via `sui client active-env`. Tool dispatch via send(recipient=tool_name, message=json_args). The CLI's JSON output is normalized: list responses (e.g. balance) are wrapped under '_list' before further parsing.",
+
+  "expected_tools": [
+    "query_balance",
+    "transfer_usdc",
+    "nft_mint",
+    "lend_pool_deposit",
+    "lend_pool_borrow",
+    "tx_status"
+  ],
+
+  "env_vars": {
+    "SUI_NETWORK":             "devnet | testnet | mainnet (default devnet)",
+    "SUI_WALLET":              "primary owned address (hex 0x… 64 chars)",
+    "SUI_KEYPAIR":             "signing keypair file or string (NEVER logged)",
+    "TROLLN_PACKAGE_ID":       "deployed TROLLN Move package — used by nft_mint",
+    "SYNTH_PACKAGE_ID":        "deployed SYNTH (zNiXz) Move package",
+    "TROLLN_TREASURY_CAP_ID":  "TROLLN treasury cap object id",
+    "SYNTH_TREASURY_CAP_ID":   "SYNTH treasury cap object id",
+    "AGENT_REGISTRY_ID":       "on-chain agent registry shared object id",
+    "WALLET_ENCRYPTION_KEY":   "AES key for wallet-at-rest (NEVER logged)",
+    "SUI_LENDING_PACKAGE_ID":  "deployed lending pool package — optional; lend_* tools return graceful failure if unset",
+    "SUI_USDC_COIN_TYPE":      "override for the canonical bridged USDC coin type (default = Wormhole USDC mainnet address; documented as TEXT-PLACEHOLDER)"
+  },
+
+  "convenience_wrappers": [
+    "query_balance(addr, coin_type='0x2::sui::SUI')",
+    "transfer_usdc(to, amount_micro, input_coins=[...])",
+    "nft_mint(attrs_json)",
+    "lend_pool_deposit(pool_id, amount)",
+    "lend_pool_borrow(pool_id, collateral, borrow)",
+    "tx_status(digest)"
+  ],
+
+  "exports": [
+    "SuiMCPConnector",
+    "EXPECTED_TOOLS",
+    "DEFAULT_USDC_COIN_TYPE",
+    "DEFAULT_GAS_BUDGET"
+  ],
+
+  "substrate": "studio/third_party/sui/ (per-config persistence) + ~/.cc/third_party_logs/sui_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored monetization + defi_loop records, model='sui')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py /dapp/api/buy?payment_method=sui",
+      "core/cc.sh::cmd_sui_test / cmd_sui_balance / cmd_sui_nft_mint (future)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='sui')",
+      "tensorchain_mcp escrow flow (A.7 of plan)"
+    ],
+    "outbound_calls": [
+      "subprocess: `sui client active-env` (smoke)",
+      "subprocess: `sui client balance <addr> --coin-type … --json`",
+      "subprocess: `sui client pay --input-coins … --recipients … --amounts …`",
+      "subprocess: `sui client call --package <TROLLN_PACKAGE_ID> --module nft --function mint --args …`",
+      "subprocess: `sui client call --package <SUI_LENDING_PACKAGE_ID> --module lending_pool --function deposit|borrow …`",
+      "subprocess: `sui client tx-block <digest> --json`",
+      "inference_logger.log (every call: model='sui'; tier='monetization' default, tier='defi_loop' for lend_*)"
+    ],
+    "substrate_reads": "SUI_WALLET via keys.upstream_key('sui'); all package IDs + network via studio/auth/keys.load_env (mirrored .env between MySpace++ and gently)",
+    "substrate_writes": "send_log entries + crystal_chain monetization / defi_loop records (sensitive params redacted)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "ok — ast.parse clean",
+    "connect": "ok — sui CLI on PATH (v1.69.2-33ef98b23370); active-env returns testnet; SUI_WALLET resolved (len=66)",
+    "query_balance": "ok — `sui client balance <wallet> --coin-type 0x2::sui::SUI --json` returns total_balance=0, coin_object_count=0 on testnet wallet; crystal logged (model='sui', tier='monetization', scope='sui_query_balance')",
+    "unknown_tool": "ok — returns SendResult(success=False, error='unknown_tool:bogus', metadata.expected_tools=[…])",
+    "mainnet_gate": "ok — when network=mainnet and tool in {transfer_usdc, nft_mint, lend_pool_deposit, lend_pool_borrow}, requires confirm=true; otherwise SendResult(success=False, error='mainnet_write_requires_confirm')",
+    "lend_no_pkg": "ok — graceful SendResult(success=False, error='SUI_LENDING_PACKAGE_ID not set') when env var absent",
+    "tx_status_bad_digest": "ok — surfaces CLI error verbatim in .error and rc=2 in metadata",
+    "transfer_no_input_coins": "ok — returns hint with resolved USDC coin_type for the network",
+    "two_chain_flow": "next: wire dApp /buy → tensorchain_mcp.escrow → sui_mcp.transfer_usdc on settlement (A.7 of plan)"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful tool call has a deterministic InferenceRecord with model='sui' (tier='monetization' default, tier='defi_loop' for lend_*)",
+    "Stdlib-only — no `pysui` python package required; uses subprocess + json + urllib",
+    "Mainnet-gated writes — when SUI_NETWORK=mainnet, transfer_usdc/nft_mint/lend_pool_* require explicit confirm=true; devnet/testnet are free-fire",
+    "Graceful CLI failures — if `sui` is not on PATH, connect() returns False and send() emits SendResult(success=False, error='sui_not_connected')",
+    "Optional lending — lend_pool_* return SendResult(success=False, error='SUI_LENDING_PACKAGE_ID not set') when the env var is absent (no crash)",
+    "Redacted persistence — keypair, encryption_key, and confirm flags are stripped from params before crystallization (only addresses, amounts, ids persisted)",
+    "Wallet privacy — SUI_WALLET value is never printed by the CLI surface; only length / presence reported"
+  ],
+
+  "usage_example": "from core.lib.third_party.sui_mcp import SuiMCPConnector\\nc = SuiMCPConnector()\\nc.connect()\\nr = c.send('query_balance', '{\"addr\":\"0x…\",\"coin_type\":\"0x2::sui::SUI\"}')\\nprint(r.metadata['total_balance'], r.crystal_id)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "A.3 of lively-enchanting-parrot plan"
+}

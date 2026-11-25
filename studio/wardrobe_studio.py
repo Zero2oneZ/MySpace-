@@ -26,9 +26,13 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 HERE = Path(__file__).resolve().parent
-MEDIA_DIR = HERE / "media"
-OUT_DIR = HERE / "media" / "wardrobe_out"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+sys.path.insert(0, str(HERE))
+
+import bootstrap, paths  # noqa: E402  -- canonical layout
+bootstrap.ensure()
+
+MEDIA_DIR = paths.MEDIA_ROOT
+OUT_DIR   = paths.WARDROBE_OUT_DIR
 
 MODELS_ROOT = HERE.parent  # /home/tom/models
 PIXAL3D_DIR = MODELS_ROOT / "Pixal3D"

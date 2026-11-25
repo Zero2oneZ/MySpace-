@@ -1,0 +1,103 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "stream_encoder",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · CONTINUOUS_CLIP_EMBEDDING_DAEMON",
+  "tier": "L0",
+  "module_path": "core/lib/stream_encoder.py",
+
+  "summary": "Warm CLIP daemon that tails every JSONL sink in the substrate (program_events, correlations, mocap, DOM, render output) and embeds EVERY event in real-time to a single continuous JSONL stream. The NN's vector axis (the 'V' in dim_pack's vector/circle/hex/rgb/fps) now carries real semantic signal instead of SHA-256 noise. Text events and image events share the same 512-d embedding space so a Pump.fun-buy and a render of its golden vortex sit at related coordinates.",
+
+  "model_default": "openai/clip-vit-base-patch32",
+  "model_dimension_default": 512,
+  "model_size_disk_default": "~600MB",
+  "vram_warm_default_mb": 1100,
+  "throughput_estimate": {
+    "cpu_text_events_per_sec": "5-15",
+    "gpu_3090ti_text_events_per_sec": "100-300",
+    "gpu_3090ti_image_events_per_sec": "30-80"
+  },
+
+  "engine_pattern": "Tail-and-encode loop. JSONL offset state at ~/.cc/embeddings/_encoder_offsets.json so reload picks up where left off. Single-instance lockfile at ~/.cc/embeddings/_encoder.lock with stale-PID detection. Auto-fallback to CPU if CUDA OOM. SIGINT graceful shutdown.",
+
+  "sinks_tailed": [
+    "~/.cc/program_events/*/*/*.jsonl   (program_monitor — Solana mainnet events)",
+    "~/.cc/correlations/*.jsonl          (program_correlator — DOM↔chain asof joins)",
+    "~/.cc/meta_xr_mocap.jsonl           (Meta XR body tracking frames)",
+    "~/.cc/snap_lens_mocap.jsonl         (Snap Lens body tracking frames)",
+    "~/.cc/phantom_dom_events.jsonl      (Phantom wallet DOM intent)",
+    "~/.cc/chain_renders/_video_queue.completed.jsonl  (video render events)"
+  ],
+
+  "output_layout": {
+    "daily_jsonl": "~/.cc/embeddings/YYYY-MM-DD.jsonl",
+    "rolling_tail": "~/.cc/embeddings/_latest.jsonl (last 1000 entries for fast lookup)",
+    "row_fields": [
+      "ts", "source", "kind", "crystal_anchor",
+      "vec_hex (L2-normalized float32 packed to hex — 2048 chars for 512-d)",
+      "vec_norm", "dim", "model_id", "device",
+      "source_event_hash", "sentence", "encoded_image"
+    ]
+  },
+
+  "canonical_sentence_flattening": "Each source has a custom event_to_sentence() that builds a short English description CLIP's text encoder sees. Pump.fun buys become 'buy on Pump.fun bonding curve memecoin_launchpad chain solana'. Correlations become 'intent signAndSendTransaction correlated to 71 chain events on MEMECOIN_LAUNCHPAD with actions other,sell,buy'. Mocap becomes 'motion capture frame with 8 joints including Head,Hips,LeftHandWrist'. Same event → same sentence → same embedding.",
+
+  "image_path_short_circuit": "When an event references image_path/out_path that exists on disk, CLIP image encoder fires instead of text. Lets render tiles and Snap webcam frames join the same vector space as chain text events.",
+
+  "wires_dim_pack": "dimension_pack._vector_hex_64 now checks: (1) record.embedding_hex inline, (2) embedding_index by crystal_id, (3) multi_layer_hex pack, (4) SHA-256 fallback. So the vector axis carries real CLIP signal whenever the encoder has seen the event.",
+
+  "exports": ["StreamEncoder", "EncodedEvent", "event_to_sentence",
+              "event_image_path", "vec_to_hex", "hex_to_vec",
+              "encode_loop", "stats", "EMB_ROOT", "LOCK", "LATEST",
+              "DEFAULT_MODEL", "DEFAULT_DEVICE"],
+
+  "cli": [
+    "run [--model X] [--device cpu|cuda:0|auto] [--poll 1.0] [--max-events N] [--quiet]",
+    "one --source X --kind X   (reads single event JSON from stdin, prints encoded row)",
+    "stats                       (today's encoded count + per-source histogram)",
+    "reset-lock"
+  ],
+
+  "cc_dispatchers": [
+    "cc encoder-run [--model X] [--device cpu]",
+    "cc encoder-stats",
+    "cc encoder-reset-lock",
+    "cc encoder-one"
+  ],
+
+  "venv_note": "MUST run under /data/Projects/ComfyUI/.venv/bin/python (has torch + transformers). The cc dispatcher autoselects it; system python3 falls back gracefully but can't load CLIP.",
+
+  "five_canonical_frames_per_encoded_event": {
+    "vector": "REAL CLIP-512 embedding (replaces SHA-256 fallback in dim_pack)",
+    "circle": "categorical kind bucket (chain:solana:DEX:buy / mocap:meta_xr:24j / etc.)",
+    "hex": "crystal_anchor — same crystal joins the chain-of-events",
+    "rgb": "deterministic HSV(sub_dag=INFERENCE, cost_class=fast, tier=embedding)",
+    "fps": "ts → frame_pack across 24/30/60/90/120 — same as every other event"
+  },
+
+  "routing_connections": {
+    "inbound_callers": ["cc encoder-* dispatchers", "future systemd-timer / cron"],
+    "outbound_calls": [
+      "transformers.CLIPModel.from_pretrained() (cached at ~/.cache/huggingface)",
+      "core/lib/dimension_pack.emit (indirect — encoded events become dim_pack input)"
+    ],
+    "substrate_reads": [
+      "every JSONL sink declared in SINKS (read-only, offset-tracked)"
+    ],
+    "substrate_writes": [
+      "~/.cc/embeddings/<YYYY-MM-DD>.jsonl",
+      "~/.cc/embeddings/_latest.jsonl",
+      "~/.cc/embeddings/_encoder_offsets.json",
+      "~/.cc/embeddings/_encoder.lock"
+    ]
+  },
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Inference · continuous encoder"
+}

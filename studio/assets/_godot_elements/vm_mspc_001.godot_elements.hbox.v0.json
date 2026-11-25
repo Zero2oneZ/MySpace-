@@ -1,0 +1,27 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "hbox",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "HBoxContainer",
+  "godot_inherits": "BoxContainer < Container < Control < CanvasItem < Node",
+  "summary": "Horizontal layout container that arranges children left-to-right with uniform separation. Use for toolbars, button rows, label+control pairs, top navigation, status bars overlaid on chain_render_wall. Children auto-size via Container size flags. Pair with VBoxContainer for grids and nested layouts. Alignment controls horizontal packing (BEGIN/CENTER/END) when children's total width is less than the container.",
+  "exports": [
+    { "name": "separation", "type": "int", "default": "4", "hint": "theme_override_constants/separation" },
+    { "name": "alignment", "type": "int", "default": "0", "hint": "BoxContainer.ALIGNMENT_BEGIN" }
+  ],
+  "signals": [
+    { "name": "sort_children", "params": [] }
+  ],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "tint", "godot_property": "self_modulate" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": true,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyHBox\" type=\"HBoxContainer\" parent=\".\"]\noffset_right = 480.0\noffset_bottom = 40.0\nalignment = 1\ntheme_override_constants/separation = 12\n",
+  "phase": "Atomic UI element"
+}

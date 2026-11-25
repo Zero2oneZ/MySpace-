@@ -1,0 +1,18 @@
+{
+  "crystal": "10961535013081bf859c782fb09c7839024dfababfc8aacc12298608e289752e263f896df6a80c58dd5111dc34a227b5ad6e39a08d0c310f1c9523fea709775b",
+  "description": "SCC of 1 nodes spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": true,
+  "id": "rec_scc_op_pump_feature_extractor_01_231",
+  "kind": "scc",
+  "name": "pump_feature_extra",
+  "nodes": [
+    "op_pump_feature_extractor"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

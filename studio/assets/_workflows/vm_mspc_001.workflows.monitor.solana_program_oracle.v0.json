@@ -1,0 +1,114 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "solana_program_oracle",
+  "category": "monitor",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Full-stack web3 oracle for Solana program activity: registry (verified mainnet program IDs) → WS supervisor (real-time event ingest) → correlator (asof time-window join of DOM intent ↔ chain events) → renderer (FLUX/SD1.5 image per high-signal event) → optional video (HunyuanVideo i2v). Every event gets the 5-tuple dim_pack signature; the universe DAG sees motifs across category × action.",
+
+  "inputs": [
+    {"name": "category_filter", "type": "str", "required": false, "default": "",
+      "notes": "MEMECOIN_LAUNCHPAD, DEX, CASINO, MEV, LENDING, etc. Empty = all watching."},
+    {"name": "program_short", "type": "str", "required": false, "default": ""},
+    {"name": "duration_s", "type": "int", "required": false, "default": 60},
+    {"name": "eps_cap", "type": "int", "required": false, "default": 50,
+      "notes": "Per-program throughput cap so a chatty program can't blow disk"},
+    {"name": "render_top_k", "type": "int", "required": false, "default": 5}
+  ],
+
+  "outputs": [
+    {"name": "events_jsonl_dir", "type": "path"},
+    {"name": "correlations_jsonl", "type": "path"},
+    {"name": "rendered_top_k_paths", "type": "json"},
+    {"name": "motif_circles", "type": "json"}
+  ],
+
+  "passes": [
+    {
+      "id": "registry_check",
+      "agent": "program_registry",
+      "model_path": "core/lib/program_registry.py::watchset",
+      "engine": "deterministic",
+      "in": ["category_filter"],
+      "out": "watch_entries",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Loads 23-entry catalog (19 mainnet-verified Solana + 2 Sui) filtered to watch=true + category match"
+    },
+    {
+      "id": "monitor",
+      "agent": "program_monitor",
+      "model_path": "core/lib/program_monitor.py::supervise",
+      "engine": "mcp",
+      "in": ["watch_entries", "duration_s", "eps_cap"],
+      "out": "events_jsonl_dir",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Raw WS framing per program; logsSubscribe on Solana, suix_subscribeEvent on Sui. Sink at ~/.cc/program_events/<chain>/<short>/<date>.jsonl. Crystal-anchor per subscription open."
+    },
+    {
+      "id": "correlate",
+      "agent": "program_correlator",
+      "model_path": "core/lib/program_correlator.py::correlate",
+      "engine": "deterministic",
+      "in": ["events_jsonl_dir"],
+      "out": "correlations_jsonl",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Asof time-window join (default 5s) with ~/.cc/phantom_dom_events.jsonl. Each correlation gets a rgba color tint and circle motif from dim_pack."
+    },
+    {
+      "id": "render_top_k",
+      "agent": "chain_event_render",
+      "model_path": "core/lib/chain_event_render.py::render_one",
+      "engine": "comfyui",
+      "in": ["events_jsonl_dir", "render_top_k"],
+      "out": "rendered_top_k_paths",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Render top-K by novelty (lowest cosine similarity to recent embeddings). FLUX-dev when warm, SD1.5 fallback. 14-archetype prompt templates per (category, action)."
+    },
+    {
+      "id": "detect_motifs",
+      "agent": "recursive_workflows",
+      "model_path": "core/lib/recursive_workflows.py::detect_all",
+      "engine": "deterministic",
+      "in": ["correlations_jsonl"],
+      "out": "motif_circles",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Tarjan SCC + simple cycles up to length 4 + motif mining on (category, action) sequences. Persists matches to studio/assets/_recursions/ — these become circle_motif_ids for future events."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "category", "source": "input:category_filter", "blend": "base"},
+    {"name": "motif", "source": "pass:detect_motifs", "blend": "screen"},
+    {"name": "tint", "source": "pass:correlate", "blend": "color_dodge"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/solana_program_oracle_proto.py.j2",
+      "out_path": "studio/web/streamlit/solana_program_oracle.py"
+    },
+    "godot": {
+      "language": "gd",
+      "scene": "templates/solana_program_oracle_scene.tscn.j2",
+      "script": "templates/solana_program_oracle_controller.gd.j2",
+      "out_scene": "studio/godot/project/scenes/oracle_wall.tscn",
+      "out_script": "studio/godot/project/src/oracle_wall_controller.gd"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/program_registry.py (23 entries)",
+    "core/lib/program_monitor.py (raw WS supervisor)",
+    "core/lib/program_correlator.py (asof join)",
+    "core/lib/chain_event_render.py (rendering)",
+    "core/lib/recursive_workflows.py (motif detection)",
+    "core/lib/dimension_pack.py (5-tuple per event)"
+  ]
+}

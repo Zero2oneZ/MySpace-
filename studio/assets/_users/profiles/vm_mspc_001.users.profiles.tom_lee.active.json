@@ -1,0 +1,23 @@
+{
+  "_schema": "user_profile_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "users",
+  "category": "profiles",
+  "name": "tom_lee",
+  "state": "active",
+  "version": "v0",
+  "user_id": "usr_tom_lee_001",
+  "email": "tom@zero2onez.com",
+  "display_name": "Tom Lee",
+  "avatar_url": "_global/models/avatars/N001.fbx",
+  "mfa_enabled": true,
+  "mfa_method": "totp",
+  "verified": true,
+  "tenant_memberships": ["tnt_zero2onez", "tnt_acme_corp"],
+  "global_role": "platform_owner",
+  "created_at": "2026-05-27T23:00:00Z",
+  "last_login": "2026-05-27T23:00:00Z",
+  "crystal": "<sha256 of this file content>"
+}

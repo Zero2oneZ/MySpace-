@@ -1,0 +1,120 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "topstep_dry_run",
+  "category": "trade",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Thin MCP wrapper around the existing /data/Projects/trade-blob/ TopstepX scalper. Subprocess calls trade-blob's own venv via tsx_cli.py — does NOT pollute MySpace++ deps. DRY-RUN is the default and only mode unless TOPSTEP_LIVE_TRADING=1 env is set AND --confirm flag passed AND dry_run=False. Every order action crystal-anchors tier='trade_action' so 'cc inference-chain --tier trade_action' is the audit-grade trade log.",
+
+  "inputs": [
+    {"name": "tool", "type": "str", "required": true,
+      "notes": "account_status | positions | order_market | order_limit | bracket_attach | pnl_intraday | quote_subscribe | cancel_order | flatten_all | health_check"},
+    {"name": "args", "type": "json", "required": false, "default": {}},
+    {"name": "confirm_live", "type": "bool", "required": false, "default": false,
+      "notes": "Must be true AND env TOPSTEP_LIVE_TRADING=1 AND dry_run=False for any order_* tool to actually transmit"}
+  ],
+
+  "outputs": [
+    {"name": "tool_result", "type": "json"},
+    {"name": "is_dry_run", "type": "bool"},
+    {"name": "trade_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "live_gate",
+      "agent": "topstep_mcp",
+      "model_path": "core/lib/third_party/topstep_mcp.py::live_gate",
+      "engine": "deterministic",
+      "in": ["tool", "confirm_live"],
+      "out": "is_dry_run",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "3-gate AND: dry_run==False AND env TOPSTEP_LIVE_TRADING=1 AND confirm_live==True. Order_* tools default to DRY-RUN; reads/positions/pnl ignore the gate."
+    },
+    {
+      "id": "subprocess_dispatch",
+      "agent": "topstep_mcp",
+      "model_path": "core/lib/third_party/topstep_mcp.py::run_tool",
+      "engine": "subprocess",
+      "in": ["tool", "args", "is_dry_run"],
+      "out": "tool_result",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "subprocess.run([/data/Projects/trade-blob/.venv/bin/python, scripts/tsx_cli.py, tool, --json, json_args]). Explicit --python avoids inheriting MySpace++ venv. timeout=30s. env carries TOPSTEP_USERNAME + TOPSTEP_API_KEY."
+    },
+    {
+      "id": "write_quote_stream",
+      "agent": "topstep_mcp",
+      "model_path": "core/lib/third_party/topstep_mcp.py::quote_subscribe",
+      "engine": "subprocess",
+      "in": ["args"],
+      "out": "quote_jsonl_path",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='quote_subscribe'. Writes streaming quotes to ~/.cc/topstep_quotes/<symbol>.jsonl. stream_encoder picks it up; trades become embeddable."
+    },
+    {
+      "id": "anchor_trade_action",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["tool", "tool_result", "is_dry_run"],
+      "out": "trade_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='trade_action', model='topstepx', scope=tool. metadata.dry_run preserves the gate state for audit. coords=[size, side_signed, intent_price, executed_price] for orders; [equity, day_pnl, margin_used] for status."
+    },
+    {
+      "id": "local_http_bridge",
+      "agent": "topstep_mcp",
+      "model_path": "core/lib/third_party/topstep_mcp.py::run_bridge_server",
+      "engine": "deterministic",
+      "in": [],
+      "out": "bridge_pid",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Optional. Stdlib http.server on port 8525 exposing the MCP tools as plain HTTP routes. Replit-deployed dashboards query this. Localhost-only by default; toggle via TOPSTEP_BRIDGE_PUBLIC=1."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "gate", "source": "pass:live_gate", "blend": "alpha"},
+    {"name": "tool", "source": "pass:subprocess_dispatch", "blend": "base"},
+    {"name": "quote_stream", "source": "pass:write_quote_stream", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "mcp": {
+      "transport": "stdio",
+      "tools": [
+        "account_status",
+        "positions",
+        "order_market",
+        "order_limit",
+        "bracket_attach",
+        "pnl_intraday",
+        "quote_subscribe",
+        "cancel_order",
+        "flatten_all",
+        "health_check"
+      ]
+    },
+    "http": {
+      "host": "127.0.0.1",
+      "port": 8525,
+      "routes_mirror_mcp_tools": true,
+      "default_visibility": "localhost_only"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/third_party/topstep_mcp.py (Phase D.5 — new)",
+    "/data/Projects/trade-blob/ (existing standalone Python scalper)",
+    "/data/Projects/trade-blob/scripts/tsx_cli.py (Phase D.5 — new tiny CLI shim added to trade-blob)",
+    "TOPSTEP_USERNAME + TOPSTEP_API_KEY (existing in .env)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "twitter_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · X_API_SINGLE_PROFILE_FEEDER",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/twitter.py",
+
+  "summary": "X (Twitter) API connector — SINGLE main profile (trollz removed 2026-05-28). Auto-config via TwitterConnector.from_env() reads X_BEARER_TOKEN + X_CONSUMER_KEY + X_CONSUMER_SECRET_KEY + X_ACCESS_TOKEN + X_ACCESS_SECRET_TOKEN. Read path uses stdlib urllib + bearer auth (zero dep); write path uses tweepy when installed. Bearer probe of all 8 X-prefixed candidates 2026-05-28 confirmed: only X_BEARER_TOKEN and X_TROLLZ_BEARER are bearer-shaped, and both route to the SAME enrolled X account (2041735171829911552) which is depleted — they are duplicate bearers for one effective account.",
+
+  "engine_pattern": "ThirdPartyConnector subclass. Stdlib urllib for read (verify_credentials, get_user, recent_tweets) returns distinct semantics for 200 (success), 401 (bad bearer), 402 (auth OK but no API credits on the plan), 403 (missing scopes). Tweepy still used for create_tweet + send_direct_message write path when installed.",
+
+  "expected_tools": [
+    "verify_credentials()",
+    "get_user(username)",
+    "recent_tweets(query, max_results)",
+    "send(recipient='tweet'|user_id, message)  [requires tweepy]",
+    "history(thread_id, limit)"
+  ],
+
+  "env_vars": {
+    "X_BEARER_TOKEN":         "App-only bearer (the single working bearer)",
+    "X_CONSUMER_KEY":         "OAuth 1.0a consumer key",
+    "X_CONSUMER_SECRET_KEY":  "OAuth 1.0a consumer secret",
+    "X_ACCESS_TOKEN":         "OAuth 1.0a user token (for writes via tweepy)",
+    "X_ACCESS_SECRET_TOKEN":  "OAuth 1.0a user secret (for writes via tweepy)",
+    "X_CLIENT_ID":            "OAuth 2.0 client (not wired)",
+    "X_CLIENT_SECRET":        "OAuth 2.0 secret (not wired)"
+  },
+
+  "removed_2026_05_28": {
+    "trollz_profile": "Removed. X_TROLLZ_BEARER is still present in .env but probe confirmed it routes to enrolled_account_id 2041735171829911552 — same as main. Tom's note 'trollz was deleted' refers to the X dev account; the env vars remained as a phantom pointing at the surviving main account.",
+    "trollz_env_vars_present_but_stale": ["X_TROLLZ_BEARER", "X_TROLLZ_CONSUMER", "X_TROLLZ_SECRET"]
+  },
+
+  "exports": ["TwitterConnector", "_load_env_for_profile"],
+
+  "substrate": "studio/third_party/twitter/ (per-config persistence) + ~/.cc/third_party_logs/twitter_sends.jsonl + crystal chain (tier='social_event', model='twitter')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/third_party/generative_mcp.py::generate_tweet / generate_dm (D.4)",
+      "core/lib/model_api.py /v1/social/* (D.1 — future)",
+      "core/cc.sh::cmd_twitter_verify / cmd_twitter_lookup / cmd_twitter_search (D.9)",
+      "harvest_loop.sh (Phase 2 #58 — when activated)"
+    ],
+    "outbound_calls": [
+      "GET https://api.twitter.com/2/users/by/username/<handle>",
+      "GET https://api.twitter.com/2/tweets/search/recent",
+      "POST https://api.twitter.com/2/tweets (tweepy write path)",
+      "POST https://api.twitter.com/2/dm_conversations/with/<id>/messages (tweepy)"
+    ],
+    "substrate_reads": "X_* env vars via studio/auth/keys.load_env()",
+    "substrate_writes": "send_log entries + crystal chain when harvest/send succeeds"
+  },
+
+  "bearer_probe_results_2026_05_28": {
+    "X_BEARER_TOKEN":         {"length": 114, "status": 402, "enrolled_account_id": 2041735171829911552, "title": "CreditsDepleted"},
+    "X_TROLLZ_BEARER":        {"length": 118, "status": 402, "enrolled_account_id": 2041735171829911552, "title": "CreditsDepleted"},
+    "X_ACCESS_TOKEN":         {"length":  50, "status": 401, "title": "Unauthorized — not a bearer"},
+    "X_ACCESS_SECRET_TOKEN":  {"length":  45, "status": 401, "title": "Unauthorized — not a bearer"},
+    "X_CLIENT_ID":            {"length":  25, "status": 401, "title": "Unauthorized — OAuth2 client id, not a bearer"},
+    "X_CLIENT_SECRET":        {"length":  50, "status": 401, "title": "Unauthorized — OAuth2 secret, not a bearer"},
+    "X_CONSUMER_KEY":         {"length":  25, "status": 401, "title": "Unauthorized — OAuth1 consumer key, not a bearer"},
+    "X_CONSUMER_SECRET_KEY":  {"length":  50, "status": 401, "title": "Unauthorized — OAuth1 consumer secret, not a bearer"},
+    "summary": "0 of 8 candidates returned 200. 2 bearers route to the same depleted account (2041735171829911552); 6 are not bearer-shaped and return 401 when sent as Bearer. There is NO working bearer in this .env. Required: refill credits on account 2041735171829911552 OR add a new X dev account with credits and store its bearer as a new env var (e.g. X_BEARER_TOKEN_V2)."
+  },
+
+  "guarantees": [
+    "Bearer-detection auditable — verify_credentials reports 200/401/402/403 distinctly so wiring bugs are separable from billing/scope issues",
+    "Read path zero-dep — stdlib urllib + bearer (no tweepy required)",
+    "Single source of truth — only one profile, no phantom accounts",
+    "Crystal-anchor-ready — harvest/send results will land in tier='social_event' as soon as credits arrive",
+    "Drop-in upgrade — adding a new working bearer needs only one env var change + restart"
+  ],
+
+  "blocking_dependency": "X plan credits depleted on enrolled_account_id 2041735171829911552. The connector is wired and tested; X is the bottleneck. Resolution: Tom either (a) refills at developer.x.com — instant unblock, or (b) provisions a new X dev account and stores its bearer; the env var name can stay X_BEARER_TOKEN.",
+
+  "usage_example": "from core.lib.third_party.twitter import TwitterConnector\\nc = TwitterConnector.from_env()\\nr = c.verify_credentials()\\nif r['auth_works'] and r.get('status') != 402:\\n    print(c.get_user('zero2onez'))\\nelse:\\n    print('billing or scope issue — see r[\\\"remedy\\\"]')",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.3 of lively-enchanting-parrot plan (Twitter MCP activation — wiring complete, awaiting X credits)"
+}

@@ -1,0 +1,128 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "godot_ssot_proxy",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Godot becomes the single-source-of-truth API for scene state, symbols, chain log, and tasks via a FastAPI sidecar on port 8766. Proxies into Godot through CCBridge file queue + outbound state snapshot at ~/.cc/godot_bridge_outbound.jsonl. Single-writer semantics via lock files (TTL 2000ms); conflicts persist to conflict_log + emit scene.conflict WS event. The substrate that lets dApp / Replit / external apps drive Godot scenes deterministically.",
+
+  "inputs": [
+    {"name": "port", "type": "int", "required": false, "default": 8766},
+    {"name": "lock_ttl_ms", "type": "int", "required": false, "default": 2000},
+    {"name": "ws_keepalive_s", "type": "float", "required": false, "default": 25.0},
+    {"name": "bearer_token", "type": "str", "required": false, "default": "",
+      "notes": "MYSPACE_KEY_MASTER if set; otherwise unauthenticated localhost-only"}
+  ],
+
+  "outputs": [
+    {"name": "server_pid", "type": "int"},
+    {"name": "active_routes", "type": "list[str]"},
+    {"name": "ws_subscriber_count", "type": "int"}
+  ],
+
+  "passes": [
+    {
+      "id": "boot_sidecar",
+      "agent": "godot_ssot_proxy",
+      "model_path": "core/lib/godot_ssot_proxy.py::run_server",
+      "engine": "deterministic",
+      "in": ["port", "lock_ttl_ms"],
+      "out": "server_pid",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "FastAPI + aiofiles. Single writer per scene_uid enforced via ~/.cc/scene_locks/{uid}.lock. Bearer auth gated by MYSPACE_KEY_MASTER presence."
+    },
+    {
+      "id": "read_scene_state",
+      "agent": "godot_ssot_proxy",
+      "model_path": "core/lib/godot_ssot_proxy.py::read_scene_state",
+      "engine": "deterministic",
+      "in": ["scene_uid"],
+      "out": "scene_state_json",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "GET /scene/{scene_uid}/state. Reads ~/.cc/scene_state/{scene_uid}.json snapshot file that cc_bridge.gd writes every 1s."
+    },
+    {
+      "id": "post_scene_command",
+      "agent": "godot_ssot_proxy",
+      "model_path": "core/lib/godot_ssot_proxy.py::post_scene_command",
+      "engine": "deterministic",
+      "in": ["scene_uid", "action", "payload", "writer_id"],
+      "out": "command_ack",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "POST /scene/{scene_uid}/command. Acquires lock; conflict → ~/.cc/conflict_log.jsonl + scene.conflict WS broadcast + last-writer-wins. Crystal hash returned in ack."
+    },
+    {
+      "id": "tail_chain",
+      "agent": "godot_ssot_proxy",
+      "model_path": "core/lib/godot_ssot_proxy.py::tail_chain",
+      "engine": "deterministic",
+      "in": ["n"],
+      "out": "chain_log_rows",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "GET /chain/recent?n=10. Tails ~/.cc/chain_log.jsonl. Same content surface as cc inference-chain."
+    },
+    {
+      "id": "ws_events",
+      "agent": "godot_ssot_proxy",
+      "model_path": "core/lib/godot_ssot_proxy.py::ws_handler",
+      "engine": "deterministic",
+      "in": ["subscriber_id"],
+      "out": "ws_subscriber_count",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "WS /events. Tails ~/.cc/godot_bridge_outbound.jsonl + broadcasts. Cleaned in try/finally; keepalive every 25s."
+    },
+    {
+      "id": "anchor_session",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["server_pid", "port"],
+      "out": "session_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='ssot_api', model='godot_proxy', scope='boot'. coords=[port, lock_ttl_ms, route_count, ws_subscriber_count]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "scene", "source": "pass:read_scene_state", "blend": "base"},
+    {"name": "commands", "source": "pass:post_scene_command", "blend": "additive"},
+    {"name": "ws", "source": "pass:ws_events", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "godot": {
+      "language": "gd",
+      "outbound_sink": "~/.cc/godot_bridge_outbound.jsonl",
+      "scene_snapshot_dir": "~/.cc/scene_state/",
+      "bridge_script": "studio/godot/project/src/cc_bridge.gd"
+    },
+    "http": {
+      "host": "127.0.0.1",
+      "port": 8766,
+      "routes": [
+        "GET  /scene/{scene_uid}/state",
+        "POST /scene/{scene_uid}/command",
+        "GET  /symbols",
+        "POST /symbols",
+        "GET  /chain/recent?n=10",
+        "GET  /tasks",
+        "WS   /events"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/godot_ssot_proxy.py (Phase C.1 — new)",
+    "studio/godot/project/src/cc_bridge.gd (extend with outbound snapshot writer)",
+    "core/lib/inference_logger.py (existing)",
+    "aiofiles + fastapi + uvicorn (pip deps)"
+  ]
+}

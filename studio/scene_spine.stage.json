@@ -1,0 +1,233 @@
+{
+ "_doc": "DIGITAL STAGE \u2014 interior room 6.0\u00d75.0\u00d72.6m: shell + furniture + recorded walkthrough. MetaXR. Furniture = placeholder GLBs (Pixal3D image\u21923D swaps real pieces).",
+ "frame": "MetaXR",
+ "nodes": [
+  {
+   "id": "floor",
+   "glb": "/tmp/texnorm.glb",
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    3.0,
+    0.05,
+    2.5
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "wall_n",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    0,
+    1.3,
+    -2.5
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    3.0,
+    1.3,
+    0.05
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "wall_s",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    0,
+    1.3,
+    2.5
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    3.0,
+    1.3,
+    0.05
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "wall_e",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    3.0,
+    1.3,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.05,
+    1.3,
+    2.5
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "wall_w",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    -3.0,
+    1.3,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.05,
+    1.3,
+    2.5
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "sofa",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    -1.5,
+    0.4,
+    -1.5
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.9,
+    0.4,
+    0.45
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "table",
+   "glb": "/tmp/e2e_proof.glb",
+   "pos": [
+    0,
+    0.25,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.6,
+    0.25,
+    0.4
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "lamp",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    1.8,
+    0.6,
+    -1.8
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.2,
+    0.6,
+    0.2
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "rug",
+   "glb": "/tmp/texnorm.glb",
+   "pos": [
+    0,
+    0.02,
+    0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1.4,
+    0.02,
+    1.0
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "prop",
+   "glb": "/data/Projects/MySpace++/studio/.venv/lib/python3.13/site-packages/gradio/media_assets/models3d/Duck.glb",
+   "pos": [
+    1.5,
+    0.0,
+    1.5
+   ],
+   "rot_euler_deg": [
+    0,
+    200,
+    0
+   ],
+   "scale": [
+    0.01,
+    0.01,
+    0.01
+   ],
+   "edit_mode": "link"
+  }
+ ],
+ "camera_path": [
+  [
+   0,
+   1.5,
+   2.2
+  ],
+  [
+   -1.5,
+   1.5,
+   0
+  ],
+  [
+   0,
+   1.5,
+   -2.0
+  ],
+  [
+   1.5,
+   1.5,
+   0
+  ],
+  [
+   0,
+   1.5,
+   2.2
+  ]
+ ]
+}

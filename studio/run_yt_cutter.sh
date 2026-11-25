@@ -62,6 +62,7 @@ else
   done
 fi
 
-mkdir -p "$HERE/media/video" "$HERE/media/sound"
-echo "run_yt_cutter.sh: launching yt_cutter on port $PICKED (video → $HERE/media/video, audio → $HERE/media/sound, ffmpeg=$(command -v ffmpeg))"
+# Canonical layout — idempotent.
+python3 "$HERE/bootstrap.py" >/dev/null
+echo "run_yt_cutter.sh: launching yt_cutter on port $PICKED (video → media/Media/Video, audio → media/Media/Sounds, ffmpeg=$(command -v ffmpeg))"
 exec streamlit run yt_cutter.py --server.headless true --server.port "$PICKED"

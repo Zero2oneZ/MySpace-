@@ -1,0 +1,162 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "generative_mcp_fanout",
+  "category": "generative",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Meta-MCP whose tools all generate content by fanning out to existing infrastructure. generate_app→replit-bridge; generate_card→hf_hub structured-output; generate_code→deepseek-coder; generate_3d→autonomous_modeler; generate_image→comfyui_mcp; generate_video→studio_runtime._dispatch_remotion; generate_tweet→model_api.text+twitter.create_tweet. Every call crystal-anchors and registers as a new ops_dag node so recursive_workflows.detect_all surfaces the self-build motifs.",
+
+  "inputs": [
+    {"name": "tool", "type": "str", "required": true,
+      "notes": "generate_app | generate_card | generate_code | generate_3d | generate_image | generate_video | generate_tweet | generate_dm"},
+    {"name": "args", "type": "json", "required": true,
+      "notes": "Tool-specific args; see tool descriptions"},
+    {"name": "rate_limit_check", "type": "bool", "required": false, "default": true,
+      "notes": "MAX_GENERATIONS_PER_CYCLE=10 gate to prevent infinite expansion"}
+  ],
+
+  "outputs": [
+    {"name": "produced_artifact", "type": "any",
+      "notes": "URL | card_path | code_str | glb_path | image_path | tweet_id | etc."},
+    {"name": "generative_crystal", "type": "str"},
+    {"name": "new_ops_dag_node_id", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "rate_gate",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::rate_gate",
+      "engine": "deterministic",
+      "in": ["rate_limit_check"],
+      "out": "gate_status",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Count generative_call rows in current cycle (~/.cc/cycle_<short>/generative_calls.jsonl). Reject when ≥ MAX_GENERATIONS_PER_CYCLE=10. Prevents runaway self-build."
+    },
+    {
+      "id": "dispatch_generate_card",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_card",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_card'. hf_hub.inference with structured-output prompt enforcing workflow_card_v0 schema. Writes to studio/assets/_workflows/<crystal>.workflow.v0.json."
+    },
+    {
+      "id": "dispatch_generate_app",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_app",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_app'. POSTs to replit-bridge port 8765. Same path as workflows.deploy.replit_to_droplet (this card delegates to that one)."
+    },
+    {
+      "id": "dispatch_generate_code",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_code",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "cheap",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_code'. deepseek_mcp.chat_complete(model='deepseek-coder', ...). Returns code string."
+    },
+    {
+      "id": "dispatch_generate_3d",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_3d",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_3d'. Delegates to autonomous_modeler.run. Same convergence rules."
+    },
+    {
+      "id": "dispatch_generate_image",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_image",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_image'. comfyui_mcp.submit_workflow with flux_face_swap or generic txt2img template."
+    },
+    {
+      "id": "dispatch_generate_tweet",
+      "agent": "generative_mcp",
+      "model_path": "core/lib/third_party/generative_mcp.py::generate_tweet",
+      "engine": "mcp",
+      "in": ["args"],
+      "out": "produced_artifact",
+      "tier": "cheap",
+      "status": "PLANNED",
+      "notes": "Conditional on tool=='generate_tweet'. model_api.text(prompt, model='deepseek-chat') → twitter.create_tweet. Requires TWITTER_BEARER_TOKEN."
+    },
+    {
+      "id": "register_in_ops_dag",
+      "agent": "ops_dag",
+      "model_path": "core/lib/ops_dag.py::register_node",
+      "engine": "deterministic",
+      "in": ["tool", "produced_artifact"],
+      "out": "new_ops_dag_node_id",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "kind='generative_call'. next cc loop cycle picks it up; recursive_workflows.detect_all may surface generative→card→app→deploy motifs."
+    },
+    {
+      "id": "anchor_generation",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["tool", "args", "produced_artifact"],
+      "out": "generative_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='generative', model='generative_mcp', scope=tool. coords=[artifact_bytes, fan_out_depth, cost_usd_estimate]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "rate_gate", "source": "pass:rate_gate", "blend": "alpha"},
+    {"name": "fanout", "source": "pass:dispatch_generate_card", "blend": "base"},
+    {"name": "ops_dag_link", "source": "pass:register_in_ops_dag", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "mcp": {
+      "transport": "stdio",
+      "tools": [
+        "generate_app",
+        "generate_card",
+        "generate_code",
+        "generate_3d",
+        "generate_image",
+        "generate_video",
+        "generate_tweet",
+        "generate_dm"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/third_party/generative_mcp.py (Phase D.4 — new)",
+    "core/lib/model_api.py (Phase D.1)",
+    "core/lib/third_party/deepseek_mcp.py (Phase D.2)",
+    "core/lib/third_party/comfyui_mcp.py (Phase B.1)",
+    "core/lib/autonomous_modeler.py (Phase B.3)",
+    "core/lib/third_party/twitter.py (existing — extend per D.3)",
+    "studio/mcp/replit-bridge/server.py (Phase C.4)",
+    "core/lib/ops_dag.py (existing — task #39)",
+    "core/lib/recursive_workflows.py (existing — task #64)"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "freetier_gate",
+  "state": "active",
+  "version": "v0",
+  "role": "AUTH · PUBLIC_TIER_TOKEN_GATE_BETWEEN_TWO_DOMAINS_AND_PROPRIETARY_MCPS",
+  "tier": "L0",
+  "module_path": "core/lib/freetier_gate.py",
+
+  "summary": "The ONLY auth gate between the two public callback URLs (GentlyOS.io for free-tier, trollz.fun for TROLLN-tier) and the proprietary MCP surface. Issues HMAC-SHA256 signed tokens after a user accepts terms+policies. Records every acceptance in a sqlite ledger at studio/auth/freetier_acceptances.sqlite AND crystal-anchors each event as tier='legal_acceptance' for court/audit reconstruction. Per-domain scoping default (TROLLN token rejected if expected GentlyOS.io and vice versa).",
+
+  "engine_pattern": "Stdlib-only token codec: header.payload.sig where each part is base64url. HMAC-SHA256 over MYSPACE_KEY_MASTER (from studio/auth/keys.master_secret()). Per-user/per-domain acceptance row in sqlite — ON CONFLICT UPDATE keeps latest acceptance. Token format JWT-shaped but kind='freetier_v1' to distinguish from any future token classes.",
+
+  "domains_configured": {
+    "GentlyOS.io": {
+      "callback_path": "/endpoint/freetier/terms/policies/callback/",
+      "tier": "freetier",
+      "cross_domain": false
+    },
+    "trollz.fun": {
+      "callback_path": "/terms/policies/callback/",
+      "tier": "trolln_tier",
+      "cross_domain": false
+    }
+  },
+
+  "expected_tools": [
+    "issue_token(user_id, domain, accepted_terms_hash, ttl_seconds=30d)",
+    "verify_token(token, expected_domain=None) -> TokenClaims|None",
+    "record_acceptance(user_id, domain, ip, user_agent, accepted_terms_hash)",
+    "lookup_acceptance(user_id, domain)",
+    "list_acceptances(domain=None, limit=50)",
+    "require_token(headers, expected_domain=None) -> TokenClaims|None",
+    "extract_token_from_headers(headers) -> str"
+  ],
+
+  "env_vars": {
+    "MYSPACE_KEY_MASTER":        "Master HMAC secret (32 bytes). Falls back to keys.master_secret() then to deterministic project-hash for dev",
+    "MYSPACE_FREETIER_LEDGER":   "Override path to acceptances.sqlite (default: studio/auth/freetier_acceptances.sqlite)"
+  },
+
+  "exports": ["TokenClaims", "DOMAINS", "issue_token", "verify_token", "record_acceptance",
+               "lookup_acceptance", "list_acceptances", "require_token", "extract_token_from_headers"],
+
+  "substrate": "studio/auth/freetier_acceptances.sqlite (per-user-per-domain ledger) + crystal chain entries tier='legal_acceptance' model='callback_handler' scope='acceptance_<domain_underscored>'",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/endpoints/freetier_callback/server.py (the HTTP handler — pending)",
+      "core/lib/model_api.py (D.1 — verifies token on every /v1/* request)",
+      "core/lib/third_party/generative_mcp.py (D.4 — verifies before any external call)",
+      "any future externally-reachable MCP surface"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (every acceptance: tier='legal_acceptance')",
+      "sqlite at studio/auth/freetier_acceptances.sqlite (INSERT ON CONFLICT UPDATE)"
+    ],
+    "substrate_reads": "MYSPACE_KEY_MASTER via studio/auth/keys.master_secret()",
+    "substrate_writes": "sqlite ledger + crystal chain"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "issue_gently": "ok — eyJhbGc...tier=freetier, exp=30d, crystal=35a759671ec5c252",
+    "issue_trollz": "ok — eyJhbGc...tier=trolln_tier, crystal=a01f615ada0daf29",
+    "verify_match": "ok — claims returned with correct user_id/domain/tier",
+    "verify_cross_domain_reject": "ok — trollz token rejected for expected=GentlyOS.io",
+    "ledger_persistence": "ok — sqlite shows both rows with crystal_id full hash",
+    "crystal_chain_audit": "ok — 2 legal_acceptance entries (one per domain) chained"
+  },
+
+  "guarantees": [
+    "Token is HMAC-bound to MYSPACE_KEY_MASTER — cannot be forged without master secret",
+    "Replay-safe — exp claim enforces TTL (default 30d)",
+    "Per-domain scoping by default — TROLLN token never honored on GentlyOS.io and vice versa",
+    "Idempotent — re-acceptance updates the row, doesn't duplicate",
+    "Crystal-audit-trail — every acceptance has a deterministic crystal_id linking to chain entry",
+    "Stdlib-only — no PyJWT or cryptography deps; uses hmac + hashlib + base64"
+  ],
+
+  "usage_example": "from core.lib.freetier_gate import issue_token, verify_token, record_acceptance\\n# On callback endpoint:\\ncrystal = record_acceptance(user_id, 'GentlyOS.io', ip=client_ip, user_agent=ua)\\ntoken = issue_token(user_id, 'GentlyOS.io', accepted_terms_hash=hash_of_terms_html)\\n# On any later API request:\\nclaims = verify_token(extracted_bearer, expected_domain='GentlyOS.io')\\nif claims is None: return 401\\n# else proceed; claims.tier / claims.user_id are trusted",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Public-vs-private architecture foundation (the only gate between callback URLs and proprietary MCPs)"
+}

@@ -1,0 +1,180 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "workflows",
+  "category": "avatar",
+  "name": "photo_to_avatar_rigged",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Single photo (+ optional voice clip) → fully rigged avatar with sprite sheet + Godot scene. References real models in /home/tom/models. The flagship workflow that proves the four-surface generation.",
+
+  "inputs": [
+    { "name": "photo",      "type": "image/jpeg|png", "required": true,  "max_mb": 25 },
+    { "name": "voice_clip", "type": "audio/wav|mp3",  "required": false, "max_mb": 50 },
+    { "name": "style_ref",  "type": "image|workflow_ref", "required": false },
+    { "name": "mocap_source_id", "type": "str", "required": false, "default": "meta_xr_quest3" }
+  ],
+
+  "outputs": [
+    { "name": "rigged_mesh",  "type": "gltf|fbx",          "size_estimate_mb": 40 },
+    { "name": "sprite_sheet", "type": "png_atlas+manifest", "size_estimate_mb": 5 },
+    { "name": "godot_scene",  "type": "tscn",              "size_estimate_kb": 12 },
+    { "name": "voice_synth",  "type": "audio/wav",         "size_estimate_mb": 3 },
+    { "name": "alignment_crystal", "type": "str" }
+  ],
+
+  "passes": [
+    {
+      "id": "depth",
+      "agent": "apple_DepthPro",
+      "model_path": "/home/tom/models/apple_DepthPro",
+      "engine": "diffusers",
+      "in": ["photo"],
+      "out": "depth_map",
+      "tier": "medium",
+      "vram_gb": 4,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "normals",
+      "agent": "marigold_normals",
+      "model_path": "/home/tom/models/prs-eth_marigold-normals-v0-1",
+      "engine": "diffusers",
+      "in": ["photo"],
+      "out": "normal_map",
+      "tier": "medium",
+      "vram_gb": 6,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "pose",
+      "agent": "qwen_anypose",
+      "model_path": "/home/tom/models/Qwen-Edit-AnyPose",
+      "engine": "diffusers",
+      "in": ["photo"],
+      "out": "pose_landmarks",
+      "tier": "medium",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "lift_3d",
+      "agent": "Pixal3D",
+      "model_path": "/home/tom/models/TencentARC_Pixal3D",
+      "engine": "diffusers",
+      "in": ["photo", "depth_map", "normal_map"],
+      "out": "mesh_3d_raw",
+      "tier": "large",
+      "vram_gb": 16,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "faceswap_lock",
+      "agent": "Flux2_Klein_FaceSwap",
+      "model_path": "/home/tom/models/Flux2-Klein-Face-Swap",
+      "engine": "comfyui",
+      "comfy_workflow": "templates/faceswap_lock_comfy.json.j2",
+      "in": ["photo", "mesh_3d_raw"],
+      "out": "identity_locked_albedo",
+      "tier": "large",
+      "vram_gb": 18,
+      "status": "IN-FLIGHT"
+    },
+    {
+      "id": "mocap_verify",
+      "agent": "mocap_rig_anchor",
+      "model_path": "core/lib/mocap_rig_anchor.py",
+      "engine": "mocap",
+      "in": ["mocap_source_id", "rig_target_glb", "anchor_uuids"],
+      "out": "alignment_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Reads a verified mocap frame from animation_registry by source_id. Validates joint topology against Meta Body 24-joint skeleton, hip-to-anchor proximity ≤ 0.5m, ARKit blend shape value bounds. Emits a deterministic alignment_crystal. The first pass that anchors the avatar to real space."
+    },
+    {
+      "id": "bake_pbr",
+      "agent": "blender_pbr_bake",
+      "engine": "blender",
+      "in": ["mesh_3d_raw", "identity_locked_albedo", "normal_map", "depth_map"],
+      "out": ["albedo_baked", "normal_baked", "ao_baked"],
+      "tier": "medium",
+      "status": "IN-FLIGHT"
+    },
+    {
+      "id": "tts_synth",
+      "agent": "Qwen3_TTS_CustomVoice",
+      "model_path": "/home/tom/models/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+      "engine": "diffusers",
+      "in": ["voice_clip"],
+      "out": "voice_synth",
+      "tier": "medium",
+      "vram_gb": 4,
+      "status": "ACTIVE",
+      "optional": true
+    },
+    {
+      "id": "sprite_compose",
+      "agent": "spriteforge_mcp",
+      "engine": "mcp",
+      "mcp_server": "spriteforge-mcp",
+      "tool": "sprite_generate",
+      "in": ["albedo_baked", "normal_baked", "ao_baked"],
+      "out": "sprite_sheet",
+      "tier": "medium",
+      "status": "ACTIVE"
+    }
+  ],
+
+  "layer_stack": [
+    { "name": "albedo",  "source": "pass:bake_pbr",         "blend": "base",           "target_uniform": "u_albedo" },
+    { "name": "normal",  "source": "pass:bake_pbr",         "blend": "normal_map",     "target_uniform": "u_normal" },
+    { "name": "ao",      "source": "pass:bake_pbr",         "blend": "multiply",       "target_uniform": "u_ao" },
+    { "name": "depth",   "source": "pass:depth",            "blend": "depth_uniform",  "target_uniform": "u_depth" },
+    { "name": "alpha",   "source": "pass:faceswap_lock",    "blend": "alpha",          "target_uniform": "u_alpha" },
+    { "name": "opacity", "source": "literal:1.0",           "blend": "opacity",        "target_uniform": "u_opacity" },
+    { "name": "motion",  "source": "pass:mocap_verify",     "blend": "additive" }
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/photo_to_avatar_rigged_proto.py.j2",
+      "out_path": "studio/web/streamlit/photo_to_avatar_rigged.py"
+    },
+    "godot": {
+      "language": "cpp",
+      "scene":  "templates/photo_to_avatar_rigged_scene.tscn.j2",
+      "script": "templates/photo_to_avatar_rigged_controller.gd.j2",
+      "native": "templates/photo_to_avatar_rigged_native.cpp.j2",
+      "out_scene":  "studio/godot/project/scenes/avatar_rigged.tscn",
+      "out_script": "studio/godot/project/src/avatar_rigged_controller.gd",
+      "out_native": "studio/godot/project/cpp/src/avatar_rigged_native.cpp"
+    },
+    "blender": {
+      "template": "templates/photo_to_avatar_rigged_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/avatar_rigged_bake.py"
+    },
+    "spriteforge": {
+      "mcp_server": "spriteforge-mcp",
+      "mcp_path": "studio/spriteforge/mcp/spriteforge-mcp.js",
+      "tools": ["sprite_refine_prompt", "sprite_generate"],
+      "manifest_out": "studio/spriteforge/manifests/avatar_rigged_sheet.json"
+    },
+    "comfyui": {
+      "workflow_json": "templates/photo_to_avatar_rigged_comfy.json.j2",
+      "install_path": "/data/Projects/ComfyUI",
+      "node_packs": ["impact", "ipadapter"],
+      "out_path": "/data/Projects/ComfyUI/user/workflows/photo_to_avatar_rigged.json"
+    }
+  },
+
+  "license_tier": "tier2_pro",
+  "price_usd_cents_per_run": 150,
+
+  "crystal": "",
+  "depends_on": [],
+
+  "_notes": "First flagship card. Most passes ACTIVE thanks to /home/tom/models holdings. Faceswap + bake are IN-FLIGHT and unblock after the ComfyUI bridge + Blender headless wrapper land."
+}

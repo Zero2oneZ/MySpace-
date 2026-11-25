@@ -1,0 +1,20 @@
+[Unit]
+Description=MySpace++ GPU Inference Gateway (:8523)
+After=network.target
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public
+EnvironmentFile=/opt/mspc-public/.env
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/scripts/gpu_gateway.py --port 8523 --tunnel-interface wg0
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/gpu-gateway.log
+StandardError=append:/var/log/mspc/gpu-gateway.log
+
+[Install]
+WantedBy=multi-user.target

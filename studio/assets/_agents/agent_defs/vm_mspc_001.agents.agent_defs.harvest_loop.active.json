@@ -1,0 +1,156 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "harvest_loop",
+  "state": "active",
+  "version": "v1",
+  "role": "DAEMON · HARVEST_ORCHESTRATOR",
+  "tier": "L0",
+  "module_path": "core/scripts/harvest_loop.sh",
+  "phase": "2.3",
+  "summary": "Long-running bash daemon that ticks every N seconds (default 60s) and fires harvest activities on EPOCH-modulo cron-style cadences. Orchestrates EXISTING tools only — pinterest connector, noun_project connector, doc_parser, dag_loop, recursive_workflows. Never duplicates their logic, only their cadence. Each completed action writes one ISO-8601-prefixed line to ~/.cc/harvest_loop.log. PID tracked at ~/.cc/harvest_loop.pid for clean start/stop/status.",
+  "engine_pattern": "while-true sleep-N loop -> tick() -> per-schedule EPOCH%K==0 gate -> timeout-wrapped subprocess to existing tool -> append-only structured log",
+  "schedule": [
+    {
+      "name": "noun_project_harvest",
+      "epoch_modulo": 300,
+      "cadence_human": "every 5 min",
+      "action": "shuf -n1 seed_queries.txt -> python3 noun_project.py search --query <q> --limit 10",
+      "gates": [
+        "NOUN_PROJECT_KEY / NOUNPROJECT_API_KEY / NOUN_PROJECT_SECRET / NOUNPROJECT_SECRET_KEY must be set",
+        "seed_queries.txt must exist and be non-empty (auto-bootstrapped to 10 defaults on first miss)"
+      ],
+      "timeout_s": 30
+    },
+    {
+      "name": "pinterest_curated",
+      "epoch_modulo": 900,
+      "cadence_human": "every 15 min",
+      "action": "random pick from CURATED_QUERIES keys (blueprint/furniture/interior/exterior/lighting/kitchen/avatar_ref/style_ref) -> python3 -c snippet calling PinterestConnector.harvest_curated(category, limit_per_query=5)",
+      "gates": [
+        "PINTREST_API or PINTEREST_API must be set"
+      ],
+      "timeout_s": 120,
+      "note": "pinterest.py exposes no CLI of its own, so this is the only step that uses an in-line python3 -c snippet."
+    },
+    {
+      "name": "doc_queue_drain",
+      "epoch_modulo": 1800,
+      "cadence_human": "every 30 min",
+      "action": "find oldest studio/assets/_doc_queue/*.url -> rename to .parsing -> python3 doc_parser.py parse-url <adapter> <url> -> rename to .done (success) or .failed (failure)",
+      "gates": [
+        "_doc_queue dir auto-created on first tick",
+        "empty queue logs one line and skips"
+      ],
+      "job_file_format": "first non-comment, non-empty line: '<adapter> <url>' OR a bare URL (defaults adapter=godot)",
+      "timeout_s": 120
+    },
+    {
+      "name": "dag_loop_and_recursion_refresh",
+      "epoch_modulo": 3600,
+      "cadence_human": "every 60 min",
+      "action": "cc loop cycle (preferred via core/cc.sh) OR python3 dag_loop.py cycle (fallback), then python3 recursive_workflows.py all to refresh the 5th sub-DAG",
+      "gates": ["always runs at cadence"],
+      "timeout_s": 300
+    },
+    {
+      "name": "disk_hygiene",
+      "epoch_modulo": 604800,
+      "cadence_human": "every 7 days",
+      "action": "find studio/assets/_corpus/icons -mtime +30 -type f -delete",
+      "gates": ["skipped if icons dir missing"],
+      "timeout_s": 0
+    }
+  ],
+  "cli": {
+    "start":  "bash core/scripts/harvest_loop.sh start [--interval N]",
+    "stop":   "bash core/scripts/harvest_loop.sh stop",
+    "status": "bash core/scripts/harvest_loop.sh status",
+    "tick":   "bash core/scripts/harvest_loop.sh tick"
+  },
+  "env_vars": {
+    "MYSPACE_ROOT": "default /data/Projects/MySpace++ — let the daemon survive cwd changes",
+    "HARVEST_FORCE_ALL": "set to 1 to force every schedule to fire on the current tick (smoke testing)",
+    "PYTHON_BIN": "default python3 — override if a venv-scoped python is needed",
+    "PINTREST_API": "Pinterest API key (legacy spelling, matches .env)",
+    "NOUN_PROJECT_KEY": "Noun Project OAuth1 consumer key",
+    "NOUNPROJECT_API_KEY": "alias of NOUN_PROJECT_KEY",
+    "NOUN_PROJECT_SECRET": "Noun Project OAuth1 consumer secret",
+    "NOUNPROJECT_SECRET_KEY": "alias of NOUN_PROJECT_SECRET"
+  },
+  "paths": {
+    "log_file": "~/.cc/harvest_loop.log",
+    "pid_file": "~/.cc/harvest_loop.pid",
+    "seed_queries": "studio/assets/_corpus/seed_queries.txt",
+    "doc_queue": "studio/assets/_doc_queue/",
+    "icons_dir": "studio/assets/_corpus/icons/"
+  },
+  "log_line_format": "<iso_utc> <kind> <free_form_message>",
+  "log_line_kinds": [
+    "daemon",
+    "noun_project",
+    "pinterest",
+    "doc_queue",
+    "doc_parser",
+    "dag_loop",
+    "recursive_workflows",
+    "disk_hygiene",
+    "seed_queries"
+  ],
+  "routing_connections": {
+    "inbound_callers": [
+      "systemd / runit / launchctl / tmux (operator-managed long-run)",
+      "cron @reboot bash harvest_loop.sh start (one-shot)",
+      "cron */N * * * * bash harvest_loop.sh tick (push cadence externally instead of running the daemon)"
+    ],
+    "outbound_calls": [
+      "python3 core/lib/third_party/noun_project.py search --query <q> --limit 10",
+      "python3 -c \"from third_party.pinterest import PinterestConnector; ...harvest_curated(cat)\"",
+      "python3 core/lib/doc_parser.py parse-url <adapter> <url>",
+      "core/cc.sh loop cycle (preferred) | python3 core/lib/dag_loop.py cycle (fallback)",
+      "python3 core/lib/recursive_workflows.py all",
+      "find ... -mtime +30 -delete"
+    ],
+    "substrate_reads": [
+      "studio/assets/_corpus/seed_queries.txt",
+      "studio/assets/_doc_queue/*.url",
+      "$MYSPACE_ROOT/.env (best-effort source, never committed)"
+    ],
+    "substrate_writes": [
+      "~/.cc/harvest_loop.log (append-only structured)",
+      "~/.cc/harvest_loop.pid (start/stop lifecycle)",
+      "studio/assets/_doc_queue/*.parsing | *.done | *.failed (job-file state transitions)",
+      "studio/assets/_doc_queue/ (mkdir -p on first tick)",
+      "studio/assets/_corpus/seed_queries.txt (auto-bootstrapped if missing)"
+    ]
+  },
+  "guarantees": [
+    "set -u (no set -e): a single harvest failure never kills the daemon",
+    "Connectivity-gated: missing API key skips silently with one log line, never crashes",
+    "Timeout-wrapped: every python subprocess uses `timeout` so a stuck connector can't block the loop",
+    "Idempotent tick: running `tick` twice in the same second yields the same EPOCH-modulo decisions",
+    "Crystal anchoring delegated to the underlying tools (InferenceLogger / pinterest connector / dag_loop) — daemon never double-anchors",
+    "PID hygiene: stop removes the pidfile; stale pidfiles are detected on start and replaced",
+    "Append-only log: never rotates or truncates ~/.cc/harvest_loop.log",
+    "HARVEST_FORCE_ALL=1: smoke-test escape hatch that bypasses all EPOCH gates for one tick"
+  ],
+  "constraints": [
+    "Does NOT modify cc.sh, .env, or any connector file",
+    "Does NOT install packages — pure bash + python3 (already required by MySpace++)",
+    "Does NOT re-anchor crystals — every successful harvest's underlying script already logs to the master chain",
+    "Does NOT duplicate connector logic — only orchestrates their CLIs (or, for pinterest, an in-line -c snippet)",
+    "Single new bash file at core/scripts/harvest_loop.sh + this agent_def card + seed_queries.txt"
+  ],
+  "smoke_test": {
+    "syntax":       "bash -n core/scripts/harvest_loop.sh",
+    "single_tick":  "HARVEST_FORCE_ALL=1 bash core/scripts/harvest_loop.sh tick",
+    "status_clean": "bash core/scripts/harvest_loop.sh status  # expect 'stopped'",
+    "start_stop":   "bash core/scripts/harvest_loop.sh start & sleep 1.5; bash core/scripts/harvest_loop.sh status; bash core/scripts/harvest_loop.sh stop"
+  },
+  "usage_example": "bash core/scripts/harvest_loop.sh start --interval 60\\n# tail the log\\ntail -F ~/.cc/harvest_loop.log\\n# graceful stop\\nbash core/scripts/harvest_loop.sh stop",
+  "chain_runs": ["pinterest_harvest_loop_v1", "noun_project_harvest_loop_v1", "doc_parser_drain_v1"]
+}

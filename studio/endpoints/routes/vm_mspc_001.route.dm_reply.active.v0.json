@@ -1,0 +1,20 @@
+{
+  "_schema": "route_rule_v1",
+  "asset_id": "vm_mspc_001.route.dm_reply.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "name": "dm_reply",
+  "state": "active",
+  "version": "v0",
+  "priority": 1,
+  "match_kind": "*",
+  "match_service": "telegram",
+  "match_tag": "user_dm",
+  "match_condition": "",
+  "action": "reply",
+  "target_service": "telegram",
+  "target_recipient": "{{body.chat_id}}",
+  "template": "Received: {{body.text}}. Routing via cc.",
+  "chain_command": "",
+  "created_at": "2026-05-28T00:00:00Z"
+}

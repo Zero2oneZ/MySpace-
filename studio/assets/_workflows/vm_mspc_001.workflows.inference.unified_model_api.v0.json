@@ -1,0 +1,154 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "unified_model_api",
+  "category": "inference",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Single OpenAI-compatible HTTP surface on port 8521 across text / image / audio / embed / code / 3d. Cache short-circuit on BLAKE3(model+prompt+params), provider election via router_policy ladder, dispatch through hf_hub or deepseek_mcp or hf_endpoints, every call crystal-anchored. The one bearer endpoint (MYSPACE_KEY_MASTER) external apps point at — Replit-deployed apps, dApp pages, Godot scenes all hit this URL instead of negotiating providers themselves.",
+
+  "inputs": [
+    {"name": "modality", "type": "str", "required": true,
+      "notes": "text | image | audio | embed | code | three_d"},
+    {"name": "prompt_or_messages", "type": "any", "required": true,
+      "notes": "str for text/image/audio/embed/code; ModelPlan for three_d"},
+    {"name": "model_id", "type": "str", "required": false,
+      "notes": "Skip provider election when set; honor literal model_id"},
+    {"name": "cost_class", "type": "str", "required": false, "default": "cheap",
+      "notes": "cheap | medium | expensive"},
+    {"name": "latency_budget_ms", "type": "int", "required": false, "default": 5000},
+    {"name": "vram_gb", "type": "int", "required": false, "default": 0}
+  ],
+
+  "outputs": [
+    {"name": "response_body", "type": "any"},
+    {"name": "resolved_provider", "type": "str"},
+    {"name": "cache_hit", "type": "bool"},
+    {"name": "inference_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "cache_lookup",
+      "agent": "result_cache",
+      "model_path": "core/lib/result_cache.py::get",
+      "engine": "deterministic",
+      "in": ["modality", "prompt_or_messages", "model_id"],
+      "out": "cached_or_none",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "BLAKE3(modality + sorted_args). Short-circuit: cache_hit=true → skip elect + dispatch, jump to anchor."
+    },
+    {
+      "id": "elect_provider",
+      "agent": "router_policy",
+      "model_path": "core/lib/router_policy.py::choose",
+      "engine": "deterministic",
+      "in": ["modality", "cost_class", "latency_budget_ms", "vram_gb", "model_id"],
+      "out": "resolved_provider",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "v1 hard-coded ladder (cheap→deepseek→deepinfra→hf_inference; expensive→hf_inference→hf_endpoint). Reads from cloud_providers.PROVIDERS registry."
+    },
+    {
+      "id": "dispatch_text",
+      "agent": "model_api",
+      "model_path": "core/lib/model_api.py::text",
+      "engine": "deterministic",
+      "in": ["resolved_provider", "prompt_or_messages"],
+      "out": "response_body",
+      "tier": "medium",
+      "status": "PLANNED",
+      "notes": "Conditional on modality=='text'. Routes to hf_hub.inference OR deepseek_mcp.chat_complete OR hf_endpoints.predict."
+    },
+    {
+      "id": "dispatch_image",
+      "agent": "model_api",
+      "model_path": "core/lib/model_api.py::image",
+      "engine": "deterministic",
+      "in": ["resolved_provider", "prompt_or_messages"],
+      "out": "response_body",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on modality=='image'. Routes to comfyui_mcp.submit_workflow OR hf_endpoints.predict (FLUX endpoint)."
+    },
+    {
+      "id": "dispatch_embed",
+      "agent": "model_api",
+      "model_path": "core/lib/model_api.py::embed",
+      "engine": "deterministic",
+      "in": ["resolved_provider", "prompt_or_messages"],
+      "out": "response_body",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on modality=='embed'. Routes to stream_encoder.encode_text (local cached CLIP) OR hf_endpoints.predict (BGE endpoint)."
+    },
+    {
+      "id": "dispatch_three_d",
+      "agent": "model_api",
+      "model_path": "core/lib/model_api.py::three_d",
+      "engine": "deterministic",
+      "in": ["resolved_provider", "prompt_or_messages"],
+      "out": "response_body",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "Conditional on modality=='three_d'. Delegates to autonomous_modeler.run (Phase B). Inherits all its stop criteria."
+    },
+    {
+      "id": "cache_store",
+      "agent": "result_cache",
+      "model_path": "core/lib/result_cache.py::put",
+      "engine": "deterministic",
+      "in": ["modality", "prompt_or_messages", "model_id", "response_body"],
+      "out": "stored_key",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Same BLAKE3 key. Subsequent identical requests cache-hit."
+    },
+    {
+      "id": "anchor_call",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["resolved_provider", "modality", "response_body"],
+      "out": "inference_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='model_api', model=resolved_provider, scope=modality. coords=[tokens_in, tokens_out, latency_ms, cost_usd_estimate]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "cache", "source": "pass:cache_lookup", "blend": "base"},
+    {"name": "elected", "source": "pass:elect_provider", "blend": "screen"},
+    {"name": "response", "source": "pass:dispatch_text", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "http": {
+      "host": "0.0.0.0",
+      "port": 8521,
+      "auth": "Bearer MYSPACE_KEY_MASTER",
+      "routes": [
+        "POST /v1/text/generate",
+        "POST /v1/image/generate",
+        "POST /v1/audio/speech",
+        "POST /v1/embed",
+        "POST /v1/code/generate",
+        "POST /v1/3d/generate"
+      ]
+    }
+  },
+
+  "depends_on": [
+    "core/lib/model_api.py (Phase D.1 — new)",
+    "core/lib/cloud_providers.py (Phase D.7 — completed task #70)",
+    "core/lib/router_policy.py (Phase 1 of #57 — pending)",
+    "core/lib/result_cache.py (completed task #34)",
+    "core/lib/hf_hub.py (completed task #55)",
+    "core/lib/third_party/deepseek_mcp.py (Phase D.2)",
+    "core/lib/hf_endpoints.py (Phase D.6)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

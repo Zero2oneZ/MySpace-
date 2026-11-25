@@ -1,0 +1,25 @@
+{
+  "_schema": "web_site_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "web",
+  "category": "sites",
+  "name": "myspace_studio",
+  "state": "active",
+  "version": "v0",
+  "stack": "HTMX + salvo (Rust) + flat HTML",
+  "no_js_framework": true,
+  "no_build_step": true,
+  "mobile_first": true,
+  "host": "159.89.181.146",
+  "tls": "caddy",
+  "routes": [
+    {"path": "/", "type": "static", "source": "_web/html/index.html"},
+    {"path": "/api/*", "type": "api", "source": "trollz_api:8080"},
+    {"path": "/mcp/*", "type": "mcp", "source": "watchdog_mcp:3100"},
+    {"path": "/studio/*", "type": "streamlit", "source": "localhost:8501"}
+  ],
+  "assets_root": "_web/static/",
+  "last_deployed": "2026-05-27T23:00:00Z"
+}

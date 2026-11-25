@@ -1,0 +1,46 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "sprite3d",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "Sprite3D",
+  "godot_inherits": "SpriteBase3D < GeometryInstance3D < VisualInstance3D < Node3D < Node",
+  "summary": "Textured 2D quad in 3D space — the workhorse of the chain_render_wall demo (one Sprite3D per rendered crystal PNG). Use for billboards, image-based decals, 3D HUD icons, character portraits floating in scenes. modulate property accepts manifest.dim.rgba color tint directly (matches the dim_pack 5-frames mapping). pixel_size controls world-space scale (default 0.01 = 100px per meter). billboard mode keeps the sprite facing the Camera3D.",
+  "exports": [
+    { "name": "texture", "type": "Texture2D", "default": "null" },
+    { "name": "pixel_size", "type": "float", "default": "0.01" },
+    { "name": "modulate", "type": "Color", "default": "Color(1, 1, 1, 1)" },
+    { "name": "billboard", "type": "int", "default": "0", "hint": "BaseMaterial3D.BILLBOARD_DISABLED" },
+    { "name": "transparent", "type": "bool", "default": "true" },
+    { "name": "shaded", "type": "bool", "default": "false" },
+    { "name": "double_sided", "type": "bool", "default": "true" },
+    { "name": "no_depth_test", "type": "bool", "default": "false" },
+    { "name": "fixed_size", "type": "bool", "default": "false" },
+    { "name": "alpha_cut", "type": "int", "default": "0", "hint": "SpriteBase3D.ALPHA_CUT_DISABLED" },
+    { "name": "centered", "type": "bool", "default": "true" },
+    { "name": "offset", "type": "Vector2", "default": "Vector2(0, 0)" },
+    { "name": "flip_h", "type": "bool", "default": "false" },
+    { "name": "flip_v", "type": "bool", "default": "false" },
+    { "name": "hframes", "type": "int", "default": "1" },
+    { "name": "vframes", "type": "int", "default": "1" },
+    { "name": "frame", "type": "int", "default": "0" }
+  ],
+  "signals": [
+    { "name": "frame_changed", "params": [] },
+    { "name": "texture_changed", "params": [] }
+  ],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "albedo", "godot_property": "texture" },
+    { "layer": "alpha", "godot_property": "transparent" },
+    { "layer": "opacity", "godot_property": "modulate.a" },
+    { "layer": "depth", "godot_property": "no_depth_test" }
+  ],
+  "default_child_of": "Node3D",
+  "can_have_children": true,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyTile\" type=\"Sprite3D\" parent=\".\"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)\npixel_size = 0.005\nbillboard = 1\nmodulate = Color(0.4, 0.7, 1.0, 1)\ntransparent = true\n",
+  "phase": "Atomic 3D element"
+}

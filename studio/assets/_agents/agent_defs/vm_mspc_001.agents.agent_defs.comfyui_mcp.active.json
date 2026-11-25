@@ -1,0 +1,69 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "comfyui_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · COMFYUI_HTTP_WORKFLOW_RUNNER",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/comfyui_mcp.py",
+  "summary": "Outbound connector mirroring third_party/blender_mcp.py shape but pointing at a locally running ComfyUI HTTP API (default http://localhost:8188). Submits workflow templates, polls history, downloads renders into studio/assets/_bakes/<prompt_id>/. Stdlib urllib only — no requests dep. Gracefully degrades when ComfyUI is not running (connect=False, send returns skipped result, never hangs).",
+  "engine_pattern": "ThirdPartyConnector subclass. HTTP/JSON via urllib. connect() probes GET /system_stats with 2s timeout (cached per instance). Same crystal-id anchoring + send-log pattern as Blender/DeepSeek/Stripe MCP connectors. Every successful submit_workflow → inference_logger.log(tier='comfyui', model='comfyui', scope='comfyui_submit_workflow').",
+  "expected_tools": [
+    "submit_workflow",
+    "get_status",
+    "get_history",
+    "download_output",
+    "interrupt",
+    "get_node_info",
+    "system_stats"
+  ],
+  "env_vars": {
+    "COMFYUI_BASE_URL": "Override default http://localhost:8188",
+    "CC_COMFY_INSTALL": "ComfyUI install path (read via workflow_generator.COMFY_INSTALL)"
+  },
+  "convenience_wrappers": [
+    "submit_workflow_and_wait(template_name, inputs, timeout=300, poll_interval=1.0)"
+  ],
+  "exports": [
+    "ComfyUIMCPConnector",
+    "EXPECTED_TOOLS",
+    "TEMPLATE_PLACEHOLDERS",
+    "WORKFLOW_TEMPLATE_DIR",
+    "BAKES_DIR"
+  ],
+  "substrate": "studio/assets/_comfy_workflows/<name>.json (input templates); studio/assets/_bakes/<prompt_id>/<filename> (downloaded outputs); ~/.cc/third_party_logs/comfyui_mcp_sends.jsonl (send log)",
+  "template_placeholders": ["__SEED__", "__PROMPT__", "__IMAGE_PATH__", "__STRENGTH__"],
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/workflow_generator (when card.surfaces.comfyui present)",
+      "studio_runtime._dispatch_comfy (when pass.engine='comfyui')",
+      "core/cc.sh::cmd_comfy_submit / cmd_comfy_status (via send())"
+    ],
+    "outbound_calls": [
+      "POST http://localhost:8188/prompt",
+      "GET  http://localhost:8188/history/<prompt_id>",
+      "GET  http://localhost:8188/queue",
+      "GET  http://localhost:8188/view?filename=<f>&type=output",
+      "POST http://localhost:8188/interrupt",
+      "GET  http://localhost:8188/object_info",
+      "GET  http://localhost:8188/system_stats",
+      "inference_logger.log (tier='comfyui')"
+    ],
+    "substrate_reads": "studio/assets/_comfy_workflows/<name>.json + COMFYUI_BASE_URL env",
+    "substrate_writes": "studio/assets/_bakes/<prompt_id>/<filename> + send log entries + crystal chain records"
+  },
+  "closes_the_2d_loop": "Pinterest harvest → SVG/seed assets → workflow_generator --target comfyui (.json graph) → comfyui_mcp.submit_workflow(template, inputs) → poll get_history → download_output (lands in _bakes/) → crystal-anchored in inference chain. Claude can drive batch image/video generation end-to-end from natural-language cards.",
+  "guarantees": [
+    "Graceful degradation — when ComfyUI :8188 unreachable, connect=False and send returns skipped SendResult without hanging (2s probe timeout)",
+    "Same connector shape as Blender/DeepSeek/Stripe MCP — uniform third_party pattern",
+    "Every submit_workflow logged via send_log + crystal-chain (searchable by prompt_id + template_name)",
+    "Stdlib urllib only — no requests dep, no SDK"
+  ],
+  "usage_example": "from third_party.comfyui_mcp import ComfyUIMCPConnector\\nc = ComfyUIMCPConnector()\\nif c.connect():\\n    r = c.send('submit_workflow', json.dumps({'template_name': 'sdxl_basic', 'inputs': {'SEED': 1234, 'PROMPT': 'a stained glass cat'}}))\\n    print(r.metadata['prompt_id'])\\n    # later:\\n    c.send('download_output', json.dumps({'prompt_id': pid, 'node_id': '9', 'filename': 'ComfyUI_00001_.png'}))",
+  "chain_runs": ["moe_chain_router_v0"]
+}

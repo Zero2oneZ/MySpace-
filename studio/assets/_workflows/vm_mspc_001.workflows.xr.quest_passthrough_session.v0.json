@@ -1,0 +1,124 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "quest_passthrough_session",
+  "category": "xr",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Meta Quest passthrough + hand-tracking session built on godot-openxr-vendors plugin. XR_FB_passthrough + XR_EXT_hand_tracking init via meta_xr_bridge.gd autoload. Wires controller and hand-skeleton input to the existing avatar_rigged_controller.gd; logs every XR_FB_spatial_entity UUID into the chain. The XR entry point — same Godot project, same dApp surface, same crystal log; passthrough makes the dApp + character creation pipeline land in MR.",
+
+  "inputs": [
+    {"name": "passthrough_mode", "type": "str", "required": false,
+      "default": "color", "notes": "color | mono | reconstructed_3d"},
+    {"name": "hand_tracking", "type": "bool", "required": false, "default": true},
+    {"name": "anchor_persistence", "type": "bool", "required": false, "default": true,
+      "notes": "Persist XR_FB_spatial_entity anchors across sessions"},
+    {"name": "subject_name", "type": "str", "required": false,
+      "default": "MspcQuestUser"}
+  ],
+
+  "outputs": [
+    {"name": "xr_interface_status", "type": "str"},
+    {"name": "anchor_uuids", "type": "list[str]"},
+    {"name": "session_crystal", "type": "str"},
+    {"name": "controller_topology", "type": "json"}
+  ],
+
+  "passes": [
+    {
+      "id": "openxr_init",
+      "agent": "meta_xr_bridge",
+      "model_path": "studio/godot/project/src/meta_xr_bridge.gd::_ready",
+      "engine": "godot",
+      "in": ["passthrough_mode", "hand_tracking"],
+      "out": "xr_interface_status",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "XRServer.find_interface('OpenXR'). Enables XR_FB_passthrough + XR_EXT_hand_tracking. godot-openxr-vendors community plugin git submoduled under addons/."
+    },
+    {
+      "id": "register_subject",
+      "agent": "animation_registry",
+      "model_path": "core/lib/animation_registry.py::register_source",
+      "engine": "deterministic",
+      "in": ["subject_name"],
+      "out": "registry_entry",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Source kind='meta_quest_xr'. watch=true verified_at=null. Mark verified after >100 hand-tracking frames."
+    },
+    {
+      "id": "harvest_anchors",
+      "agent": "spatial_anchor",
+      "model_path": "core/lib/spatial_anchor.py::harvest_xr_fb",
+      "engine": "deterministic",
+      "in": ["anchor_persistence"],
+      "out": "anchor_uuids",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "XR_FB_spatial_entity UUIDs via OpenXR extension. is_valid_xr_anchor_uuid validator from mocap_frame.py applied. Persisted anchors restorable across sessions."
+    },
+    {
+      "id": "stream_hand_mocap",
+      "agent": "mocap_frame",
+      "model_path": "core/lib/mocap_frame.py::hand_frames_from_xr",
+      "engine": "deterministic",
+      "in": ["hand_tracking"],
+      "out": "hand_mocap_jsonl_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "XR hand joints → MocapFrame.fingers slot. Written to ~/.cc/meta_xr_mocap.jsonl. stream_encoder picks up + embeds via continuous_clip_encoder workflow."
+    },
+    {
+      "id": "wire_controller",
+      "agent": "avatar_rigged_controller",
+      "model_path": "studio/godot/project/src/avatar_rigged_controller.gd::on_xr_controller_input",
+      "engine": "godot",
+      "in": ["xr_interface_status"],
+      "out": "controller_topology",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "XRController3D signals → avatar locomotion + interaction. Both controllers + hand tracking emitted in same shape."
+    },
+    {
+      "id": "anchor_session",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["xr_interface_status", "anchor_uuids", "subject_name"],
+      "out": "session_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='xr_session', model='meta_quest_openxr', scope='passthrough'. coords=[anchor_count, controller_axis_count, hand_skeleton_joint_count]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "passthrough", "source": "pass:openxr_init", "blend": "base"},
+    {"name": "hands", "source": "pass:stream_hand_mocap", "blend": "additive"},
+    {"name": "anchors", "source": "pass:harvest_anchors", "blend": "screen"},
+    {"name": "avatar", "source": "pass:wire_controller", "blend": "alpha"}
+  ],
+
+  "surfaces": {
+    "godot": {
+      "language": "gd",
+      "autoload": "MetaXRBridge",
+      "scene": "studio/godot/project/scenes/quest_passthrough.tscn",
+      "android_xr_manifest": "studio/godot/templates/android_manifest_xr_overlay.xml",
+      "export_preset": "android_xr",
+      "out_apk": "build/android_xr/myspace_xr.apk"
+    }
+  },
+
+  "depends_on": [
+    "studio/godot/project/addons/godot-openxr-vendors/ (community plugin, git submodule)",
+    "studio/godot/project/src/meta_xr_bridge.gd (Phase C.3 — new)",
+    "studio/godot/project/src/avatar_rigged_controller.gd (existing)",
+    "core/lib/spatial_anchor.py (existing)",
+    "core/lib/mocap_frame.py (existing — extend hand_frames_from_xr)",
+    "core/lib/animation_registry.py (existing)",
+    "META_QUEST_APP_ID (user-provisioned)"
+  ]
+}

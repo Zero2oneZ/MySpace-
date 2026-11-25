@@ -1,0 +1,11 @@
+{
+  "added_at": 1780044152.1458223,
+  "anchor_uuids": [],
+  "capture_method": "snap_lens_bodytrack",
+  "chain": "snap_lens",
+  "notes": "Snap Camera Kit BodyTrack \u2014 upper-body only on most lenses. Mapped through SNAP_BODYTRACK_TO_META_BODY remap.",
+  "rig_target_glb": "studio/assets/_models/avatars/snap_upper_body.glb",
+  "source_id": "snap_lens_default",
+  "verified_at": null,
+  "watch": true
+}

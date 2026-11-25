@@ -1,0 +1,28 @@
+{
+  "_schema": "factory_build_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "factory",
+  "category": "builds",
+  "name": "acme_dashboard.run_99",
+  "state": "completed",
+  "version": "v0",
+  "build_id": "bld_99",
+  "template_id": "tmpl_realestate_walkthrough",
+  "tenant_id": "tnt_acme_corp",
+  "config": {
+    "brand_color": "#ff6600",
+    "logo": "acme_logo.png",
+    "room_count": 5,
+    "contact_info": "sales@acme.com",
+    "avatar_voice": "female_1",
+    "music_track": "_global/audio/music/ambient_1.mp3"
+  },
+  "status": "completed",
+  "started_at": "2026-05-27T22:00:00Z",
+  "completed_at": "2026-05-27T22:02:15Z",
+  "output_path": "_factory/clients/acme_corp/projects/walkthrough_v1",
+  "build_log": "_factory/builds/completed/bld_99.log",
+  "crystal": "<sha256 of this file content>"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "loom-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Loom — React frontend for the morph-chain / kernel-registry engine. Consumes the Python JSON API (/dapp/api/loom/*).",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}

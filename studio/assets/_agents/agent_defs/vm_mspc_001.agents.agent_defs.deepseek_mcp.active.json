@@ -1,0 +1,86 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "deepseek_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · DEEPSEEK_CHEAP_TIER_INFERENCE",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/deepseek_mcp.py",
+
+  "summary": "DeepSeek OpenAI-compatible inference connector — the cheap-tier rail (~$0.27/M input · $1.10/M output). Three models supported: deepseek-chat (general), deepseek-coder (code generation), deepseek-reasoner (chain-of-thought). Stdlib-only (no `openai` python package). Bearer-auth via studio/auth/keys.upstream_key('deepseek') which resolves DEEPSEEK_API_KEY or INFERENCE_API_KEY. Every successful call appends one InferenceRecord with tier='inference', model='deepseek/<variant>', scope='deepseek_<tool>'.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp shape (Phase A.2). SERVICE='deepseek'. JSON POST to api.deepseek.com/v1/chat/completions (OpenAI-compat shape). Tool dispatch via send(recipient=tool_name, message=json_args). connect() probes GET /v1/models to verify auth (accepts 200 or 404).",
+
+  "expected_tools": [
+    "chat_complete",
+    "embed",
+    "models_list"
+  ],
+
+  "known_models": [
+    "deepseek-chat",
+    "deepseek-coder",
+    "deepseek-reasoner"
+  ],
+
+  "env_vars": {
+    "DEEPSEEK_API_KEY":   "Primary API key (Bearer)",
+    "INFERENCE_API_KEY":  "Fallback for DEEPSEEK_API_KEY",
+    "DEEPSEEK_BASE_URL":  "Override default api.deepseek.com/v1",
+    "INFERENCE_BASE_URL": "Fallback for DEEPSEEK_BASE_URL"
+  },
+
+  "convenience_wrappers": [
+    "chat_complete(model, messages, max_tokens, temperature, system='')",
+    "embed(model, input)",
+    "models_list()"
+  ],
+
+  "exports": ["DeepSeekMCPConnector", "EXPECTED_TOOLS", "KNOWN_MODELS", "DEFAULT_BASE_URL"],
+
+  "substrate": "studio/third_party/deepseek/ + ~/.cc/third_party_logs/deepseek_sends.jsonl + ~/.cc/inference_master_chain.jsonl (crystal-anchored inference records, tier='inference')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/model_api.py (D.1 unified model API — cheap-tier rail)",
+      "core/lib/router_policy.py (when cost_class='cheap' wins)",
+      "core/lib/third_party/generative_mcp.py::generate_code (uses deepseek-coder)",
+      "core/cc.sh::cmd_deepseek_test / cmd_deepseek_code",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='deepseek')"
+    ],
+    "outbound_calls": [
+      "https://api.deepseek.com/v1/chat/completions",
+      "https://api.deepseek.com/v1/embeddings",
+      "https://api.deepseek.com/v1/models",
+      "inference_logger.log (every success: tier='inference', model='deepseek/<variant>')"
+    ],
+    "substrate_reads": "DEEPSEEK_API_KEY + DEEPSEEK_BASE_URL via keys.upstream_key + load_env",
+    "substrate_writes": "send_log entries + crystal_chain inference records"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "connect": "ok — GET /v1/models returned 200, base_url=api.deepseek.com/v1",
+    "chat_complete": "ok — deepseek-chat 'Reply with exactly: OK' → tokens_in=9 tokens_out=1 latency=1079ms output='OK' crystal=6fcace0a30c9b222afbf9123",
+    "code_completion": "ok — deepseek-coder 'Python one-liner SHA256 hex' → tokens_in=36 tokens_out=29 latency=1290ms code returned crystal=b76ea606f1a79abcc5739054",
+    "total_cost_smoke": "~$0.0001 (literal pennies)"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful call has a deterministic InferenceRecord with tier='inference', model='deepseek/<variant>'",
+    "Stdlib-only — no `openai` package required; uses urllib with application/json POST",
+    "Tier-aware — variant model auto-selected via shortcuts (cc deepseek-code routes to deepseek-coder)",
+    "Graceful — if no key resolves, connect() returns False and send() emits SendResult(success=False, error='deepseek_not_connected')",
+    "Cost-bounded — typical use case (chat + code) is fractions of a penny per call; user's ~$20 lasts months",
+    "OpenAI-compatible — same payload shape as hf_hub.inference, swap-able at the router layer"
+  ],
+
+  "usage_example": "from core.lib.third_party.deepseek_mcp import DeepSeekMCPConnector\\nc = DeepSeekMCPConnector()\\nc.connect()\\nr = c.send('chat_complete', json.dumps({'model':'deepseek-chat','messages':[{'role':'user','content':'hi'}],'max_tokens':50}))\\nprint(r.message_preview, r.crystal_id, r.metadata['tokens_out'])",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.2 of lively-enchanting-parrot plan"
+}

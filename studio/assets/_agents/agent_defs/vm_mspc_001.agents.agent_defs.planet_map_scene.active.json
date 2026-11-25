@@ -1,0 +1,135 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "planet_map_scene",
+  "state": "active",
+  "version": "v0",
+  "role": "SCENE · 3D_SOCIAL_GRAPH_PLANET_VISUALIZATION",
+  "tier": "L0",
+  "module_path": "studio/godot/project/scenes/planet_map.tscn",
+
+  "summary": "Godot 4.6.3 Node3D scene that renders the social graph as a stylized planet. Players are placed as small emissive spheres on the surface at their geographic (lat, lon); friendships are drawn as great-circle arc polylines lifted slightly off the surface to avoid z-fighting. A slow orbiting camera ties the composition together. v1 ships with hardcoded seed data (NYC, Paris, Tokyo, Sydney, SF); v2 swaps for a live fetch from the dApp social-graph endpoint. Pairs with friend_graph_harvester (Facebook SDK -> player profile cache) and dapp_server.",
+
+  "engine_pattern": "Single-controller scene. PlanetMapController._ready orchestrates fetch -> paint -> nodes -> edges -> HUD -> camera. Geometry is built imperatively at startup: SphereMesh for the planet and per-player avatars, ImmediateMesh with PRIMITIVE_LINE_STRIP for friend arcs (lightweight; no per-edge CSGCylinder). Stable per-player hue from String.hash() so colors don't reshuffle between runs.",
+
+  "scene_tree": {
+    "PlanetMap": "Node3D (root, script attached)",
+    "PlanetMap/Camera3D": "Camera3D — orbit position +6,+4,+10 fov 55",
+    "PlanetMap/DirectionalLight3D": "DirectionalLight3D — warm sun, shadows enabled",
+    "PlanetMap/WorldEnvironment": "WorldEnvironment — procedural deep-space sky",
+    "PlanetMap/Earth": "MeshInstance3D — SphereMesh radius 5, stylized blue ocean",
+    "PlanetMap/Earth/PlayerNodes": "Node3D — container for player spheres",
+    "PlanetMap/Earth/FriendEdges": "Node3D — container for arc meshes",
+    "PlanetMap/HUD": "CanvasLayer — 2D overlay",
+    "PlanetMap/HUD/Label": "Label — 'Connected players: N'"
+  },
+
+  "scripts": {
+    "controller": "studio/godot/project/src/planet_map_controller.gd  (class_name PlanetMapController)",
+    "geo_helper": "studio/godot/project/src/geo_to_xyz.gd               (lat_lon_to_xyz, great_circle_points, great_circle_arc_lifted)",
+    "fetcher":    "studio/godot/project/src/friend_graph_fetcher.gd     (fetch_for_current_player)"
+  },
+
+  "math": {
+    "lat_lon_to_xyz": "y = r*sin(lat); x = r*cos(lat)*cos(lon); z = r*cos(lat)*sin(lon)",
+    "axes": "+Y north pole, +X prime meridian @ equator, +Z lon=+90 (East)",
+    "arc_lift": "midpoint of each friendship arc bulges 6% above sphere radius via sin(t*PI) bell to defeat z-fight"
+  },
+
+  "seed_data_v1": {
+    "players": [
+      {"player_id": "local", "name": "You",   "lat":  40.70, "lon":  -74.00, "city": "NYC"},
+      {"player_id": "f1",    "name": "Alice", "lat":  48.85, "lon":    2.35, "city": "Paris"},
+      {"player_id": "f2",    "name": "Bob",   "lat":  35.68, "lon":  139.76, "city": "Tokyo"},
+      {"player_id": "f3",    "name": "Cleo",  "lat": -33.87, "lon":  151.21, "city": "Sydney"},
+      {"player_id": "f4",    "name": "Dax",   "lat":  37.77, "lon": -122.42, "city": "SF"}
+    ],
+    "friendships": [
+      ["local", "f1"], ["local", "f2"], ["f1", "f3"], ["f2", "f4"], ["local", "f4"]
+    ],
+    "rationale": "5 globally-distributed cities give immediate visual confirmation that lat/lon math is correct on first launch — one node per inhabited continent, plus a US-coast pair to show short arcs alongside long ones."
+  },
+
+  "data_sources_v2": {
+    "primary_http": {
+      "endpoint": "GET http://127.0.0.1:8520/dapp/api/social_graph?player_id=<id>",
+      "host_binding": "127.0.0.1 only — Caddy fronts TLS in production",
+      "auth": "PUBLIC read (no bearer) — analogous to /dapp/api/products and /dapp/api/balance",
+      "response_schema": "{ players: [{player_id, name, lat, lon, picture_url}], friendships: [{player_a, player_b}] }",
+      "status": "NOT YET IMPLEMENTED — dapp_server agent (vm_mspc_001.agents.agent_defs.dapp_server) will add it next phase. Until then, fetcher.use_http stays false and seed data is returned.",
+      "owner_to_add_route": "dapp_server"
+    },
+    "upstream_harvester": {
+      "name": "friend_graph_harvester",
+      "responsibility": "Materializes the social_graph table by joining: Facebook friends (via facebook_sdk_bridge.get_friends), player profile cache (player_id, picture_url, declared lat/lon), and friendship edges from sui_mcp on-chain follow records.",
+      "writes_to": "studio/assets/_social/graph_cache.json + global cc.db tables (TBD: social_players, social_friendships)",
+      "feeds_into": "dapp_server /dapp/api/social_graph reads graph_cache.json"
+    },
+    "fallback_path": "embedded seed_data_v1 above — always available so the scene renders without backend services running"
+  },
+
+  "exports": [
+    "PlanetMapController",
+    "_ready",
+    "_fetch_data",
+    "_build_nodes",
+    "_build_edges",
+    "_make_player_sphere",
+    "_make_arc_mesh",
+    "_spin_camera"
+  ],
+
+  "runtime_requirements": {
+    "godot": ">= 4.3 (4.6.3-stable target)",
+    "scripts_loaded_via": "preload(\"res://src/geo_to_xyz.gd\").new() / preload(\"res://src/friend_graph_fetcher.gd\").new()",
+    "no_autoload_needed": "true — both helpers are plain Object subclasses, instantiated on demand"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Top-level navigation (TBD) — main_controller.gd will add a 'Planet' button that change_scene_to_file('res://scenes/planet_map.tscn')",
+      "social_panel.gd 'View graph' affordance (planned)"
+    ],
+    "outbound_calls": [
+      "friend_graph_fetcher.fetch_for_current_player(player_id) -> Dictionary",
+      "HTTPClient -> 127.0.0.1:8520/dapp/api/social_graph (phase 2, when use_http = true)"
+    ],
+    "substrate_reads": "seed data inline + (phase 2) studio/assets/_social/graph_cache.json via dapp_server",
+    "substrate_writes": "none (read-only viewer)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "files_created": "ok — 4 files (1 .tscn, 3 .gd) + this agent card",
+    "tscn_header":   "ok — gd_scene load_steps=8 format=3 uid present",
+    "class_name":    "ok — class_name PlanetMapController declared",
+    "geo_math":      "ok — lat_lon_to_xyz + great_circle_points + great_circle_arc_lifted present",
+    "fetcher":       "ok — fetch_for_current_player returns 5 players + 5 friendships from seed",
+    "godot_runtime": "PENDING — scene needs to be opened in Godot 4.6.3 editor for full parse validation; bash cannot validate gdscript syntax"
+  },
+
+  "guarantees": [
+    "Renders without backend — seed data is embedded; offline-safe",
+    "No project.godot mutation — scene is self-contained, no new autoload required",
+    "ImmediateMesh edges = O(N) draw calls but minimal memory; safe for ~100 friends. Beyond that, switch to MultiMesh or merged ArrayMesh.",
+    "Stable per-player hue across runs via id.hash() — visual identity persists",
+    "All scripts cwd-scoped to res://src/ and res://scenes/ — no absolute paths"
+  ],
+
+  "blockers_phase_2": [
+    "dapp_server: add GET /dapp/api/social_graph route that reads studio/assets/_social/graph_cache.json",
+    "friend_graph_harvester: build it (joins facebook_sdk_bridge + sui_mcp follow records into graph_cache.json)",
+    "social_players & social_friendships tables in core/lib/db.py (cc.db schema bump)",
+    "Player profile photos: requires picture_url -> texture loader (likely HTTPRequest + ImageTexture.create_from_image)",
+    "Camera controls: orbit drag, zoom, click-to-focus on a player node — currently auto-orbit only",
+    "Real Earth texture: swap stylized blue material for an equirectangular Earth texture once we ship a fetch pipeline"
+  ],
+
+  "usage_example": "# From main_controller or any scene:\nget_tree().change_scene_to_file(\"res://scenes/planet_map.tscn\")\n# Or load + instantiate inline:\nvar packed = load(\"res://scenes/planet_map.tscn\")\nadd_child(packed.instantiate())",
+
+  "chain_runs": [],
+  "phase": "B.1 — first 3D visualization of the player social graph. Pairs with dapp_server (data source) + friend_graph_harvester (data producer) + facebook_sdk_bridge (upstream friend list)."
+}

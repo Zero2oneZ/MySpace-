@@ -1,0 +1,27 @@
+{
+  "crystal": "ae2dad840e579b3a3c5f782a3ecb5465b5a821421d1d9b4adfb287a71ff9feb4caeff356c5eb6b6b0345c77c89ae24b7e41afe8768de4a639befde7d6328416a",
+  "description": "SCC of 4 nodes spanning APPS,DOCS,INFERENCE,PLATFORMS",
+  "edge_kinds_traversed": [
+    "feeds_back",
+    "feeds_into",
+    "ingests_from",
+    "produces"
+  ],
+  "has_self_loop": false,
+  "id": "rec_scc_op_provider_groq_04_000",
+  "kind": "scc",
+  "name": "groq \u2192 AGENT_AUDIT_2026_0 \u2192 discord-mcp...",
+  "nodes": [
+    "op_provider_groq",
+    "op_doc_agent_audit_2026_05_28",
+    "op_discord_mcp",
+    "op_product_avatar_nft"
+  ],
+  "size": 4,
+  "sub_dags_touched": [
+    "APPS",
+    "DOCS",
+    "INFERENCE",
+    "PLATFORMS"
+  ]
+}

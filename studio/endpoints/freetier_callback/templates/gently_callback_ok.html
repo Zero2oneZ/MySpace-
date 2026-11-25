@@ -1,0 +1,24 @@
+<div class="panel ok">
+  <h2 style="margin-top:0;">Accepted · session token issued</h2>
+  <p style="margin:0 .25rem .35rem 0;">
+    Recorded for <code>{user_id}</code>, domain <code>GentlyOS.io</code>, tier <code>{tier}</code>.
+  </p>
+  <p style="margin:0;">Crystal: <code>{crystal_short}</code> · Expires in 30 days.</p>
+  <p style="margin: .5rem 0;">
+    Friends list harvest: <strong>{friends_consent_label}</strong>
+  </p>
+</div>
+
+<h2>Your token</h2>
+<p>Save it. Pass as <code>Authorization: Bearer &lt;token&gt;</code> on every public model API call.</p>
+<div class="token-display">{token}</div>
+
+<p>Quickstart against the model API:</p>
+<pre>curl -X POST https://GentlyOS.io/v1/text/generate \
+  -H "Authorization: Bearer {token_short}…" \
+  -H "Content-Type: application/json" \
+  -d '{{"prompt": "Hello", "max_tokens": 64}}'</pre>
+
+<p class="stamp">
+  Audit entry: <code>tier='legal_acceptance' · model='callback_handler' · scope='acceptance_GentlyOS_io'</code>
+</p>

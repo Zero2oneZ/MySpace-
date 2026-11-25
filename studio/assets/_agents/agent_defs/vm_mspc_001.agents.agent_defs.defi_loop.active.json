@@ -1,0 +1,122 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "defi_loop",
+  "state": "active",
+  "version": "v0",
+  "role": "PRIMITIVE · CANONICAL_DEFI_LEVERAGE_LOOP",
+  "tier": "L0",
+  "module_path": "core/lib/defi_loop.py",
+
+  "summary": "Pure stdlib orchestrator for the canonical Sui USDC leveraged-lending loop: deposit collateral → borrow against it at safety_ltv → re-deposit the borrowed amount → re-borrow → repeat until target leverage, max iters, or health drops. Composes the existing sui_mcp.lend_pool_deposit / lend_pool_borrow primitives — never reaches around them. Every step is crystal-anchored (tier='defi_loop', model='sui_lending', scope=f'loop_step_{i}_<action>'); a final 'loop_complete' record summarizes. DRY-RUN is the default; leveraged real-money loops above 2x require explicit confirm_above_2x=True; loops above 5x are rejected before any work.",
+
+  "engine_pattern": "Deterministic integer-micro arithmetic. Iteration 0 = seed deposit of base_collateral. Each subsequent iteration i: compute borrow_amt = cumulative_collateral * safety_ltv (integer-micro), check projected debt/collateral <= safety_ltv (refuse otherwise → 'health_low'), execute borrow via sui_mcp.send('lend_pool_borrow', ...), then re-deposit borrow_amt via sui_mcp.send('lend_pool_deposit', ...). The borrowed amount IS the next deposit. Stop when current_leverage >= target_leverage ('target_reached'), iter cap hit ('max_iters'), or projected_ltv > safety_ltv ('health_low'). Final loop crystal = BLAKE3 over canonical JSON of [asdict(s) for s in steps].",
+
+  "api": {
+    "exports": ["LoopStep", "LoopResult", "run_loop", "USDC_MICRO_PER_UNIT", "HARD_CAP_LEVERAGE", "SOFT_CAP_LEVERAGE", "VALID_STOP_REASONS"],
+    "main_function": "run_loop(pool_id, base_collateral_micro, target_leverage=3.0, safety_ltv=0.65, max_iters=8, dry_run=True, confirm_above_2x=False) -> LoopResult",
+    "dataclasses": {
+      "LoopStep": "iteration, action ('deposit'|'borrow'), amount_micro, cumulative_collateral_micro, cumulative_borrow_micro, current_leverage, estimated_health_factor, crystal, tx_digest, dry_run, error",
+      "LoopResult": "target_leverage, achieved_leverage, iterations_run, stop_reason, steps[List[LoopStep]], total_collateral_micro, total_borrow_micro, started_at, ended_at, crystal"
+    }
+  },
+
+  "safety_rails": {
+    "hard_cap": {
+      "rule": "target_leverage > 5.0 → refuse before iteration 0",
+      "stop_reason": "leverage_above_hard_cap",
+      "exit_code": 1,
+      "rationale": "Loops at >5x leverage make liquidation effectively a single bad-block event on Sui — no on-chain safety net we can build around it. Hard refuse, no override."
+    },
+    "soft_cap": {
+      "rule": "target_leverage > 2.0 AND dry_run=False AND confirm_above_2x is not True → refuse before iteration 0",
+      "stop_reason": "leverage_above_2x_requires_confirm",
+      "exit_code": 1,
+      "rationale": "2x is the canonical conservative ceiling for unattended leverage. Real-money loops above that demand an out-of-band human-in-the-loop confirm flag (NOT a CLI arg the caller might fat-finger)."
+    },
+    "dry_run_default": {
+      "rule": "dry_run=True is the API default and the CLI default. Every LoopStep records dry_run=True. No on-chain side-effects without the caller explicitly passing dry_run=False (or CLI --live).",
+      "rationale": "Mistakes that cost nothing > mistakes that move USDC."
+    },
+    "health_low_short_circuit": {
+      "rule": "If projected_ltv (cumulative_debt / cumulative_collateral) > safety_ltv after the next borrow → stop_reason='health_low'",
+      "rationale": "Prevent the loop from walking off the edge of the liquidation cliff one iteration at a time."
+    },
+    "sui_failure_halts": {
+      "rule": "Any sui_mcp call returning success=False halts the loop with stop_reason='error' (or 'lending_disabled' when the error contains 'SUI_LENDING_PACKAGE_ID not set').",
+      "rationale": "No partial-state on-chain loops. Stop, log, surface."
+    },
+    "lending_disabled_clean_message": {
+      "rule": "If SUI_LENDING_PACKAGE_ID is absent (sui_mcp returns 'SUI_LENDING_PACKAGE_ID not set'), the loop halts on iteration 0 with stop_reason='lending_disabled' and the original sui_mcp error string stored in LoopStep[0].error.",
+      "rationale": "Clean signal to the caller — 'lending is not configured', not 'something blew up'."
+    },
+    "input_validation": {
+      "rules": [
+        "base_collateral_micro must be > 0 (else stop_reason='error', step[0].error='base_collateral_micro_must_be_positive')",
+        "0.0 < safety_ltv < 1.0 (else stop_reason='error', step[0].error='safety_ltv_out_of_range:<value>')"
+      ]
+    }
+  },
+
+  "valid_stop_reasons": [
+    "target_reached",
+    "max_iters",
+    "health_low",
+    "lending_disabled",
+    "leverage_above_hard_cap",
+    "leverage_above_2x_requires_confirm",
+    "error"
+  ],
+
+  "substrate": "no per-loop on-disk state. Side effects = on-chain (via sui_mcp) + crystal chain entries (tier='defi_loop'). The LoopResult and all LoopSteps are returned in-memory; persistence is the caller's job.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/defi_loop.py __main__ (CLI)",
+      "(planned) cc -defi-loop-run shell command",
+      "(planned) studio_runtime when a pass declares engine='defi_loop'"
+    ],
+    "outbound_calls": [
+      "third_party.sui_mcp.SuiMCPConnector.send('lend_pool_deposit', {pool_id, amount}) — per iteration deposit",
+      "third_party.sui_mcp.SuiMCPConnector.send('lend_pool_borrow', {pool_id, collateral, borrow}) — per iteration borrow",
+      "inference_logger.InferenceLogger().log (per-step: tier='defi_loop', model='sui_lending', scope=f'loop_step_{i}_<action>')",
+      "inference_logger.InferenceLogger().log (final: tier='defi_loop', scope='loop_complete')",
+      "inference_logger.InferenceLogger().log (refusals: scope='loop_refuse_hard_cap' | 'loop_refuse_soft_cap')"
+    ],
+    "substrate_reads": "SUI_LENDING_PACKAGE_ID presence (indirectly, via the sui_mcp error surface — defi_loop itself never reads .env)",
+    "substrate_writes": "crystal chain entries only (no local sqlite, no JSONL)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "ok — ast.parse clean",
+    "dry_run_2x_max4iters": "ok — dry-run leverage=2.0 ltv=0.65 → stops at health_low after 2 iterations (achieved 1.65x, 100 USDC base → 165 USDC collateral / 65 USDC debt). Steps record dry_run=true.",
+    "dry_run_1_5x_target_reached": "ok — dry-run leverage=1.5 → stop_reason='target_reached' at 1.65x (first iteration is enough)",
+    "hard_cap_5_5x_rejected": "ok — leverage=5.5 rejected before iteration 0 with stop_reason='leverage_above_hard_cap'; exit code 1",
+    "soft_cap_live_3x_no_confirm": "ok — --live --leverage 3.0 without --confirm rejected with stop_reason='leverage_above_2x_requires_confirm'; exit code 1",
+    "live_lending_disabled_clean": "ok — --live --leverage 1.5 --confirm with no SUI_LENDING_PACKAGE_ID → seed deposit returns sui_mcp error 'SUI_LENDING_PACKAGE_ID not set' → loop halts with stop_reason='lending_disabled', clean message in steps[0].error",
+    "deterministic_crystal": "ok — same input → same LoopResult.crystal (BLAKE3 over canonical_json([asdict(s) for s in steps]))"
+  },
+
+  "guarantees": [
+    "Stdlib-only — subprocess + json + hashlib (blake3 optional via inference_logger; falls back to blake2b)",
+    "DRY-RUN by default — caller must opt in to on-chain side effects",
+    "Hard-capped — target_leverage > 5.0 is never executable",
+    "Soft-capped — target_leverage > 2.0 + live requires confirm_above_2x=True (rejects otherwise)",
+    "Deterministic — same input → same LoopResult.crystal byte-for-byte",
+    "Crystal-anchored — every deposit, every borrow, and the loop-complete summary are logged via inference_logger (tier='defi_loop')",
+    "Halt-on-failure — any sui_mcp failure halts the loop with stop_reason='error' (or 'lending_disabled' for the missing-package case)",
+    "Health-aware — projected debt/collateral above safety_ltv → stop_reason='health_low' before the borrow is sent",
+    "Composes only — never reaches around sui_mcp; never touches .env, cc.sh, or other connector modules"
+  ],
+
+  "usage_example": "from core.lib.defi_loop import run_loop, USDC_MICRO_PER_UNIT\\n# DRY-RUN at 2x (safe default)\\nresult = run_loop(pool_id='0xPOOL', base_collateral_micro=100 * USDC_MICRO_PER_UNIT, target_leverage=2.0, max_iters=4)\\nprint(result.stop_reason, result.achieved_leverage, result.crystal[:16])\\n# LIVE at 3x (requires confirm_above_2x)\\nresult = run_loop(pool_id='0xPOOL', base_collateral_micro=100_000_000, target_leverage=3.0, dry_run=False, confirm_above_2x=True)",
+
+  "cli_example": "python3 core/lib/defi_loop.py run --pool-id 0xPOOL --collateral-usdc 100 --leverage 2.0 --max-iters 4 --dry-run\\npython3 core/lib/defi_loop.py run --pool-id 0xPOOL --collateral-usdc 100 --leverage 3.0 --max-iters 6 --live --confirm",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "A.5 of lively-enchanting-parrot plan"
+}

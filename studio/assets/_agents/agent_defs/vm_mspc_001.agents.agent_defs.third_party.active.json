@@ -1,0 +1,64 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "third_party",
+  "state": "active",
+  "version": "v0",
+  "role": "OUTBOUND · CONNECTOR_FABRIC",
+  "tier": "L0",
+  "module_paths": [
+    "core/lib/third_party/base.py",
+    "core/lib/third_party/manager.py",
+    "core/lib/third_party/discord.py",
+    "core/lib/third_party/telegram.py",
+    "core/lib/third_party/twitter.py",
+    "core/lib/third_party/facebook.py",
+    "core/lib/third_party/whatsapp.py",
+    "core/lib/third_party/__init__.py",
+    "core/lib/third_party_cli.py"
+  ],
+  "summary": "Outbound connector fabric. ThirdPartyManager loads configs from studio/third_party/, instantiates per-platform connectors (Discord / Telegram / Twitter / Facebook / WhatsApp), routes messages by tag/tier, and logs every send append-only.",
+  "engine_pattern": "abstract base.Connector (connect/send/history/disconnect) + per-platform subclasses. Manager is the single dispatch point; tag-routing fans messages out to multiple connectors.",
+  "storage": {
+    "configs": "studio/third_party/{service}/vm_mspc_001.{service}.{action}.{name}.{state}.{version}.json",
+    "send_log": "appended through inference_logger (every send → crystal_id)"
+  },
+  "supported_services": ["discord", "telegram", "twitter", "facebook", "whatsapp"],
+  "exports": ["ConnectionConfig", "Connector (abstract)", "ThirdPartyManager"],
+  "substrate": "studio/third_party (per-service auth configs + token rotation)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_third_party_connect / cmd_third_party_send / cmd_third_party_list / cmd_third_party_status / cmd_third_party_archive",
+      "CLI: python3 third_party_cli.py connect | send | list | status | archive",
+      "endpoints.RoutingOperator (when action=reply or action=broadcast)",
+      "chat.py (when a chat call needs to surface output to an external channel)"
+    ],
+    "outbound_calls": [
+      "discord.py → discord-py-interactions HTTP API",
+      "telegram.py → python-telegram-bot HTTP API",
+      "twitter.py → tweepy / X API v2",
+      "facebook.py → Graph API",
+      "whatsapp.py → WhatsApp Cloud API"
+    ],
+    "substrate_reads": "studio/third_party/{service}/*.json (auth configs)",
+    "substrate_writes": "per-service send logs; inference_logger crystal chain entries (one per send)"
+  },
+  "merge_with_moe_stack": "Every send through ThirdPartyManager logs an InferenceRecord (tier='outbound', model='<service>', original_prompt='<message>', output_text='<delivery_receipt>'). These records become first-class crystal-chain entries — the MoE router can later retrieve past outbound sends as experts when planning new ones.",
+  "guarantees": [
+    "Append-only send log — never edit or delete",
+    "Per-host token isolation — auth lives in mode-600 JSON, never committed",
+    "Tag-routing is deterministic — same tag set → same recipient set",
+    "Disconnected sends fail loudly (do not silently skip)"
+  ],
+  "security_notes": [
+    "All connector configs are .gitignore'd",
+    "Token rotation: rotated tokens move to studio/third_party/{service}/*.rotated.json (excluded from registry walk)",
+    "Phishing surface: third_party.send refuses to send to unverified recipients in the friend registry"
+  ],
+  "usage_example": "python3 core/lib/third_party_cli.py connect --service discord --token $DISCORD_BOT_TOKEN --name dev_server --tags 'broadcast,alerts'\\npython3 core/lib/third_party_cli.py send --service discord --to channel_123 --message 'build complete'",
+  "chain_runs": ["moe_chain_router_v0"]
+}

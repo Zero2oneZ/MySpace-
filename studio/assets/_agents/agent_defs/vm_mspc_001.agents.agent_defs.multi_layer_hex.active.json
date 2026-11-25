@@ -1,0 +1,71 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "multi_layer_hex",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · SIDECAR_MULTI_MODAL_HEX_PACKER",
+  "tier": "L0",
+  "module_path": "core/lib/multi_layer_hex.py",
+  "summary": "Pure-math sidecar field generator. Packs 8 modal embedding slots into one deterministic 512-char hex envelope (256 bytes = 8 slots * 32 bytes). Each slot holds the int8-quantized leading 32 dims of its source vector OR 32 zero bytes when absent. Length-stable: callers slice by slot index without parsing. NOT a connector — pure stdlib transform built on energy_inversion.to_hex_int8 (with stdlib fallback). Output is a SIDECAR field on InferenceRecord and intentionally NOT part of canonical_json() in schema v1 — folding it into the chain hash is a v2-schema task that requires re-genesis.",
+  "engine_pattern": "stateless transform. Per-slot: extract source vector → take first 32 dims → pad zeros → int8 quantize (scale=127, round-half-to-nearest, clamp [-127,127]) → byte-cast → hex. Slot 7 is byte-wise XOR of slots 0 ⊕ 1 (sentence ⊕ svg) as a differential-amplifier sanity check.",
+  "slot_layout": {
+    "0_sentence": "first 32 dims of sentence_chain.sentence_embedding(record['original_prompt'])",
+    "1_svg": "first 32 dims of svg_vector_embed.embed_svg_file(record['source_file'])[0].embedding when path ends in .svg",
+    "2_wave": "first 32 dims of record['wave_emb'] (the 64-d DCT-II spectrum from tri_modal_embedder)",
+    "3_time_forward": "first 32 dims of record['time_vec']['forward']",
+    "4_time_inverted": "first 32 dims of record['time_vec']['inverted']",
+    "5_dialectic_position": "EMPTY in v1 — reserved for dialectic_walker integration (32 zero bytes)",
+    "6_visual_bitmap_dct": "EMPTY in v1 — reserved for visual DCT slot (32 zero bytes)",
+    "7_antipodal_xor": "byte-wise XOR of slot 0 ⊕ slot 1 (sentence ⊕ svg differential-amplifier)"
+  },
+  "envelope_spec": {
+    "total_bytes": 256,
+    "total_hex_chars": 512,
+    "slot_bytes": 32,
+    "slot_hex_chars": 64,
+    "num_slots": 8,
+    "scale_int8": 127,
+    "slot_index_to_hex_offset": "slot N starts at index N*64",
+    "empty_slot_hex": "00 repeated 32 times"
+  },
+  "exports": ["SLOT_NAMES", "pack_layers", "unpack_layers", "slot_distance", "has_slot"],
+  "substrate": "stateless (caller persists hex string on record.multi_layer_hex)",
+  "sidecar_discipline": {
+    "rule": "pack_layers() output MUST NOT be added to InferenceRecord.canonical_json() in schema_version='v1'",
+    "why": "the existing crystal chain must keep verifying — folding multi_layer_hex into the hash would break every prior record",
+    "caller_pattern": "crystal_id = logger.log(...); record = logger.get_record(crystal_id); record['multi_layer_hex'] = pack_layers(record)",
+    "future_v2": "schema_version='v2' may include multi_layer_hex in the canonical hash; that migration requires re-genesis and is explicitly not implemented here"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "moe_router (slot-wise distance lookup against a single hex envelope per record)",
+      "dialectic_walker (writes slot 5 once integrated)",
+      "any inference_logger caller that wants the sidecar field attached AFTER log() returns"
+    ],
+    "outbound_calls": [
+      "energy_inversion.to_hex_int8 / from_hex_int8 (when importable)",
+      "sentence_chain.sentence_embedding (when importable)",
+      "svg_vector_embed.embed_svg_file (when importable)",
+      "stdlib math + struct fallback when any of the above are unavailable"
+    ],
+    "substrate_reads": "none",
+    "substrate_writes": "none"
+  },
+  "guarantees": [
+    "Deterministic — same record dict → same 512-char hex, byte-exact",
+    "Length-stable — output is always exactly 512 lowercase hex chars",
+    "Slot-addressable — slot N starts at hex index N*64 with no delimiters",
+    "Empty-slot safe — missing modalities become 32 zero bytes (never variable-length)",
+    "Stdlib-only fallback — if energy_inversion/sentence_chain/svg_vector_embed aren't importable, packer still works via the internal int8 codec",
+    "Sidecar-pure — does NOT touch inference_logger.canonical_json or chain hashing"
+  ],
+  "is_connector": false,
+  "phase": "Phase 1 foundation — task #57",
+  "usage_example": "from multi_layer_hex import pack_layers, slot_distance, has_slot, SLOT_NAMES\\nh = pack_layers({'original_prompt': 'hello', 'wave_emb': [0.1]*64, 'time_vec': {'forward': [0.2]*32, 'inverted': [-0.2]*32}})\\nassert len(h) == 512\\nassert has_slot(h, 'sentence')\\nd = slot_distance(h_a, h_b, 'wave')  # cosine-style distance over slot 2 only",
+  "chain_runs": ["moe_chain_router_v0"]
+}

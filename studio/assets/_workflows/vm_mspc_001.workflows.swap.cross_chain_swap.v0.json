@@ -1,0 +1,94 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "cross_chain_swap",
+  "category": "swap",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Cross-chain swap workflow over the 6 supported routes (USDC.sol↔SOL, USDC.sui↔SUI, SOL↔SUI). Quote-only by default; live execute requires the 3-gate rule (MSPC_SWAP_LIVE=1 env AND --confirm AND dry_run=False). Every quote AND every execute is crystal-anchored under tier='swap'.",
+
+  "inputs": [
+    {"name": "from_token", "type": "str", "required": true,
+      "notes": "One of: USDC.sol, USDC.sui, SOL, SUI"},
+    {"name": "to_token", "type": "str", "required": true},
+    {"name": "amount", "type": "float", "required": true,
+      "notes": "Human-readable amount (e.g. 1.5 for 1.5 SOL)"},
+    {"name": "slippage_bps", "type": "int", "required": false, "default": 50},
+    {"name": "dry_run", "type": "bool", "required": false, "default": true}
+  ],
+
+  "outputs": [
+    {"name": "quote_route", "type": "str",
+      "notes": "jupiter_v6 | cetus_aggregator | mayan_wormhole_ntt | <provider>_error"},
+    {"name": "amount_out_est_human", "type": "float"},
+    {"name": "price_impact_pct", "type": "float"},
+    {"name": "alignment_crystal", "type": "str",
+      "notes": "Crystal anchoring the quote + execute on the inference chain"},
+    {"name": "tx_digests", "type": "json"}
+  ],
+
+  "passes": [
+    {
+      "id": "resolve_chain_pair",
+      "agent": "swap_router",
+      "model_path": "core/lib/swap_router.py::token_chain",
+      "engine": "deterministic",
+      "in": ["from_token", "to_token"],
+      "out": "chain_pair",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Maps (from_token, to_token) → (from_chain, to_chain) → provider"
+    },
+    {
+      "id": "quote",
+      "agent": "swap_router",
+      "model_path": "core/lib/swap_router.py::quote",
+      "engine": "mcp",
+      "in": ["from_token", "to_token", "amount", "slippage_bps"],
+      "out": "quote_route",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Hits the right HTTP API for the route. Jupiter v6 for Solana same-chain; Cetus aggregator for Sui same-chain; Mayan price-api for cross-chain."
+    },
+    {
+      "id": "execute",
+      "agent": "swap_router",
+      "model_path": "core/lib/swap_router.py::execute",
+      "engine": "mcp",
+      "in": ["quote_route", "dry_run"],
+      "out": "tx_digests",
+      "tier": "expensive",
+      "status": "ACTIVE",
+      "notes": "Live execute requires MSPC_SWAP_LIVE=1 + --confirm + dry_run=False. Solana legs sign via solders + RPC sendTransaction; Sui legs sign via sui client call against Cetus router; cross-chain legs require Mayan SDK + 2-key co-sign."
+    },
+    {
+      "id": "anchor",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["quote_route", "tx_digests"],
+      "out": "alignment_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='swap' scope=swap_dry_run|swap_live; queryable via cc inference-chain --tier swap"
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "intent", "source": "input:from_token+to_token", "blend": "base"},
+    {"name": "route", "source": "pass:quote", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/cross_chain_swap_proto.py.j2",
+      "out_path": "studio/web/streamlit/cross_chain_swap.py"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/swap_router.py (Jupiter v6, Cetus aggregator, Mayan quote APIs)",
+    "core/lib/inference_logger.py (crystal anchor)"
+  ]
+}

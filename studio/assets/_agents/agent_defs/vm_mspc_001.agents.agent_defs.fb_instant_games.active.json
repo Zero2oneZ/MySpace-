@@ -1,0 +1,161 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "fb_instant_games",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · FB_INSTANT_GAMES_JS_SDK_COMPANION",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/fb_instant_games.py",
+
+  "summary": "Server-side Python companion to the Facebook Instant Games JavaScript SDK (https://developers.facebook.com/docs/games/build/instant-games/sdk/). The JS SDK runs inside the FB-embedded iframe (Messenger / News Feed) and POSTs every meaningful surface action back to the studio dApp at /dapp/api/fb_event with a bearer freetier token. This connector (a) records every event into ~/.cc/fb_instant_events.jsonl, (b) crystal-anchors each event via inference_logger.log(tier='fb_event', model='fb_instant_games', scope=f'fb_event_<event_name>'), (c) verifies the signed_player_info HMAC against FB_APP_SECRET so we can trust player_id, and (d) when event_name=='instant.friends.list_pulled' hands the friends payload off to the facebook_friends_graph harvester (agent B) for social-graph persistence. The SDK_MANIFEST constant documents 21 FBInstant JS calls (js_call → server_event_name + scope_required + body_schema + description) so the Godot HTML5 build and the studio dApp know what to wire to which event. Stdlib-only (urllib, hmac, hashlib, json, base64). Sibling to facebook_games_sdk.py which is the outbound Graph API REST connector — this companion is purely inbound (event sink, no graph.facebook.com HTTP calls).",
+
+  "engine_pattern": "ThirdPartyConnector subclass with SERVICE='fb_instant_games'. Tool dispatch via send(recipient=tool_name, message=json_args). connect() probes only env vars (no network) and returns True iff FB_APP_ID + FB_APP_SECRET both present — connect status drives whether signed_player_info verification can run, but record_event still works without keys (signed_valid=False). signed_player_info verification is a pure stdlib hmac.compare_digest over `<sig>.<payload>` base64url tokens with HMAC-SHA256(app_secret, payload). Friends-list hand-off is wrapped in try/except so this module is useful before agent B is installed.",
+
+  "expected_tools": [
+    "record_event",
+    "verify_signed_data",
+    "manifest",
+    "event_stats"
+  ],
+
+  "sdk_manifest_entries": 21,
+
+  "sdk_manifest_keys": [
+    "initializeAsync",
+    "startGameAsync",
+    "player_getID",
+    "player_getName",
+    "player_getPhoto",
+    "player_getSignedPlayerInfoAsync",
+    "player_getConnectedPlayersAsync",
+    "context_getID",
+    "context_getType",
+    "context_switchAsync",
+    "context_chooseAsync",
+    "context_createAsync",
+    "shareAsync",
+    "updateAsync",
+    "payments_purchaseAsync",
+    "payments_consumePurchaseAsync",
+    "getLeaderboardAsync",
+    "getEntryPointAsync",
+    "getEntryPointDataAsync",
+    "matchPlayerAsync",
+    "logEvent"
+  ],
+
+  "sdk_manifest_schema_per_entry": {
+    "js_call":           "exact FBInstant.* signature the in-browser JS SDK should invoke",
+    "scope_required":    "FB permission scope the player must have granted (or 'none')",
+    "server_event_name": "the dotted event_name the dApp callback POSTs back to /dapp/api/fb_event",
+    "description":       "one-line behavior summary",
+    "body_schema":       "expected POST body keys + types (for the dApp + Godot HTML5 build)"
+  },
+
+  "env_vars": {
+    "FB_APP_ID":     "Facebook App ID (developers.facebook.com/apps → App Settings → Basic). Drives connect() status.",
+    "FB_APP_SECRET": "Facebook App Secret. Required to verify signed_player_info HMACs; absent → signed_valid=False on every record."
+  },
+
+  "user_provisioning_required": {
+    "status": "SHARED WITH facebook_games_sdk — same FB_APP_ID + FB_APP_SECRET",
+    "rationale": "Both connectors read the SAME pair of env vars. Provisioning either provisions both. No additional .env keys needed for fb_instant_games specifically.",
+    "vars_to_set_in_env": [
+      "FB_APP_ID",
+      "FB_APP_SECRET"
+    ],
+    "docs_link": "https://developers.facebook.com/docs/games/build/instant-games/sdk/"
+  },
+
+  "convenience_wrappers": [
+    "record_event(event_name, player_id, context_id, signed_data, payload)  — primary entry; called by the JS SDK via the dApp /dapp/api/fb_event POST. Crystal anchor + JSONL sink + friends_list_pulled hand-off.",
+    "verify_signed_data(signed_player_info, fb_app_secret)  — verify the FB-issued HMAC. Returns {valid, player_id, request_payload, issued_at, error?}. Pure stdlib hmac.",
+    "manifest()  — returns the SDK_MANIFEST (21 entries). Consumed by studio/dapp + Godot HTML5 build to know which JS calls to wire to which server events.",
+    "event_stats(since_ts=None)  — counts events in ~/.cc/fb_instant_events.jsonl by event_name; returns {total, by_event_name, first_ts, last_ts}.",
+    "FBInstantGamesConnector.verify_dapp_token(token, expected_domain=None)  — staticmethod wrapper around freetier_gate.verify_token for the dApp handler to bearer-gate every /dapp/api/fb_event POST in one call."
+  ],
+
+  "event_sink_format": {
+    "path": "~/.cc/fb_instant_events.jsonl",
+    "shape_per_line": {
+      "ts":               "float — unix seconds at record_event time",
+      "event_name":       "str  — e.g. 'instant.player.id_read'",
+      "player_id":        "str  — FB-scoped player ID (or '' if anon)",
+      "context_id":       "str  — chat thread ID or 'SOLO'",
+      "signed_valid":     "bool — True iff signed_player_info HMAC verified",
+      "payload_summary":  "dict — redacted summary of the JS-side payload",
+      "crystal_id":       "str  — hex sha256 from inference_logger",
+      "handoff":          "dict — only present when event_name=='instant.friends.list_pulled'"
+    }
+  },
+
+  "friends_harvest_handoff": {
+    "trigger_event": "instant.friends.list_pulled",
+    "target_module": "core/lib/third_party/facebook_friends_graph.py  (agent B — sibling in this batch)",
+    "target_function": "ingest_friends_list(player_id, friends, source_crystal) → dict",
+    "wiring": "wrapped in try/except — if agent B is not yet installed, record_event still succeeds with metadata.friends_handoff={status:'deferred', error:'<ImportError>'} and the friends payload is preserved in the event-sink JSONL for later replay.",
+    "preferred_import_path": "third_party.facebook_friends_graph.ingest_friends_list (falls back to top-level facebook_friends_graph)"
+  },
+
+  "exports": [
+    "FBInstantGamesConnector",
+    "SDK_MANIFEST",
+    "EXPECTED_TOOLS",
+    "EVENT_SINK_PATH",
+    "verify_signed_data",
+    "manifest",
+    "event_stats"
+  ],
+
+  "substrate": "~/.cc/fb_instant_events.jsonl (append-only event sink) + ~/.cc/third_party_logs/fb_instant_games_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored fb_event records, tier='fb_event')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py → POST /dapp/api/fb_event (JS SDK callback; bearer freetier token required)",
+      "Godot HTML5 build → same /dapp/api/fb_event surface (in-game events)",
+      "core/cc.sh (future: cmd_fb_instant_stats)"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (tier='fb_event', model='fb_instant_games')",
+      "third_party.facebook_friends_graph.ingest_friends_list (agent B; only on instant.friends.list_pulled; try/except)"
+    ],
+    "substrate_reads": "FB_APP_ID + FB_APP_SECRET via studio/auth/keys.load_env (mirrored .env between /data/Projects/MySpace++/.env and /data/Projects/gently/.env)",
+    "substrate_writes": "fb_instant_events.jsonl (event sink) + send_log entries + crystal_chain fb_event records"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "syntax": "ok — python3 ast.parse succeeds",
+    "connect": "expected_false — FB_APP_ID + FB_APP_SECRET absent from .env (user provisioning pending; same pair as facebook_games_sdk)",
+    "manifest": "21 SDK entries documented (initializeAsync … logEvent)",
+    "record_event": "ok — crystal_id=0fb6829699e49f5e… on a fake 'instant.initialized' event; event_sink JSONL appended",
+    "event_stats": "ok — total=1 by_event_name={instant.initialized:1}",
+    "verify_signed_data_round_trip": "ok — self-generated <sig>.<payload> verified True; wrong secret → signature_mismatch; 'not_a_dot_string' → malformed",
+    "friends_handoff": "deferred — facebook_friends_graph.ingest_friends_list import fails until agent B exports it; record_event still succeeds with metadata.friends_handoff.status='deferred'"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every record_event() call appends one InferenceRecord with tier='fb_event', model='fb_instant_games', scope='fb_event_<event_name>'",
+    "Stdlib-only — urllib, hmac, hashlib, json, base64. No facebook-sdk, no requests.",
+    "Graceful — missing FB_APP_SECRET → signed_valid=False on every record_event but the event is still recorded + crystal-anchored",
+    "Redacted logs — signature, signed_data, signedPlayerInfo, access_token, purchase_token, developerPayload stripped from crystal payloads + event-sink summaries",
+    "HMAC-verified identity — verify_signed_data(signed_player_info, fb_app_secret) uses hmac.compare_digest for constant-time comparison; never raises",
+    "Friends-handoff deferable — agent B may not exist yet; record_event always succeeds and the friends payload is preserved in the JSONL sink",
+    "Bearer-gateable — FBInstantGamesConnector.verify_dapp_token wraps freetier_gate.verify_token so /dapp/api/fb_event is one-call gated",
+    "Surface-documented — SDK_MANIFEST has 21 entries; every entry includes js_call + server_event_name + scope_required + body_schema + description"
+  ],
+
+  "usage_example": "from core.lib.third_party.fb_instant_games import FBInstantGamesConnector\nc = FBInstantGamesConnector()\nc.connect()\n# In studio/dapp/server.py POST /dapp/api/fb_event handler:\nif not FBInstantGamesConnector.verify_dapp_token(bearer_token):\n    return 401\nr = c.send('record_event', json.dumps({\n    'event_name': 'instant.player.id_read',\n    'player_id':  request_json['player_id'],\n    'context_id': request_json.get('context_id', 'SOLO'),\n    'signed_data': request_json.get('signed_data', ''),\n    'payload':    request_json.get('payload', {}),\n}))\nreturn {'ok': r.success, 'crystal': r.crystal_id}",
+
+  "sibling_modules": [
+    "core/lib/third_party/facebook_games_sdk.py  (outbound Graph API REST; same FB_APP_ID + FB_APP_SECRET keys)",
+    "core/lib/third_party/facebook_friends_graph.py  (agent B — friends-graph harvester; receives instant.friends.list_pulled handoff)"
+  ],
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "third_party connector expansion — Facebook Instant Games JS SDK companion (event sink + signed-identity verifier + 21-entry surface manifest)"
+}

@@ -1,0 +1,28 @@
+{
+  "_schema": "network_device_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "network",
+  "category": "devices",
+  "name": "z21_dual_rtx3090ti",
+  "state": "active",
+  "version": "v0",
+  "hostname": "z21",
+  "os": "NixOS",
+  "location": "local",
+  "gpus": [
+    {"id": "z21_gpu_0", "model": "RTX 3090 Ti", "vram_gb": 24},
+    {"id": "z21_gpu_1", "model": "RTX 3090 Ti", "vram_gb": 24}
+  ],
+  "shell": "nix develop /home/tom/Projects/",
+  "local_services": {
+    "gently_scope_explorer": 7392,
+    "claude_terminal_pty": 7681,
+    "companion_server": 7778,
+    "claudecompanion_electron": 7779,
+    "embed_server": 7780,
+    "zero2onez_crosspost": 8090,
+    "zero2onez_mcp_host": 8091
+  }
+}

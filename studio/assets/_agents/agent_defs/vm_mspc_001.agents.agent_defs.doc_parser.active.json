@@ -1,0 +1,124 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "doc_parser",
+  "state": "active",
+  "version": "v1",
+  "role": "ENGINE · DOC_ADAPTER",
+  "tier": "L0",
+  "module_path": "core/lib/doc_parser.py",
+  "summary": "Generic HTML → ParserCursor-shaped JSONL with adapter slots for Godot HTML docs, Blender Python API, Blender Compositor, plus stubs for Substance / Mari / FB Sapiens. Every parsed page becomes a CursorNode stream readable by parser_cursor.ParserCursor verbatim and gets anchored by an InferenceLogger crystal.",
+  "engine_pattern": "html.parser.HTMLParser → _StructuredHTMLCollector event log → DocAdapter.parse() yields CursorNode → ParserWriter writes JSONL → InferenceLogger.log() emits crystal anchor",
+  "exports": [
+    "DocAdapter",
+    "GodotDocAdapter",
+    "BlenderPyAdapter",
+    "BlenderCompositorAdapter",
+    "SubstanceNodeAdapter",
+    "MariProjectAdapter",
+    "FacebookSapiensAdapter",
+    "ADAPTERS",
+    "ADAPTER_STATE",
+    "parse_html_file",
+    "parse_url",
+    "get_adapter"
+  ],
+  "adapters": [
+    {
+      "name": "godot",
+      "class": "GodotDocAdapter",
+      "state": "live",
+      "quality_tag": "godot_v1",
+      "targets": "Godot HTML docs (Sphinx stable + synthetic generator pages)",
+      "signature_signals": ["meta generator 'Godot Engine'", "og:site_name 'Godot Engine documentation'", "title 'Godot Engine'", "class_xmlparser markers"],
+      "node_types_emitted": ["document", "section (class / method_group / property_group / signal_group / enum_group / constant_group)", "term (method / property / signal / constant / enum / symbol)", "definition (doc)"]
+    },
+    {
+      "name": "blender_py",
+      "class": "BlenderPyAdapter",
+      "state": "live",
+      "quality_tag": "blender_py_v1",
+      "targets": "Blender bpy Python reference (Sphinx-generated, py method / py function / py class / py attribute / py data)",
+      "signature_signals": ["title contains 'Python API'/'bpy'/'Blender'", "body markers 'bpy.types', 'bpy.ops', 'bpy.context', 'py method'"],
+      "node_types_emitted": ["document", "section", "term (method / function / class / property / classmethod / staticmethod / exception)", "definition (doc)"]
+    },
+    {
+      "name": "blender_compositor",
+      "class": "BlenderCompositorAdapter",
+      "state": "live",
+      "quality_tag": "blender_compositor_v1",
+      "targets": "Blender Compositor node reference HTML",
+      "signature_signals": ["title contains 'Compositor'/'Compositing'", "body markers 'compositor', 'compositing nodes', 'compositor node'"],
+      "node_types_emitted": ["document", "section (node_family / input_group / output_group / property_group)", "term (comp_node / socket)", "definition (doc)"]
+    },
+    {
+      "name": "substance",
+      "class": "SubstanceNodeAdapter",
+      "state": "placeholder",
+      "quality_tag": null,
+      "targets": "Substance Designer / Substance 3D node reference HTML",
+      "notes": "Registered placeholder; parse() raises NotImplementedError until an adapter is implemented."
+    },
+    {
+      "name": "mari",
+      "class": "MariProjectAdapter",
+      "state": "placeholder",
+      "quality_tag": null,
+      "targets": "Foundry Mari project + node reference HTML",
+      "notes": "Registered placeholder; parse() raises NotImplementedError."
+    },
+    {
+      "name": "fb_sapiens",
+      "class": "FacebookSapiensAdapter",
+      "state": "placeholder",
+      "quality_tag": null,
+      "targets": "Facebook / Meta Sapiens human-mesh model documentation",
+      "notes": "Registered placeholder; parse() raises NotImplementedError."
+    }
+  ],
+  "fallback_walker": {
+    "name": "_generic_walk",
+    "trigger": "adapter.matches(html_bytes) returns False OR adapter.parse() yields no nodes OR adapter raises an unexpected exception",
+    "quality_tag": "generic",
+    "node_types_emitted": ["section / subsection / definition_list / term / definition / code_block / code_inline"]
+  },
+  "substrate": "_doc_corpus",
+  "storage": {
+    "corpus_root": "studio/assets/_doc_corpus/",
+    "per_adapter_dir": "studio/assets/_doc_corpus/<adapter>/",
+    "jsonl_filename": "<short_blake2b_of_html_bytes>.jsonl",
+    "node_shape": "ParserCursor JSONL — {type, name, data, attributes, parent, depth}"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "cc -docs-import <adapter> <html|url>  (planned core/cc dispatcher cmd)",
+      "studio passes (planned pass_06_doc_index) — discover_inputs reads _doc_corpus/<adapter>/*.jsonl"
+    ],
+    "outbound_calls": [
+      "core/lib/parser_cursor.py::CursorNode + ParserWriter (JSONL writer)",
+      "core/lib/inference_logger.py::InferenceLogger.log() (one crystal per parsed page)",
+      "stdlib html.parser.HTMLParser",
+      "stdlib urllib.request.urlopen (parse_url)"
+    ],
+    "substrate_reads": "HTML bytes (file or URL)",
+    "substrate_writes": "studio/assets/_doc_corpus/<adapter>/<crystal>.jsonl + master chain entry (tier='documentation', model='doc_parser', scope='doc_<adapter>')"
+  },
+  "guarantees": [
+    "Stdlib only — no BeautifulSoup, no lxml, no pip installs",
+    "Deterministic — same HTML bytes → same CursorNode order → same JSONL bytes → same crystal hash",
+    "Idempotent — re-running parse_html_file wipes the old JSONL before writing",
+    "Graceful fallback — adapter mismatch / failure → _generic_walk with _quality:'generic'",
+    "Crystal-anchored — InferenceLogger.log() runs per page so the doc corpus joins the master chain"
+  ],
+  "constraints": [
+    "Does NOT modify parser_cursor.py, cc.sh, or .env",
+    "ParserCursor JSONL shape is the only output format (interop with the existing cursor stack)",
+    "InferenceLogger failure never breaks a parse (best-effort anchor)"
+  ],
+  "usage_example": "from doc_parser import parse_html_file, ADAPTERS\\nout = parse_html_file('godot', '/path/to/class_node.html')\\n# out → studio/assets/_doc_corpus/godot/<crystal>.jsonl\\nfrom parser_cursor import ParserCursor, ERR_FILE_EOF\\ncur = ParserCursor()\\ncur.open(out)\\nwhile cur.read() != ERR_FILE_EOF:\\n    print(cur.get_node_name(), cur.get_node_data())",
+  "chain_runs": ["moe_chain_router_v0"]
+}

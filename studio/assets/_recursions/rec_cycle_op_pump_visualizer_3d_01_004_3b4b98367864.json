@@ -1,0 +1,18 @@
+{
+  "crystal": "3b4b98367864da045708b1096e833a08354d44e82c9ae3e1fbf60d333262d190af9e5c186fd07022ee82450232e818bf3472f05bcc2055e0cc77c06bb8f85961",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_pump_visualizer_3d_01_004",
+  "kind": "simple_cycle",
+  "name": "pump_visualizer_3d",
+  "nodes": [
+    "op_pump_visualizer_3d"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

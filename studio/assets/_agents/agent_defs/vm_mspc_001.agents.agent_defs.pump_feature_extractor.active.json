@@ -1,0 +1,135 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_feature_extractor",
+  "state": "active",
+  "version": "v0",
+  "role": "PRIMITIVE · BEHAVIORAL_FEATURE_ENGINEERING · PUMP_FUN_BOT_VS_HUMAN",
+  "tier": "L0",
+  "module_path": "core/lib/pump_feature_extractor.py",
+
+  "summary": "Pure-stdlib (Polars-optional) feature kernel that consumes the JSONL output of pump_stream_ingest.py (parallel agent A) and produces a 10-column behavioral feature DataFrame ready for GMM + XGBoost classification of bot vs human pump.fun wallets. Groups events by `payer`, anchors a window at the wallet's most recent event and walks backward `window_seconds`, drops wallets with fewer than `min_events_per_wallet` events, and computes ten orthogonal axes that each exhibit a different bot-vs-human signature. Polars is the canonical path; when polars is absent, a tiny `_PolarsFallback` wrapper around a dict-of-lists supports the subset of the API the module needs (.select/.with_columns/.filter/.to_dicts/.write_csv/.height) so downstream code and smoke runs work either way. The funding_proximity feature is the only one with an external dependency — it shells out to `solana transaction-history --limit 1 <wallet>` via subprocess; if the CLI is absent or RPC is unreachable, it returns -1 (stub fallback) and the rest of the row is still produced.",
+
+  "engine_pattern": "Stream-decode JSONL → group by payer → sort by ts → anchor window at last ts → compute 10 features per wallet. Each kernel is a small pure function over a flat list of values; no numpy/pandas/polars math primitives are required, only python stdlib (math, statistics-style sums, dict counters). The DataFrame is constructed only at the very end so the rest of the module is allocator-agnostic.",
+
+  "features": {
+    "wallet": "the base58 payer address (string key)",
+    "tx_per_block": "mean transactions/block in window — bots emit ~constant rate; humans irregular",
+    "tx_per_block_var": "variance of tx-per-block density — bots low, humans high (only discriminates when bots batch multiple txs into one slot; synthetic single-tx-per-slot data shows 0 for both, which is expected)",
+    "value_entropy": "Shannon entropy of log10-binned sol_amount values, in bits — bots low (e.g. 0.0 for constant 0.05 SOL buys); humans high (≥2 bits for organic chaos)",
+    "benford_distance": "KS distance of leading-digit distribution vs Benford's expected log10(1+1/d) — bots emit round amounts (0.05, 0.1, 1.0) so leading digit collapses to {1,5} → high distance (≈0.7); humans emit organic amounts → close to Benford → low distance (≈0.1)",
+    "funding_proximity": "blocks between wallet's first ever tx and its first pump.fun buy — bots bundle-funded → tiny delta; humans aged wallet → huge delta; -1 means RPC unreachable / not enabled",
+    "gas_distortion": "std(priority_fee) / mean(priority_fee) — coefficient of variation; bots formulaic → near 0; humans chaotic → high",
+    "jito_bundle_ratio": "fraction of txs with jito_tip_lamports > 0 — bots ~1.0; humans ~0.0",
+    "buy_sell_balance": "|buys - sells| / total — bots pumping/dumping skew toward 1.0; humans mixed toward 0.0",
+    "unique_mints_touched": "count of distinct mints — sniper bots target 1 mint; humans touch many",
+    "session_length_seconds": "max(ts) - min(ts) within the window"
+  },
+
+  "api": {
+    "exports": [
+      "extract_features",
+      "value_entropy",
+      "benford_distance",
+      "gas_distortion",
+      "jito_bundle_ratio",
+      "buy_sell_balance",
+      "tx_per_block_stats",
+      "funding_proximity_blocks",
+      "to_training_csv",
+      "FEATURE_COLS",
+      "_PolarsFallback"
+    ],
+    "main_function": "extract_features(jsonl_paths, window_seconds=300, min_events_per_wallet=3, solana_rpc_url=None, rpc_enabled=False) -> polars.DataFrame | _PolarsFallback",
+    "feature_columns": [
+      "wallet",
+      "tx_per_block",
+      "tx_per_block_var",
+      "value_entropy",
+      "benford_distance",
+      "funding_proximity",
+      "gas_distortion",
+      "jito_bundle_ratio",
+      "buy_sell_balance",
+      "unique_mints_touched",
+      "session_length_seconds"
+    ]
+  },
+
+  "polars_or_fallback": {
+    "canonical": "polars — when `import polars as pl` succeeds, extract_features returns a real pl.DataFrame and to_training_csv calls df.write_csv(str(path))",
+    "fallback": "_PolarsFallback — a stdlib dict-of-lists wrapper exposing .columns, .height, .__len__, .to_dicts, .select, .with_columns, .filter, .write_csv. Constructed when polars is absent. Exists only so smoke runs anywhere; the downstream GMM/XGBoost trainer should depend on polars and the fallback is not feature-complete for joins.",
+    "rationale": "MySpace++ smoke environments don't ship numpy/polars/scipy. Mirroring sui_mcp's stdlib-first stance keeps the connector loadable in the bare studio venv. When polars is present, behavior is identical to the canonical path.",
+    "detected_at_runtime": "_POLARS_AVAILABLE module-level flag; printed at CLI runtime as 'polars: present' or 'polars: fallback (stdlib only)'"
+  },
+
+  "external_dependency": {
+    "funding_proximity_only": "subprocess.run(['solana', 'transaction-history', '--limit', '1', <wallet>], timeout=10)",
+    "stub_fallback": "FileNotFoundError | TimeoutExpired | non-zero returncode | unparseable stdout → returns -1",
+    "rpc_disabled_default": "extract_features(rpc_enabled=False) skips the subprocess entirely and stores -1; flip to True only when running against a host with the `solana` CLI on PATH"
+  },
+
+  "input_format": {
+    "shape": "JSONL — one event per line, produced by pump_stream_ingest.py (parallel agent A)",
+    "required_keys": ["ts", "slot", "payer", "kind", "mint", "sol_amount", "priority_fee_lamports", "jito_tip_lamports"],
+    "optional_keys": ["signature", "program", "token_amount", "raw_logs"],
+    "malformed_lines": "silently skipped (json.JSONDecodeError → continue); missing wallet (payer) → skipped"
+  },
+
+  "window_semantics": "window anchors at the wallet's MOST RECENT observed ts and walks backward window_seconds. This snapshots the latest behavior per wallet rather than aligning to a global wall clock — important when streams ingest at uneven rates.",
+
+  "substrate": "no per-call on-disk state. Reads only the JSONL paths passed in. to_training_csv writes one features.csv (caller-provided path) for downstream GMM + XGBoost training. No crystal records, no inference logger — this is a pure feature kernel.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/pump_feature_extractor.py __main__ (CLI: `extract --jsonl <paths> --window 600 --min-events 3 [--out features.csv] [--rpc-enabled --rpc URL]`)",
+      "(planned) GMM + XGBoost trainer notebook in studio/passes/"
+    ],
+    "outbound_calls": [
+      "subprocess.run(['solana', 'transaction-history', ...]) — funding_proximity_blocks only, when rpc_enabled=True",
+      "(no inference_logger, no crystal chain, no DB writes — pure compute kernel)"
+    ],
+    "substrate_reads": "JSONL files (any path; canonical location ~/.cc/pump_stream/*.jsonl)",
+    "substrate_writes": "optional features.csv (caller-provided path)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "ok — ast.parse clean",
+    "polars_status": "fallback (stdlib only) — smoke environment ships without polars/numpy/scipy",
+    "bot_vs_human_distinguished": "ok — 20 bot events (constant 0.05 SOL, jito tips, single mint, all buys) vs 15 human events (uniform-random amounts, no jito, 4 mints, mixed buys/sells) produce visibly orthogonal feature rows",
+    "bot_signature": "value_entropy=0.0000, benford_distance=0.6990, gas_distortion=0.0000, jito_bundle_ratio=1.0000, buy_sell_balance=1.0000, unique_mints_touched=1, session_length_seconds=57.0",
+    "human_signature": "value_entropy=2.2323, benford_distance=0.1115, gas_distortion=0.6807, jito_bundle_ratio=0.0000, buy_sell_balance=0.4667, unique_mints_touched=4, session_length_seconds≈194.7",
+    "funding_proximity_stub": "ok — rpc_enabled=False (CLI default) → both wallets show funding_proximity=-1 cleanly",
+    "csv_round_trip": "ok — --out /tmp/pump_features_smoke.csv writes header + 2 rows readable by `csv.DictReader`",
+    "tx_per_block_var_note": "0.0 for both wallets in synthetic — the random-slot human and deterministic-slot bot both happen to produce one tx per slot. Feature is preserved in schema because real bot bundles batch 2-10 txs per slot, where the discriminator activates."
+  },
+
+  "guarantees": [
+    "Stdlib-only (math, json, subprocess, csv, collections, pathlib, argparse) — polars optional with graceful _PolarsFallback",
+    "No pip installs — runs in the bare studio venv",
+    "Pure feature kernel — no side effects beyond optional --out CSV write",
+    "Funding-proximity RPC is opt-in (rpc_enabled=False default) — stub returns -1 if disabled or unreachable",
+    "Wallets with fewer than min_events_per_wallet events are dropped (no degenerate single-tx rows)",
+    "Empty input → empty DataFrame with the correct 11-column schema (downstream joins are still safe)",
+    "Malformed JSONL lines are silently skipped (json.JSONDecodeError → continue)",
+    "Window anchors at the wallet's last ts (per-wallet recent snapshot), not at a global clock",
+    "Touches NONE of: pump_stream_ingest, solana_mcp, cc.sh, .env, model_api — pure consumer of JSONL"
+  ],
+
+  "usage_example": "from pathlib import Path\\nfrom core.lib.pump_feature_extractor import extract_features, to_training_csv\\ndf = extract_features(\\n    jsonl_paths=[Path.home() / '.cc/pump_stream/live.jsonl'],\\n    window_seconds=300,\\n    min_events_per_wallet=5,\\n)\\nto_training_csv(df, Path('studio/assets/pump_features.csv'))",
+
+  "cli_example": "python3 core/lib/pump_feature_extractor.py extract \\\\\\n    --jsonl ~/.cc/pump_stream/live.jsonl \\\\\\n    --window 600 \\\\\\n    --min-events 3 \\\\\\n    --out studio/assets/pump_features.csv\\n\\n# with funding_proximity RPC enabled\\npython3 core/lib/pump_feature_extractor.py extract \\\\\\n    --jsonl ~/.cc/pump_stream/live.jsonl \\\\\\n    --window 600 --min-events 3 \\\\\\n    --rpc-enabled --rpc https://api.mainnet-beta.solana.com",
+
+  "constraints_honored": [
+    "ONLY one new module file + this card — no edits to pump_stream_ingest, solana_mcp, cc.sh, .env, model_api",
+    "Stdlib only; polars optional with graceful fallback (smoke confirms fallback path works)",
+    "No pip packages installed",
+    "No KINDS widening in studio/auth/keys.py (this module reads no secrets)"
+  ],
+
+  "phase": "pump.fun bot detection pipeline, feature-engineering primitive (consumer of agent A's stream ingester, producer for downstream GMM + XGBoost classifier)"
+}

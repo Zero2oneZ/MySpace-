@@ -14,6 +14,9 @@ pip install --disable-pip-version-check -r requirements.txt
 # Pinterest API mode needs httpx (only installed if proxy reqs are also there).
 pip install --disable-pip-version-check 'httpx>=0.27' || true
 
+# Canonical layout — idempotent.
+python3 bootstrap.py >/dev/null
+
 port_in_use() { ss -tln 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$1\$"; }
 
 PICKED="${PORT:-8512}"

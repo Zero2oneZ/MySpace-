@@ -1,0 +1,41 @@
+{
+  "_schema": "model_config_v1",
+  "asset_id": "vm_mspc_001.ollama.text_generation.code.qwen2_5_coder_1_5b.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "brand": "ollama",
+  "provider": "ollama",
+  "category": "text_generation",
+  "subtype": "code",
+  "name": "qwen2.5-coder:1.5b",
+  "display_name": "Qwen2.5 Coder 1.5B",
+  "context_window": 32768,
+  "max_output_tokens": 8192,
+  "quantization": "Q4_K_M",
+  "vram_gb": 1.2,
+  "state": "active",
+  "version": "v0",
+  "routing": {
+    "tier": "tiny",
+    "scope": "narrow",
+    "tags": ["tiny", "local", "deterministic", "fast"]
+  },
+  "endpoints": {
+    "ollama_api": "http://localhost:11434/api/generate",
+    "pull_command": "ollama pull qwen2.5-coder:1.5b"
+  },
+  "capabilities": {
+    "vision": false,
+    "code": true,
+    "tool_use": false,
+    "streaming": true,
+    "batch": false
+  },
+  "determinism": {
+    "temperature": 0,
+    "seed": 42,
+    "top_p": 1.0,
+    "top_k": 1
+  },
+  "created_at": "2026-05-28T00:00:00Z"
+}

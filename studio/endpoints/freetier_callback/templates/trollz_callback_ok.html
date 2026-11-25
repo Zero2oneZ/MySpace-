@@ -1,0 +1,27 @@
+<div class="panel ok">
+  <h2 style="margin-top:0;">Accepted · session token issued</h2>
+  <p style="margin:0 .25rem .35rem 0;">
+    Recorded for <code>{user_id}</code>, domain <code>trollz.fun</code>, tier <code>{tier}</code>.
+  </p>
+  <p style="margin:0;">Crystal: <code>{crystal_short}</code> · Expires in 30 days.</p>
+  <p style="margin: .5rem 0;">
+    Friends list harvest: <strong>{friends_consent_label}</strong>
+  </p>
+</div>
+
+<h2>Your token</h2>
+<p>Save it. Pass as <code>Authorization: Bearer &lt;token&gt;</code> on every call into the proprietary MCP surface.</p>
+<div class="token-display">{token}</div>
+
+<p>
+  Programmatic verification:
+</p>
+<pre>python3 -c "
+import sys; sys.path.insert(0,'core/lib')
+from freetier_gate import verify_token
+claims = verify_token('{token_short}…')
+print(claims)"</pre>
+
+<p class="stamp">
+  Audit entry: <code>tier='legal_acceptance' · model='callback_handler' · scope='acceptance_trollz_fun'</code>
+</p>

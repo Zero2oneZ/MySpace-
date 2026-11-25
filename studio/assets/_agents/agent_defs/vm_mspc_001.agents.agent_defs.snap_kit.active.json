@@ -1,0 +1,121 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "snap_kit",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · SNAPCHAT_SNAP_KIT (Login + Bitmoji + Creative)",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/snap_kit.py",
+
+  "summary": "Snapchat Snap Kit connector covering Login Kit (OAuth2 authorization-code flow against accounts.snapchat.com), Bitmoji Kit (2D/3D avatar CDN URL builder + api.bitmoji.com/avatar/json reference), and Creative Kit (snapchat://creativekit/share deeplink builder for sticker + caption + attachment passthrough). Stdlib-only (no `snapchat-py` dependency). Auth model: confidential OAuth2 client — Basic-auth client_id:client_secret on the token endpoint, bearer access_token on kit.snapchat.com/v1/me. The three local URL-builders (login_oauth2_url, bitmoji_avatar_url, creative_share_url) operate without network and without keys — they're pure string assembly so the dApp can preview consent + deeplink URLs even before user provisioning. verify_credentials() is also a no-network smoke that reports keys_present. Every successful network call (exchange_code / refresh_token / me) appends one InferenceRecord with tier='social_event', model='snap_kit', scope=f'snap_<tool>'. Graceful degrade: missing SNAP_CLIENT_ID + SNAP_CLIENT_SECRET → connect() returns False, network tools return SendResult(success=False, error='snap_kit_keys not configured') WITHOUT any urllib request; local builders still work (with a warning when client_id is absent).",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp + deepseek_mcp shape exactly. SERVICE='snap_kit'. Form-encoded urllib POSTs to accounts.snapchat.com/accounts/oauth2/token (with Basic-auth header from base64(client_id:client_secret)) for the OAuth2 authorization_code + refresh_token grants. Bearer-auth GET to kit.snapchat.com/v1/me. Bitmoji CDN URL uses a deterministic template (images.bitmoji.com/3d/avatar/<ext_id>-v1.webp); api.bitmoji.com/avatar/json is referenced in metadata. Creative Kit share is a pure deeplink (snapchat://creativekit/share?...) — there's no server-side endpoint, the URL is consumed by a Snapchat client on the device. Tool dispatch via send(recipient=tool_name, message=json_args). Local-only tools are handled BEFORE the connect gate so they remain available without keys. connect() does NOT hit the network — Snap Kit's token endpoint rejects unauthenticated probes — successful connect just means both client_id and client_secret are loaded.",
+
+  "expected_tools": [
+    "login_oauth2_url",
+    "exchange_code",
+    "refresh_token",
+    "me",
+    "bitmoji_avatar_url",
+    "creative_share_url",
+    "verify_credentials"
+  ],
+
+  "env_vars": {
+    "SNAP_CLIENT_ID":     "Snap Kit OAuth2 client_id from Snap Kit Developer Portal → Your App → Configuration",
+    "SNAP_CLIENT_SECRET": "Snap Kit OAuth2 client_secret from the same panel; treat as bearer-equivalent"
+  },
+
+  "user_provisioning_required": {
+    "status": "NOT YET PROVISIONED",
+    "rationale": "SNAP_CLIENT_ID and SNAP_CLIENT_SECRET are user-issued credentials tied to a Snap Kit Developer account. They are NOT included in the shared .env today. Until Tom provisions them, connect() returns False and the network tools (exchange_code, refresh_token, me) graceful-fail every call without making any urllib request. The local URL-builders (login_oauth2_url, bitmoji_avatar_url, creative_share_url, verify_credentials) still work and emit the correct surfaces — login_oauth2_url just embeds a '<SNAP_CLIENT_ID>' placeholder with a warning.",
+    "vars_to_set_in_env": [
+      "SNAP_CLIENT_ID",
+      "SNAP_CLIENT_SECRET"
+    ],
+    "how_to_obtain": [
+      "1. Visit https://kit.snapchat.com/portal and sign in with a Snapchat account.",
+      "2. Create or select an app, then go to Configuration → OAuth2 to find Client ID and Client Secret.",
+      "3. Add your redirect URI (e.g. https://trollz.fun/snap/callback) to the allowed Redirect URIs list — Snap Kit requires exact-match.",
+      "4. Request the scopes you need (default: user.display_name, user.bitmoji.avatar). For Bitmoji 3D add user.bitmoji.avatar; for external_id add user.external_id.",
+      "5. Production Snap Kit requires Snap review for live mode. Until then your app runs in staging mode and only allowlisted Snapchat accounts can authorize.",
+      "6. Append these lines to /data/Projects/MySpace++/.env (mirrored to /data/Projects/gently/.env):",
+      "     SNAP_CLIENT_ID=<your-snap-kit-client-id>",
+      "     SNAP_CLIENT_SECRET=<your-snap-kit-client-secret>"
+    ],
+    "docs_link": "https://kit.snapchat.com/docs"
+  },
+
+  "convenience_wrappers": [
+    "verify_credentials()  — no-network smoke; returns {keys_present, has_client_id, has_client_secret, expected_tools, oauth_*_url, me_url}",
+    "login_oauth2_url(redirect_uri, state, scopes=['user.display_name','user.bitmoji.avatar'])  — local build of the Snapchat OAuth2 consent URL with state nonce",
+    "exchange_code(code, redirect_uri)  — POST /accounts/oauth2/token with Basic-auth + grant_type=authorization_code",
+    "refresh_token(refresh_token)  — POST /accounts/oauth2/token with Basic-auth + grant_type=refresh_token",
+    "me(access_token)  — GET kit.snapchat.com/v1/me with bearer; unwraps display_name + bitmoji.avatar + external_id",
+    "bitmoji_avatar_url(external_id)  — local CDN URL build (images.bitmoji.com/3d/avatar/<ext_id>-v1.webp)",
+    "creative_share_url(sticker_id, caption, attachment_url)  — local snapchat://creativekit/share?... deeplink the caller hands off to a Snapchat client"
+  ],
+
+  "exports": [
+    "SnapKitConnector",
+    "EXPECTED_TOOLS",
+    "SNAP_OAUTH_AUTH_URL",
+    "SNAP_OAUTH_TOKEN_URL",
+    "SNAP_KIT_ME_URL",
+    "BITMOJI_AVATAR_URL",
+    "BITMOJI_CDN_TEMPLATE",
+    "CREATIVE_KIT_SCHEME",
+    "DEFAULT_SCOPES"
+  ],
+
+  "substrate": "studio/third_party/snap_kit/ (per-config persistence) + ~/.cc/third_party_logs/snap_kit_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored social_event records, tier='social_event', model='snap_kit')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py (future: /dapp/api/snap/login + /dapp/api/snap/share)",
+      "core/cc.sh (future: cmd_snap_test / cmd_snap_login_url / cmd_snap_share)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='snap_kit')"
+    ],
+    "outbound_calls": [
+      "https://accounts.snapchat.com/accounts/oauth2/auth     (consent URL — built locally, not requested)",
+      "https://accounts.snapchat.com/accounts/oauth2/token    (POST: exchange_code, refresh_token)",
+      "https://kit.snapchat.com/v1/me                          (GET: profile + bitmoji.avatar + external_id)",
+      "https://api.bitmoji.com/avatar/json                     (referenced for full avatar render — CDN template used locally)",
+      "snapchat://creativekit/share                            (deeplink scheme — built locally, opened by client)",
+      "inference_logger.log (every success: tier='social_event', model='snap_kit')"
+    ],
+    "substrate_reads": "SNAP_CLIENT_ID + SNAP_CLIENT_SECRET via studio/auth/keys.load_env (and SNAPCHAT_CLIENT_ID/SECRET as os.environ fallback)",
+    "substrate_writes": "send_log entries + crystal_chain social_event records (only when network tools succeed; local builders do not crystal-anchor)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse": "ok — python ast.parse succeeds",
+    "connect": "expected_false — SNAP_CLIENT_ID + SNAP_CLIENT_SECRET absent from .env (user provisioning pending)",
+    "verify_credentials": "expected_success=True with keys_present=False — no-network smoke; surfaces missing-key state without erroring",
+    "login_oauth2_url": "expected_success=True — builds URL with '<SNAP_CLIENT_ID>' placeholder + warning when client_id absent; full URL when configured",
+    "bitmoji_avatar_url": "expected_success=True — pure template fill, no network",
+    "creative_share_url": "expected_success=True — pure deeplink build, no network",
+    "exchange_code / refresh_token / me": "expected_graceful_fail — SendResult(success=False, error='snap_kit_keys not configured ...') without any urllib request",
+    "no_network_calls": "verified — every network-touching tool returns the graceful error before any urllib request when keys are absent"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful HTTP tool call has a deterministic InferenceRecord with tier='social_event', model='snap_kit', scope='snap_<tool>'",
+    "Stdlib-only — no `snapchat-py` or `requests` package required; uses urllib (form-encoded POST + JSON GET) + base64 for Basic auth",
+    "Graceful — missing SNAP_CLIENT_ID/SNAP_CLIENT_SECRET → connect() returns False and the three network tools return SendResult(success=False, error='snap_kit_keys not configured') WITHOUT any urllib request",
+    "Local builders always work — login_oauth2_url, bitmoji_avatar_url, creative_share_url, and verify_credentials are pure-stdlib URL assembly + state introspection; no network, no key requirement",
+    "Redacted logs — access_token, refresh_token, code, client_secret, id_token, authorization headers are stripped from the crystal-anchor payload via _redact()",
+    "State CSRF enforced — login_oauth2_url rejects requests missing the state nonce, surfacing the OAuth2 CSRF requirement at the connector boundary",
+    "Confidential client — token-endpoint POSTs use HTTP Basic auth (base64(client_id:client_secret)) per Snap Kit's OAuth2 confidential-client spec"
+  ],
+
+  "usage_example": "from core.lib.third_party.snap_kit import SnapKitConnector\\nimport json\\nc = SnapKitConnector()\\nr = c.send('verify_credentials', '')\\nprint(r.success, r.metadata.get('keys_present'))\\nurl_r = c.send('login_oauth2_url', json.dumps({'redirect_uri':'https://trollz.fun/snap/callback','state':'csrf-abc123','scopes':['user.display_name','user.bitmoji.avatar']}))\\nprint(url_r.metadata['oauth2_url'])\\nif c.connect():\\n    tok = c.send('exchange_code', json.dumps({'code':'<from-callback>','redirect_uri':'https://trollz.fun/snap/callback'}))\\n    me  = c.send('me', json.dumps({'access_token':'<access-token-from-tok.body>'}))\\n    print(me.metadata.get('display_name'), me.metadata.get('bitmoji_avatar'))\\n    bm  = c.send('bitmoji_avatar_url', json.dumps({'external_id': me.metadata.get('external_id','')}))\\n    print(bm.metadata['avatar_url'])\\n    sh  = c.send('creative_share_url', json.dumps({'sticker_id':'sticker_42','caption':'gm','attachment_url':'https://trollz.fun/share/asset.png'}))\\n    print(sh.metadata['share_url'])\\nelse:\\n    print('no SNAP_CLIENT_ID/SNAP_CLIENT_SECRET — set in .env to enable network tools')",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "third_party connector expansion — Snapchat Snap Kit surface (Login + Bitmoji + Creative)"
+}

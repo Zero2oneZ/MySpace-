@@ -1,0 +1,116 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "morphing_game_scene",
+  "state": "active",
+  "version": "v0",
+  "role": "SCENE · PERSONA_DRIVEN_SCENE_SWAP_SHELL",
+  "tier": "L0",
+  "module_path": "studio/godot/project/scenes/morphing_game.tscn",
+
+  "summary": "Godot 4.6.3 Node3D shell that fetches a ScenePlan from the dApp `/dapp/api/morph_plan` endpoint and morphs the active inner scene based on the caller's inferred persona/role. The shell stays mounted; only the PrimarySceneSlot child is swapped out at runtime, while a thin HUD reflects persona, role, primary_face id, and an accent color drawn from `plan.custom_css_vars['--accent']`. v1 falls back to a `play_default` (main.tscn) plan when no bearer token is present, so the scene also boots offline. Pairs with the dapp_server `/dapp/api/morph_plan` route (provided by sidecar agent J or runtime agent G) and the freetier_gate token storage.",
+
+  "engine_pattern": "Two-node shell: ScenePlanLoader autoload owns the HTTP fetch + token read + plan_received signal; MorphingGameController is a per-scene Node3D that subscribes to that signal and (a) restyles the HUD, (b) load()s the PackedScene mapped by FACE_TO_SCENE for plan.primary_face, (c) clears previous children of PrimarySceneSlot and instantiates the new one. Resource resolution is defensive — missing scenes push_warning and bail. No per-frame work; everything happens in response to one plan_received signal.",
+
+  "scene_tree": {
+    "MorphingGame": "Node3D (root, script attached)",
+    "MorphingGame/SubViewportContainer": "CanvasLayer — host for the inner SubViewport",
+    "MorphingGame/SubViewportContainer/SubViewport": "SubViewport — isolated render target for the swapped scene",
+    "MorphingGame/SubViewportContainer/SubViewport/PrimarySceneSlot": "Node3D — empty slot; controller queue_frees its children then add_child(packed.instantiate())",
+    "MorphingGame/HUD": "CanvasLayer — 2D overlay",
+    "MorphingGame/HUD/PersonaLabel": "Label — 'persona: <persona_id>'",
+    "MorphingGame/HUD/RoleLabel": "Label — 'role: <inferred_role>'",
+    "MorphingGame/HUD/AccentRect": "ColorRect — accent bar; color driven by plan.custom_css_vars['--accent']",
+    "MorphingGame/HUD/DebugInfo": "Label — 'scene: <primary_face>'"
+  },
+
+  "scripts": {
+    "controller": "studio/godot/project/src/morphing_game_controller.gd  (class_name MorphingGameController)",
+    "loader":     "studio/godot/project/src/scene_plan_loader.gd          (autoload: ScenePlanLoader)"
+  },
+
+  "face_to_scene_map": {
+    "play_realtor":   "res://scenes/realestate_walkthrough_full.tscn",
+    "play_buyer":     "res://scenes/avatar_rigged.tscn",
+    "play_gamer":     "res://scenes/planet_map.tscn",
+    "play_developer": "res://scenes/main.tscn",
+    "play_default":   "res://scenes/main.tscn",
+    "rationale": "Five face_ids cover the seed persona archetypes. Realtor face maps to the property walkthrough; buyer face surfaces the rigged avatar (try-on flow); gamer face shows the social-graph planet; developer + default share main.tscn until a dedicated dev face exists."
+  },
+
+  "scene_plan_schema_v1": {
+    "endpoint": "GET http://localhost:8520/dapp/api/morph_plan",
+    "auth": "Authorization: Bearer <freetier_token>  (falls back to play_default when missing)",
+    "response_schema": "{ persona_id: String, inferred_role: String, primary_face: String, custom_css_vars: { '--accent': '#RRGGBB', ... } }",
+    "status": "NOT YET IMPLEMENTED — sidecar agent J or runtime agent G owns the `/dapp/api/morph_plan` route. Until then, controller falls back to play_default and HUD shows persona=local_anon.",
+    "owner_to_add_route": "dapp_server (route handler shipped by agent G / sidecar J)"
+  },
+
+  "token_sources": {
+    "web_export":     "JavaScriptBridge.eval(localStorage.getItem('mspc_freetier_token')) — set by freetier_gate at login",
+    "native_export":  "user://freetier_token.txt — written by the freetier flow when the bearer is bound to a host"
+  },
+
+  "exports": [
+    "MorphingGameController",
+    "FACE_TO_SCENE",
+    "_ready",
+    "_on_plan_received",
+    "_swap_primary_scene",
+    "_apply_persona_styling",
+    "_hud_update"
+  ],
+
+  "runtime_requirements": {
+    "godot": ">= 4.3 (4.6.3-stable target)",
+    "autoload_required": "true — ScenePlanLoader registered in project.godot [autoload] as '*res://src/scene_plan_loader.gd'",
+    "http_dependency": "localhost:8520 must serve /dapp/api/morph_plan; offline boot uses the play_default fallback so the scene still renders"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "Top-level navigation (TBD) — main_controller.gd or a sign-in transition will change_scene_to_file('res://scenes/morphing_game.tscn') once the freetier token is in place",
+      "dapp_play_extension entry point (planned) — replaces the static landing scene when a persona is detected"
+    ],
+    "outbound_calls": [
+      "ScenePlanLoader.fetch_plan_for_current_token() -> emits plan_received(Dictionary)",
+      "HTTPClient GET http://localhost:8520/dapp/api/morph_plan (Authorization: Bearer <token>)",
+      "ResourceLoader.exists(path) + load(path) for each face_id -> PackedScene"
+    ],
+    "substrate_reads": "freetier token (web: localStorage 'mspc_freetier_token' / native: user://freetier_token.txt)",
+    "substrate_writes": "none (read-only client)"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "files_created": "ok — 3 new files (1 .tscn, 2 .gd) + this agent card + 1 autoload line in project.godot",
+    "tscn_header":   "ok — gd_scene load_steps=3 format=3 uid present",
+    "class_name":    "ok — class_name MorphingGameController declared",
+    "autoload":      "ok — ScenePlanLoader='*res://src/scene_plan_loader.gd' appended to [autoload] only",
+    "godot_runtime": "PENDING — scene needs to be opened in Godot 4.6.3 editor for full parse validation; bash cannot validate gdscript syntax"
+  },
+
+  "guarantees": [
+    "Boots without backend — missing/empty token short-circuits to play_default and the HUD reports persona=local_anon",
+    "Surgical project.godot edit — exactly ONE new line in [autoload]; no other autoload, scene, or script is touched",
+    "Scene swap is idempotent — _swap_primary_scene queue_frees existing PrimarySceneSlot children before instantiating",
+    "Missing PackedScene paths fail soft via push_warning, not crash",
+    "FACE_TO_SCENE is a const dictionary — adding a new face is a one-line append, no controller refactor"
+  ],
+
+  "blockers_phase_2": [
+    "dapp_server: add GET /dapp/api/morph_plan route that returns { persona_id, inferred_role, primary_face, custom_css_vars } (owned by sidecar agent J or runtime agent G)",
+    "freetier_gate: confirm token write to user://freetier_token.txt on native exports and to localStorage 'mspc_freetier_token' on web export",
+    "New face_ids: add the corresponding scene path to FACE_TO_SCENE — e.g. play_artist -> wardrobe scene, play_trader -> trade dashboard",
+    "SubViewportContainer sizing — wire SubViewport.size to the viewport size if the shell is used at non-1920x1080 aspect ratios",
+    "Plan refresh: currently fetched once on _ready; add a 'morph' signal so plan changes during a session can hot-swap the inner scene"
+  ],
+
+  "usage_example": "# From main_controller or any scene:\nget_tree().change_scene_to_file(\"res://scenes/morphing_game.tscn\")\n# Or load + instantiate inline:\nvar packed = load(\"res://scenes/morphing_game.tscn\")\nadd_child(packed.instantiate())",
+
+  "chain_runs": [],
+  "phase": "B.2 — first persona-driven scene shell. Pairs with dapp_server (`/dapp/api/morph_plan` provider), freetier_gate (token issuer), and the five seed face scenes (realestate_walkthrough_full, avatar_rigged, planet_map, main)."
+}

@@ -1,0 +1,30 @@
+{
+  "chains": {
+    "abc123def": {
+      "sym_array": ["vm_realestate_001", "vm_defold_runtime"],
+      "task": "real estate walkthrough for property #001",
+      "steps": {
+        "vm_realestate_001": {
+          "vm_id": "vm_realestate_001",
+          "local_db": "defold://local.db",
+          "global_db": "defold://global.db",
+          "files": ["scene://livingroom", "scene://kitchen"],
+          "chain_ids": [1, 2],
+          "tags": ["walkthrough", "runtime"],
+          "status": "running"
+        },
+        "vm_defold_runtime": {
+          "vm_id": "vm_defold_runtime",
+          "local_db": "defold://local.db",
+          "global_db": "defold://global.db",
+          "files": [],
+          "chain_ids": [1],
+          "tags": ["runtime"],
+          "status": "running"
+        }
+      },
+      "created_at": 1748366400,
+      "status": "running"
+    }
+  }
+}

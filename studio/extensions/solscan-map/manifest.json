@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "MySpace++ Wallet Map",
+  "version": "0.3.0",
+  "description": "Captures Solana wallet/token/tx addresses while you browse Solscan, plus an on-demand 'grab all wallets' for any page (Padre, GMGN, etc.). Feeds the local MySpace++ wallet map (127.0.0.1:8520). Read-only — no keys, no signing.",
+  "permissions": ["storage", "activeTab", "scripting", "tabCapture", "offscreen"],
+  "host_permissions": [
+    "https://solscan.io/*",
+    "http://127.0.0.1:8520/*",
+    "http://localhost:8520/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://solscan.io/token/*",
+        "https://solscan.io/account/*",
+        "https://solscan.io/address/*",
+        "https://solscan.io/tx/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MySpace++ Wallet Map"
+  }
+}

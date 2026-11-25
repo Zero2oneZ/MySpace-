@@ -1,0 +1,71 @@
+{# Jinja2 template -> Godot 4 .tscn for workflow_card_v0 godot surface
+   Inputs:
+     card          - the workflow_card_v0 dict
+     card_crystal  - hex string (used for uid seed + provenance comment)
+   Notes:
+     - Root Node3D name = TitleCase of snake_case card.name
+     - Script ext_resource pulled from card.name (matches controller convention)
+     - Comfyui passes become empty MeshInstance3D placeholders
+     - layer_stack entries become metadata/layer_<i> = "<name>:<blend>"
+#}
+{%- set name = card.name -%}
+{%- set parts = name.split('_') -%}
+{%- set ns = namespace(title='') -%}
+{%- for p in parts -%}{%- set ns.title = ns.title ~ (p[0]|upper) ~ p[1:] -%}{%- endfor -%}
+{%- set title = ns.title -%}
+{%- set uid_seed = card_crystal[:24] -%}
+{%- set comfy_ns = namespace(items=[]) -%}
+{%- for p in card.passes if p.engine == 'comfyui' -%}{%- set _ = comfy_ns.items.append(p) -%}{%- endfor -%}
+{%- set comfy_passes = comfy_ns.items -%}
+{# load_steps = 1 (script ext_resource) + 3 sub_resources (Sky material, Sky, Environment) #}
+{%- set load_steps = 4 -%}
+[gd_scene load_steps={{ load_steps }} format=3 uid="uid://{{ uid_seed }}"]
+
+[ext_resource type="Script" path="res://src/{{ name }}_controller.gd" id="1_ctrl"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_dark"]
+sky_top_color = Color(0.02, 0.04, 0.09, 1)
+sky_horizon_color = Color(0.05, 0.08, 0.14, 1)
+ground_bottom_color = Color(0.01, 0.01, 0.02, 1)
+ground_horizon_color = Color(0.04, 0.05, 0.08, 1)
+
+[sub_resource type="Sky" id="Sky_dark"]
+sky_material = SubResource("ProceduralSkyMaterial_dark")
+
+[sub_resource type="Environment" id="Environment_dark_blue"]
+background_mode = 2
+sky = SubResource("Sky_dark")
+ambient_light_source = 3
+ambient_light_color = Color(0.08, 0.1, 0.22, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+; GENERATED from workflow_card: {{ name }}
+; card_crystal = {{ card_crystal }}
+; passes_total = {{ card.passes|length }}, comfy_passes = {{ comfy_passes|length }}
+; layer_stack   = {{ card.layer_stack|length }}
+[node name="{{ title }}" type="Node3D"]
+script = ExtResource("1_ctrl")
+{%- for layer in card.layer_stack %}
+metadata/layer_{{ loop.index0 }} = "{{ layer.name }}:{{ layer.blend }}"
+{%- endfor %}
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 2.5, 6)
+fov = 60.0
+near = 0.05
+far = 500.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.5, -0.707107, 0.5, 0.5, 0.707107, 0.5, -0.707107, 0, 0.707107, 4, 8, 4)
+light_color = Color(0.95, 0.97, 1, 1)
+light_energy = 1.0
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_dark_blue")
+{% for p in comfy_passes %}
+[node name="{{ p.id }}" type="MeshInstance3D" parent="."]
+; placeholder for rendered output of comfy pass "{{ p.id }}" (agent={{ p.agent }})
+{% endfor %}

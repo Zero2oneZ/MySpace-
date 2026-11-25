@@ -1,0 +1,22 @@
+{
+  "_schema": "mcp_server_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "mcp_servers",
+  "name": "gently_watchdog",
+  "state": "active",
+  "version": "3100",
+  "server_type": "mcp",
+  "host": "159.89.181.146",
+  "port": 3100,
+  "tools": [
+    {"name": "watchdog_ping", "type": "probe"},
+    {"name": "watchdog_restart", "type": "action"},
+    {"name": "watchdog_logs", "type": "query"}
+  ],
+  "sigil": "WATCHDOG",
+  "permissions": ["read", "restart"],
+  "last_healthcheck": "2026-05-27T23:00:00Z"
+}

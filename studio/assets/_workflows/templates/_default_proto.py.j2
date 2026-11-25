@@ -1,0 +1,138 @@
+"""{{ card.name }} — Streamlit prototype (generic _default template).
+
+Generated from workflow_card_v0.
+  name:          {{ card.name }}
+  category:      {{ card.category }}
+  card_crystal:  {{ card_crystal }}
+  rendered_ts:   {{ rendered_ts }}
+
+DO NOT EDIT BY HAND. Regenerate via:
+    cc workflow generate {{ card.name }} --target streamlit
+"""
+from __future__ import annotations
+
+import streamlit as st
+
+CARD_NAME = "{{ card.name }}"
+CARD_CATEGORY = "{{ card.category }}"
+CARD_CRYSTAL = "{{ card_crystal }}"
+CARD_SUMMARY = {{ card.summary | default("") | tojson }}
+
+INPUTS = {{ card.inputs | tojson }}
+OUTPUTS = {{ card.outputs | tojson }}
+PASSES = {{ card.passes | tojson }}
+LAYER_STACK = {{ card.layer_stack | tojson }}
+DEPENDS_ON = {{ card.depends_on | default([]) | tojson }}
+
+
+# ── page ────────────────────────────────────────────────────────────────────
+
+st.set_page_config(page_title=CARD_NAME, layout="wide")
+st.title(f"{CARD_NAME}  ·  {CARD_CATEGORY}")
+if CARD_SUMMARY:
+    st.caption(CARD_SUMMARY)
+
+# Sidebar — layer_stack (Tom's hypershade vocabulary)
+with st.sidebar:
+    st.subheader("Layer Stack")
+    if LAYER_STACK:
+        st.dataframe(LAYER_STACK, use_container_width=True, hide_index=True)
+    else:
+        st.caption("(no layer_stack declared)")
+    st.subheader("Card crystal")
+    st.code(CARD_CRYSTAL[:32] + "...", language=None)
+    st.caption(f"Schema: {CARD_NAME} · {len(PASSES)} passes · {len(INPUTS)} inputs")
+
+
+# ── inputs form ─────────────────────────────────────────────────────────────
+
+st.subheader("Inputs")
+form_values = {}
+with st.form(key="run_pipeline"):
+    for inp in INPUTS:
+        n = inp.get("name", "")
+        t = (inp.get("type") or "").lower()
+        required = inp.get("required", False)
+        label = f"{n}  ({t})" + (" *" if required else "")
+        default = inp.get("default", None)
+        if t.startswith("image"):
+            form_values[n] = st.file_uploader(
+                label, type=["png", "jpg", "jpeg", "webp"],
+                key=f"in_{n}")
+        elif t.startswith("audio"):
+            form_values[n] = st.file_uploader(
+                label, type=["wav", "mp3", "flac", "ogg"],
+                key=f"in_{n}")
+        elif t in ("int", "integer"):
+            form_values[n] = st.number_input(
+                label, value=int(default) if default is not None else 0,
+                step=1, key=f"in_{n}")
+        elif t in ("float", "number"):
+            form_values[n] = st.number_input(
+                label, value=float(default) if default is not None else 0.0,
+                key=f"in_{n}")
+        elif t in ("bool", "boolean"):
+            form_values[n] = st.checkbox(
+                label, value=bool(default) if default is not None else False,
+                key=f"in_{n}")
+        else:
+            form_values[n] = st.text_input(
+                label, value=str(default) if default is not None else "",
+                key=f"in_{n}")
+    run = st.form_submit_button("Execute pipeline", type="primary")
+
+
+# ── pipeline ────────────────────────────────────────────────────────────────
+
+if run:
+    missing = [i["name"] for i in INPUTS
+               if i.get("required") and not form_values.get(i["name"])]
+    if missing:
+        st.error(f"Required inputs missing: {', '.join(missing)}")
+    else:
+        st.subheader("Pipeline")
+        for p in PASSES:
+            pid = p.get("id", "?")
+            engine = p.get("engine", "?")
+            tier = p.get("tier", "?")
+            status_label = f"{pid}  ·  engine={engine}  ·  tier={tier}"
+            status = p.get("status", "ACTIVE")
+            with st.status(status_label, expanded=False) as s:
+                st.caption(f"in:  {p.get('in', [])}")
+                st.caption(f"out: {p.get('out', '?')}")
+                if status == "STUB":
+                    s.update(label=status_label + "  (STUB — skipped)",
+                              state="error")
+                elif status == "IN-FLIGHT":
+                    s.update(state="running")
+                else:
+                    # Real call would go through cc workflow run-pass <id>
+                    s.update(state="complete")
+
+
+# ── outputs ─────────────────────────────────────────────────────────────────
+
+with st.expander("Outputs", expanded=False):
+    for o in OUTPUTS:
+        n = o.get("name", "")
+        t = (o.get("type") or "").lower()
+        st.markdown(f"**{n}**  ({t})")
+        if t.startswith("image"):
+            st.image("", caption="(no artifact yet)") if False else st.caption(
+                "(image artifact appears here after run)")
+        elif t.startswith("audio"):
+            st.caption("(audio artifact appears here after run)")
+        elif t.startswith("json"):
+            st.json({})
+        else:
+            st.code("(no value yet)")
+
+
+# ── footer ──────────────────────────────────────────────────────────────────
+
+st.markdown("---")
+if DEPENDS_ON:
+    st.caption("**Depends on:**  " + ", ".join(d[:12] + "..." for d in DEPENDS_ON))
+else:
+    st.caption("No upstream crystal dependencies.")
+st.caption(f"card_crystal: {CARD_CRYSTAL}")

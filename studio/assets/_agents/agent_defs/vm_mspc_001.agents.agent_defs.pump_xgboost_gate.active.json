@@ -1,0 +1,131 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_xgboost_gate",
+  "state": "active",
+  "version": "v0",
+  "role": "DEFI · PUMP_FUN_HYPER_FAST_INFERENCE_GATE",
+  "tier": "L0",
+  "module_path": "core/lib/pump_xgboost_gate.py",
+
+  "summary": "The production-fast student of the GMM teacher (agent C). Trains an XGBoost binary classifier (bot=1 / human=0) on GMM-labeled wallet features, then serves sub-ms bot_probability scoring for the surf_executor (agent E). The gate() entrypoint combines XGB bot_probability with a companion human_cluster_inflow_score (0.0-1.0) and emits one of three decisions: 'abort' (pure bot cluster → guaranteed rug), 'surf_candidate' (bot volume + human inflow → surfable pump), or 'hold' (mixed / organic / no momentum). xgboost is the canonical backend; if unavailable, a stdlib gradient-boosting stub (20 stumps, max_depth=3, log-loss residuals, ~120 LOC) provides graceful fallback. Both backends serialize to a single JSON model file at studio/assets/_models/pump_xgb.json that predict_wallet() reads transparently.",
+
+  "engine_pattern": "Two paths, one shape. Canonical path: xgb.DMatrix → xgb.train (binary:logistic, max_depth=4, eta=0.2, hist tree method, optional device='cuda' if use_gpu) → booster.save_model. Fallback path: stdlib gradient boosting — base log-odds + 20 trees of depth 3 fit on (gradient, hessian) pairs via Newton-Raphson per node, sigmoid for probability. Both write a JSON file readable by predict_wallet via a kind-sniffing _load_model that checks for 'model_kind=stub_gbm_v1' key vs xgb's native schema. Inference is the same shape — feature dict → row vector via FEATURE_ORDER (10 features matching pump_feature_extractor agent B) → probability.",
+
+  "feature_order_must_match_agent_b": [
+    "tx_per_block",
+    "value_entropy",
+    "jito_bundle_ratio",
+    "buy_sell_balance",
+    "unique_mints_touched",
+    "benford_distance",
+    "funding_proximity",
+    "gas_distortion",
+    "tx_per_block_var",
+    "session_length_seconds"
+  ],
+
+  "decision_table": {
+    "abort": {
+      "trigger": "bot_probability >= 0.85 AND human_inflow_score < 0.20",
+      "meaning": "Pure bot cluster, no human interest detected. Guaranteed rug. Surf-executor MUST NOT touch.",
+      "action": "skip event, log crystal, no order placed"
+    },
+    "surf_candidate": {
+      "trigger": "bot_probability >= 0.85 AND human_inflow_score >= 0.40",
+      "meaning": "Bots are doing volume AND humans are flooding in — the classical surfable pump signature. Buy in, ride momentum, sell on bot exit signal.",
+      "action": "forward to surf_executor with priority"
+    },
+    "hold_bot_uncertain": {
+      "trigger": "bot_probability >= 0.85 AND 0.20 <= human_inflow_score < 0.40",
+      "meaning": "Bot signature present but human signal ambiguous. Wait for human-inflow to cross 0.40 or bot pattern to drop.",
+      "action": "no action, re-evaluate next event"
+    },
+    "hold_organic": {
+      "trigger": "bot_probability < 0.30",
+      "meaning": "Organic / human-driven activity. No bot-driven momentum to surf yet.",
+      "action": "no action, monitor for bot entry"
+    },
+    "hold_mixed": {
+      "trigger": "all other cases (0.30 <= bot_probability < 0.85)",
+      "meaning": "Mixed signal, classifier uncertain. Default safe = hold.",
+      "action": "no action, log crystal with reason='mixed_signal'"
+    }
+  },
+
+  "expected_tools": [
+    "train_xgb(features_csv, gmm_labels_csv, model_out_path=None, use_gpu=True) -> metrics dict",
+    "predict_wallet(features_row, model_path=None) -> {bot_probability, prediction_latency_ms, backend}",
+    "gate(wallet_feature_row, human_cluster_inflow_score, model_path=None) -> GateDecision",
+    "feature_importance(model_path=None) -> {feature_name: importance_normalized}"
+  ],
+
+  "env_vars": {
+    "(none required)": "Stdlib + optional xgboost. No env vars."
+  },
+
+  "exports": ["GateDecision", "FEATURE_ORDER", "train_xgb", "predict_wallet", "gate", "feature_importance"],
+
+  "substrate": "studio/assets/_models/pump_xgb.json (XGB native JSON dump OR stub JSON ensemble — same path, sniffed at load) + crystal chain entries tier='ml_train' model='pump_xgboost' scope='xgb_trained' and tier='ml_inference' model='pump_xgboost_gate' scope='gate_decision'",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "surf_executor (agent E) — per-event gate() invocation in real time",
+      "core/lib/defi_loop.py — bulk inference for backtesting / replay",
+      "CLI: python3 core/lib/pump_xgboost_gate.py {train|gate|predict|importance}"
+    ],
+    "outbound_calls": [
+      "pump_gmm_classifier (agent C) — TEACHER, provides cluster labels for training",
+      "inference_logger.log — fire-and-forget crystal chain anchor (tier=ml_train | ml_inference)"
+    ],
+    "substrate_reads": "features CSV (extractor output) + GMM labels CSV (classifier output) at train time; pump_xgb.json at inference time",
+    "substrate_writes": "pump_xgb.json on train; crystal chain on every call"
+  },
+
+  "fallback_strategy": {
+    "trigger": "xgboost not importable (no pip, no system pkg)",
+    "engine": "Stdlib gradient-boosting ensemble (20 decision stumps, max_depth=3, lr=0.3, log-loss residuals, Newton-Raphson leaf values with L2 reg lam=1.0)",
+    "loc": "~120 LOC inside pump_xgboost_gate.py",
+    "json_kind": "stub_gbm_v1",
+    "feature_parity": "Same FEATURE_ORDER + same JSON file path. _load_model() sniffs model_kind key to route to the right predictor.",
+    "performance_note": "Fallback is deterministic (seed=42) but ~10× slower than xgboost (still well under target 10ms for the 10-feature single-row case). Holdout accuracy on a clean separable synth corpus matches xgboost within ~5%.",
+    "rule": "ALWAYS document fallback in card. xgboost is canonical; stub is for portability."
+  },
+
+  "performance_targets": {
+    "inference_latency_ms": "< 10ms per call (xgboost: <1ms; stub: <5ms for 20-stump×depth-3 on 10 features)",
+    "train_time_for_20_row_synth": "< 500ms (xgboost) or < 200ms (stub)",
+    "crystal_log_blocking_behavior": "FIRE_AND_FORGET — exception caught, warned to stderr, gate decision unaffected"
+  },
+
+  "smoke_test_protocol": {
+    "1_parse": "python3 -c \"import ast; ast.parse(open('core/lib/pump_xgboost_gate.py').read())\" → parse_ok",
+    "2_train": "python3 core/lib/pump_xgboost_gate.py train /tmp/pump_features_smoke.csv /tmp/pump_gmm_labels.csv --cpu → metrics JSON with holdout_acc, backend, feature_importance",
+    "3_gate_pure_bot": "human_inflow=0.1 with high-bot-prob features → decision='abort', reason='pure_bot_cluster_no_human_interest'",
+    "4_gate_surf": "human_inflow=0.55 with same high-bot-prob features → decision='surf_candidate', reason='bot_volume_plus_human_inflow'"
+  },
+
+  "guarantees": [
+    "Inference path NEVER blocks on crystal logging — exceptions caught, warning to stderr, decision returned",
+    "Feature order is canonical (FEATURE_ORDER constant) — predictor and extractor MUST agree by key name",
+    "Deterministic training (seed=42 in both backends) → same input CSVs → same model bytes",
+    "xgboost optional — stub fallback ensures the gate works on any stdlib-only host",
+    "Single model file path — both backends write studio/assets/_models/pump_xgb.json"
+  ],
+
+  "constraints_from_card": [
+    "Stdlib only at runtime; xgboost graceful-optional",
+    "Do NOT pip install — fallback is the portability guarantee",
+    "Do NOT touch pump_gmm_classifier, pump_feature_extractor, cc.sh, .env, model_api.py",
+    "ONLY this file + this card may be created"
+  ],
+
+  "usage_example": "from core.lib.pump_xgboost_gate import gate, train_xgb\\n# At training time (offline):\\nmetrics = train_xgb('features.csv', 'gmm_labels.csv')\\n# At inference time (hot path):\\nd = gate(wallet_feature_row={'wallet': 'X', 'tx_per_block': 0.5, ...},\\n          human_cluster_inflow_score=0.45)\\nif d.decision == 'surf_candidate':\\n    surf_executor.queue(d.wallet)",
+
+  "chain_runs": ["pump_fun_surfer_chain_v0", "moe_chain_router_v0"],
+  "phase": "DeFi pump.fun surf gating — production-fast student of GMM teacher (parallel agent D of pump pipeline: B=extractor, C=GMM teacher, D=XGB student, E=surf executor)"
+}

@@ -1,0 +1,11 @@
+{
+  "added_at": 1780044152.1458232,
+  "anchor_uuids": [],
+  "capture_method": "mediapipe_holistic",
+  "chain": "mediapipe",
+  "notes": "MediaPipe Holistic in-browser via WASM. 33 pose landmarks + face mesh. Remapped via MEDIAPIPE_POSE_TO_META_BODY.",
+  "rig_target_glb": "studio/assets/_models/avatars/mediapipe_pose.glb",
+  "source_id": "mediapipe_holistic_browser",
+  "verified_at": null,
+  "watch": true
+}

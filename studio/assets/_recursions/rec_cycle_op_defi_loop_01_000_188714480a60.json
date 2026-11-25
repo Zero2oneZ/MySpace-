@@ -1,0 +1,18 @@
+{
+  "crystal": "188714480a603a4b8bcad6509f1d8a24a07bd5f29288dfa7c04dcf4f19ae4c08b2ab82af35d3e856d52f5620d8168f040ac9d3fc7aa35e5f18250d06c72af324",
+  "description": "Simple cycle of length 1 spanning ORCHESTRATION",
+  "edge_kinds_traversed": [
+    "calls"
+  ],
+  "has_self_loop": false,
+  "id": "rec_cycle_op_defi_loop_01_000",
+  "kind": "simple_cycle",
+  "name": "defi_loop",
+  "nodes": [
+    "op_defi_loop"
+  ],
+  "size": 1,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

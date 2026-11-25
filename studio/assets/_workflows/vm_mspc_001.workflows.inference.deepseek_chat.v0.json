@@ -1,0 +1,115 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "deepseek_chat",
+  "category": "inference",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Direct DeepSeek inference rail (Phase D.2). OpenAI-compatible API; ~$0.27/M input tokens. deepseek-chat (general), deepseek-coder (code), deepseek-reasoner (chain-of-thought). The cheap-tier underlay for model_api unified inference; also a standalone surface for shell-level prompts ('cc deepseek-test'). Crystal anchors every call tier='inference', model='deepseek-<variant>'.",
+
+  "inputs": [
+    {"name": "messages", "type": "list[msg]", "required": true,
+      "notes": "OpenAI chat-completions shape: [{role: system|user|assistant, content: str}]"},
+    {"name": "model", "type": "str", "required": false,
+      "default": "deepseek-chat",
+      "notes": "deepseek-chat | deepseek-coder | deepseek-reasoner"},
+    {"name": "max_tokens", "type": "int", "required": false, "default": 1024},
+    {"name": "temperature", "type": "float", "required": false, "default": 0.0},
+    {"name": "stream", "type": "bool", "required": false, "default": false}
+  ],
+
+  "outputs": [
+    {"name": "completion_text", "type": "str"},
+    {"name": "tokens_in", "type": "int"},
+    {"name": "tokens_out", "type": "int"},
+    {"name": "inference_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "load_key",
+      "agent": "keys",
+      "model_path": "studio/auth/keys.py::upstream_key",
+      "engine": "deterministic",
+      "in": ["service"],
+      "out": "deepseek_api_key",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "service='deepseek' → DEEPSEEK_API_KEY or INFERENCE_API_KEY fallback. Both present in .env per Phase D.2 audit. Never log the key value."
+    },
+    {
+      "id": "cache_lookup",
+      "agent": "result_cache",
+      "model_path": "core/lib/result_cache.py::get",
+      "engine": "deterministic",
+      "in": ["messages", "model", "max_tokens", "temperature"],
+      "out": "cached_completion",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "BLAKE3 over (model + canonical(messages) + max_tokens + temperature). Cache hit → skip dispatch, jump to anchor."
+    },
+    {
+      "id": "chat_complete",
+      "agent": "deepseek_mcp",
+      "model_path": "core/lib/third_party/deepseek_mcp.py::chat_complete",
+      "engine": "mcp",
+      "in": ["messages", "model", "max_tokens", "temperature", "stream"],
+      "out": "completion_text",
+      "tier": "cheap",
+      "status": "PLANNED",
+      "notes": "POST https://api.deepseek.com/v1/chat/completions. Bearer DEEPSEEK_API_KEY. Stdlib urllib via hf_hub._http_post. Falls back to deepinfra (HF mirror) on 503, then hf-inference."
+    },
+    {
+      "id": "cache_store",
+      "agent": "result_cache",
+      "model_path": "core/lib/result_cache.py::put",
+      "engine": "deterministic",
+      "in": ["messages", "model", "completion_text"],
+      "out": "stored_key",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Same BLAKE3 key. Deterministic re-runs cache-hit on identical message tuples."
+    },
+    {
+      "id": "anchor_call",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["model", "messages", "completion_text", "tokens_in", "tokens_out"],
+      "out": "inference_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='inference', model=f'deepseek-{variant}', scope='chat'. coords=[tokens_in, tokens_out, cost_usd, latency_ms]. cost_usd computed from $0.27/M input + $1.10/M output."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "cache", "source": "pass:cache_lookup", "blend": "base"},
+    {"name": "completion", "source": "pass:chat_complete", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "cc": {
+      "dispatcher": "cc deepseek-test \"<prompt>\" [--model deepseek-coder]"
+    },
+    "mcp": {
+      "transport": "stdio",
+      "tools": ["chat_complete", "embed", "models_list"]
+    }
+  },
+
+  "leaves_surfaced": [
+    "text-generation",
+    "code-generation",
+    "chain-of-thought"
+  ],
+
+  "depends_on": [
+    "core/lib/third_party/deepseek_mcp.py (Phase D.2 — new)",
+    "studio/auth/keys.py (extended in Phase A.1 to include 'deepseek' in KINDS)",
+    "DEEPSEEK_API_KEY or INFERENCE_API_KEY (existing in .env)",
+    "core/lib/result_cache.py (existing — task #34)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

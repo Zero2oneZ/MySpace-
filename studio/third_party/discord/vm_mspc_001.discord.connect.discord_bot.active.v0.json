@@ -1,0 +1,21 @@
+{
+  "_schema": "third_party_config_v1",
+  "asset_id": "vm_mspc_001.discord.connect.discord_bot.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "service": "discord",
+  "action": "connect",
+  "name": "discord_bot",
+  "state": "active",
+  "version": "v0",
+  "auth": {
+    "bot_token": "DISCORD_BOT_TOKEN_HERE",
+    "application_id": ""
+  },
+  "limits": {
+    "requests_per_minute": 60,
+    "burst": 10
+  },
+  "routing_tags": ["broadcast", "dm", "alert"],
+  "created_at": "2026-05-28T00:00:00Z"
+}

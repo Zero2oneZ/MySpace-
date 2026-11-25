@@ -1,0 +1,23 @@
+{
+  "_schema": "product_card_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "products",
+  "category": "nft",
+  "name": "avatar_nft",
+  "tagline": "Photo → rigged 3D avatar → IPFS pin → NFT mint on TensorChain",
+  "value_tier": 9,
+  "ttm_days": 14,
+  "monthly_recurring_usd": [0, 0, 0],
+  "input_mcps": ["huggingface-mcp", "comfyui-mcp", "blender-mcp",
+                  "tensorchain-mcp", "twitter-mcp", "discord-mcp"],
+  "substrate_uses": ["studio_runtime", "hf_hub", "svg_vector_embed",
+                      "inference_logger"],
+  "output_surfaces": ["godot_scene", "blender", "comfyui",
+                       "tensorchain_nft", "ipfs_pin"],
+  "monetization_channels": ["tensorchain_mint_fee",
+                              "tensorchain_royalty_5pct_secondary"],
+  "depends_on_phases": ["phase0_existing", "phase3_godot"],
+  "status": "DESIGN",
+  "anchor_workflow": "photo_to_avatar_rigged",
+  "_notes": "Product #2. Substrate has rigging via Mixamo 19 FBX + flux_2_klein LoRA. Need: comfy_render_avatar pass live + IPFS pin path + tensorchain-mcp mint call. Royalty 5% on secondary sales."
+}

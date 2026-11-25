@@ -1,0 +1,21 @@
+{
+  "_schema": "third_party_config_v1",
+  "asset_id": "vm_mspc_001.whatsapp.connect.whatsapp_business.active.v0.json",
+  "crystal": "placeholder_sha256",
+  "vm_id": "vm_mspc_001",
+  "service": "whatsapp",
+  "action": "connect",
+  "name": "whatsapp_business",
+  "state": "active",
+  "version": "v0",
+  "auth": {
+    "phone_id": "PHONE_NUMBER_ID_HERE",
+    "access_token": "META_ACCESS_TOKEN_HERE"
+  },
+  "limits": {
+    "requests_per_minute": 20,
+    "burst": 5
+  },
+  "routing_tags": ["broadcast", "alert", "urgent"],
+  "created_at": "2026-05-28T00:00:00Z"
+}

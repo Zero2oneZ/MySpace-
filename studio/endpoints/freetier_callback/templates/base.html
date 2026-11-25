@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="{theme_color}">
+  <title>{title}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10" crossorigin="anonymous"
+          integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.55; color: #1a1a1a; background: #fafafa;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1.1rem 6rem; }
+    header.brand {
+      display: flex; align-items: center; gap: .65rem;
+      padding: .9rem 1.1rem; background: {brand_bg}; color: {brand_fg};
+      position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 1px 0 rgba(0,0,0,.06);
+    }
+    header.brand .mark {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: {brand_fg}; color: {brand_bg};
+      display: grid; place-items: center;
+      font-weight: 700; font-size: .85rem;
+    }
+    header.brand .name { font-weight: 700; letter-spacing: .02em; }
+    header.brand .name small { font-weight: 400; opacity: .85; margin-left: .35rem; }
+    h1 { font-size: 1.45rem; margin: 1.2rem 0 .35rem; }
+    h2 { font-size: 1.05rem; margin: 1.5rem 0 .25rem; color: #333; }
+    p, ul, ol { margin: .45rem 0; }
+    ul, ol { padding-left: 1.25rem; }
+    li + li { margin-top: .25rem; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .88em; background: #f0f0f0; padding: 0 .25rem; border-radius: 3px;
+    }
+    pre { padding: .65rem .8rem; overflow-x: auto; }
+    .meta { color: #666; font-size: .85rem; margin-bottom: .85rem; }
+    .panel {
+      background: #fff; border: 1px solid #e6e6e6;
+      border-radius: 10px; padding: 1rem 1.1rem; margin: 1.25rem 0;
+    }
+    .panel.tight { padding: .85rem 1rem; }
+    .panel.warn { border-color: #f0c040; background: #fff8e1; }
+    .panel.ok   { border-color: #66bb6a; background: #effaf0; }
+    label.row {
+      display: flex; align-items: flex-start; gap: .65rem;
+      margin-top: .65rem; cursor: pointer;
+    }
+    label.row input[type=checkbox] {
+      margin-top: .25rem; width: 1.05rem; height: 1.05rem; accent-color: {brand_bg};
+    }
+    input[type=text], input[type=email] {
+      width: 100%; padding: .65rem .8rem; font-size: 1rem;
+      border: 1px solid #d0d0d0; border-radius: 8px; margin-top: .35rem;
+    }
+    button.cta {
+      display: inline-block; width: 100%;
+      background: {brand_bg}; color: {brand_fg};
+      padding: .85rem 1.1rem; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      margin-top: 1rem;
+      transition: filter .15s;
+    }
+    button.cta:disabled { opacity: .55; cursor: not-allowed; }
+    button.cta:not(:disabled):hover { filter: brightness(.92); }
+    a.link { color: {brand_bg}; text-decoration: none; font-weight: 600; }
+    a.link:hover { text-decoration: underline; }
+    .nav-row {
+      display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.25rem;
+    }
+    .nav-row a { flex: 1; min-width: 12rem; }
+    .token-display {
+      background: #1a1a1a; color: #d0d0d0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .82rem; word-break: break-all;
+      padding: .85rem 1rem; border-radius: 8px; margin: .75rem 0;
+    }
+    .stamp { font-size: .75rem; opacity: .7; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <header class="brand">
+    <span class="mark">{brand_mark}</span>
+    <span class="name">{brand_name}<small>{brand_sub}</small></span>
+  </header>
+  <main class="wrap">
+    {content}
+  </main>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "vms": {
+    "vm_realestate_001": {
+      "vm_id": "vm_realestate_001",
+      "case": "realestate",
+      "role": "walkthrough-crystal",
+      "crystal": null,
+      "scope": "defold://walkthrough/property-001",
+      "created_at": "2026-05-27T12:00:00Z",
+      "files": [
+        {
+          "canonical": "vm_realestate_001{0}.realestate.scenes.livingroom.nogit.main.txt",
+          "path": "scene://livingroom",
+          "project": "realestate",
+          "folder": "scenes",
+          "file": "livingroom",
+          "git": "nogit",
+          "branch": "main"
+        },
+        {
+          "canonical": "vm_realestate_001{1}.realestate.scenes.kitchen.nogit.main.txt",
+          "path": "scene://kitchen",
+          "project": "realestate",
+          "folder": "scenes",
+          "file": "kitchen",
+          "git": "nogit",
+          "branch": "main"
+        }
+      ],
+      "docs": [],
+      "imports": ["vm_defold_runtime"]
+    },
+    "vm_defold_runtime": {
+      "vm_id": "vm_defold_runtime",
+      "case": "defold",
+      "role": "runtime",
+      "crystal": null,
+      "scope": "defold://engine",
+      "created_at": "2026-05-27T12:00:00Z",
+      "files": [],
+      "docs": [],
+      "imports": ["vm_realestate_001"]
+    }
+  },
+  "local_assets_root": "assets/data/"
+}

@@ -1,0 +1,132 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "sui_leverage_loop",
+  "category": "defi",
+  "state": "planned",
+  "version": "v0",
+
+  "summary": "Sui USDC lending leverage loop (Phase A.5). deposit → borrow → re-deposit → re-borrow until target_leverage OR max_iters OR health_factor breach. DRY-RUN by default; 3-gate live execute (dry_run=False AND MSPC_SWAP_LIVE=1 AND --confirm). Hard cap target_leverage<=5. Every iteration crystal-anchored tier='defi_loop' with model='sui_lending' + chain_context including step + cur_lev + hf — 'cc inference-chain --tier defi_loop' becomes the position history.",
+
+  "inputs": [
+    {"name": "pool_id", "type": "str", "required": true,
+      "notes": "Sui lending pool object id (Navi or Scallop)"},
+    {"name": "base_collateral_micro", "type": "int", "required": true,
+      "notes": "Initial collateral in micro-USDC (× 10^6)"},
+    {"name": "target_leverage", "type": "float", "required": false, "default": 3.0,
+      "notes": "Stop when cur_lev >= target. Hard cap 5.0 regardless"},
+    {"name": "safety_ltv", "type": "float", "required": false, "default": 0.65,
+      "notes": "Halt loop when health_factor falls below"},
+    {"name": "max_iters", "type": "int", "required": false, "default": 8},
+    {"name": "dry_run", "type": "bool", "required": false, "default": true,
+      "notes": "Default true. Set false + MSPC_SWAP_LIVE=1 + --confirm to actually broadcast"}
+  ],
+
+  "outputs": [
+    {"name": "loop_steps", "type": "list[step]"},
+    {"name": "final_leverage", "type": "float"},
+    {"name": "final_health_factor", "type": "float"},
+    {"name": "loop_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "preflight_caps",
+      "agent": "defi_loop",
+      "model_path": "core/lib/defi_loop.py::preflight",
+      "engine": "deterministic",
+      "in": ["target_leverage", "dry_run"],
+      "out": "preflight_ok",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "Reject target_leverage > 5. Require --confirm flag past 2x. Validate env MSPC_SWAP_LIVE if dry_run=False."
+    },
+    {
+      "id": "query_pool_state",
+      "agent": "sui_mcp",
+      "model_path": "core/lib/third_party/sui_mcp.py::pool_state",
+      "engine": "subprocess",
+      "in": ["pool_id"],
+      "out": "pool_meta",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "sui client call → pool's max_ltv + asset price oracle + current utilization. Drives safe borrow_amt calculation."
+    },
+    {
+      "id": "deposit_step",
+      "agent": "sui_mcp",
+      "model_path": "core/lib/third_party/sui_mcp.py::lend_pool_deposit",
+      "engine": "subprocess",
+      "in": ["pool_id", "collateral_amt", "dry_run"],
+      "out": "deposit_digest",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Each iteration. DRY-RUN returns fake_digest_<iter>. Crystal anchor per step."
+    },
+    {
+      "id": "borrow_step",
+      "agent": "sui_mcp",
+      "model_path": "core/lib/third_party/sui_mcp.py::lend_pool_borrow",
+      "engine": "subprocess",
+      "in": ["pool_id", "collateral_amt", "borrow_amt", "dry_run"],
+      "out": "borrow_digest",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "borrow_amt = collateral * ltv. Each iteration's borrow becomes next iteration's collateral."
+    },
+    {
+      "id": "health_check",
+      "agent": "defi_loop",
+      "model_path": "core/lib/defi_loop.py::health_factor",
+      "engine": "deterministic",
+      "in": ["pool_meta", "cur_collateral", "cur_borrow"],
+      "out": "health_factor",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "HF = (collateral * price * liquidation_threshold) / borrow. HF < safety_ltv → halt with stop_reason='health_below_safety'."
+    },
+    {
+      "id": "iterate_or_stop",
+      "agent": "defi_loop",
+      "model_path": "core/lib/defi_loop.py::evaluate_stop",
+      "engine": "deterministic",
+      "in": ["cur_leverage", "iter", "health_factor", "target_leverage", "max_iters", "safety_ltv"],
+      "out": "stop_decision",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "notes": "OR-gate: cur_lev>=target | iter>=max | HF<safety. Returns stop_reason for audit."
+    },
+    {
+      "id": "anchor_loop",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["loop_steps", "final_leverage", "final_health_factor"],
+      "out": "loop_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='defi_loop', model='sui_lending'. Per-step records linked by correlation_id. coords=[total_deposited, total_borrowed, final_leverage, final_hf, step_count, was_dry_run_int]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "preflight", "source": "pass:preflight_caps", "blend": "alpha"},
+    {"name": "deposits", "source": "pass:deposit_step", "blend": "base"},
+    {"name": "borrows", "source": "pass:borrow_step", "blend": "additive"},
+    {"name": "health", "source": "pass:health_check", "blend": "screen"}
+  ],
+
+  "surfaces": {
+    "cc": {
+      "dispatcher": "cc sui-loop <pool_id> --leverage 3x [--dry|--confirm]"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/defi_loop.py (Phase A.5 — new)",
+    "core/lib/third_party/sui_mcp.py (Phase A.3)",
+    "SUI_LENDING_PACKAGE_ID env (user-provisioned — Navi or Scallop)",
+    "core/lib/inference_logger.py (existing)",
+    "MSPC_SWAP_LIVE env (off by default; required to actually broadcast)"
+  ]
+}

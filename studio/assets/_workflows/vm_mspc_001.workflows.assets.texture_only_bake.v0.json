@@ -1,0 +1,105 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "texture_only_bake",
+  "category": "assets",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Texture stack → PBR bake → export. No mesh generation, no shader-graph composition; given an existing mesh + uvs + per-layer source images, run material.bake_pbr and export a fresh GLB. The cheap subset of autonomous_3d_asset for the common case where mesh/topology are fixed and only the surface needs new textures.",
+
+  "inputs": [
+    {"name": "input_mesh_path", "type": "path", "required": true,
+      "notes": "Existing GLB / FBX / OBJ with UVs"},
+    {"name": "layer_sources", "type": "dict[str, path]", "required": true,
+      "notes": "Map layer_name (one of CANONICAL_LAYERS) → source PNG"},
+    {"name": "bake_size", "type": "tuple[int,int]", "required": false,
+      "default": [2048, 2048]},
+    {"name": "uv_set", "type": "str", "required": false, "default": "UVMap"},
+    {"name": "export_format", "type": "str", "required": false, "default": "glb",
+      "notes": "glb | gltf | usdz"}
+  ],
+
+  "outputs": [
+    {"name": "baked_glb_path", "type": "path"},
+    {"name": "baked_layer_paths", "type": "dict[str, path]"},
+    {"name": "asset_crystal", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "validate_layers",
+      "agent": "workflow_generator",
+      "model_path": "core/lib/workflow_generator.py::validate_layers",
+      "engine": "deterministic",
+      "in": ["layer_sources"],
+      "out": "validated_layers",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Reject if any layer_name not in CANONICAL_LAYERS (albedo/normal/roughness/metallic/emission/ao/displacement/sss/transmission/coat/coat_roughness/sheen/iridescence/anisotropy). Reject if PNG missing or unreadable."
+    },
+    {
+      "id": "import_mesh",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::mesh.import_fbx",
+      "engine": "blender",
+      "in": ["input_mesh_path"],
+      "out": "imported_object_name",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Auto-detect format by extension. import_glb / import_fbx / import_obj are isomorphic in blender_mcp."
+    },
+    {
+      "id": "bake_pbr",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::material.bake_pbr",
+      "engine": "blender",
+      "in": ["imported_object_name", "validated_layers", "bake_size", "uv_set"],
+      "out": "baked_layer_paths",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "Iterate each layer through the principled BSDF socket map. Tile size + samples auto-tuned to bake_size."
+    },
+    {
+      "id": "export_asset",
+      "agent": "blender_mcp",
+      "model_path": "core/lib/third_party/blender_mcp.py::mesh.export_gltf",
+      "engine": "blender",
+      "in": ["imported_object_name", "export_format"],
+      "out": "baked_glb_path",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "preserve_pbr=true. Output at studio/assets/_bakes/<crystal_short>/asset.<fmt>."
+    },
+    {
+      "id": "anchor_bake",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["baked_glb_path", "baked_layer_paths"],
+      "out": "asset_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='autonomous_modeler', model='blender_bake', scope='texture_only'. coords=[layer_count, total_tex_megapixels, export_size_bytes]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "mesh", "source": "input:input_mesh_path", "blend": "base"},
+    {"name": "textures", "source": "pass:bake_pbr", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "blender": {
+      "template": "templates/texture_only_bake.py.j2",
+      "blender_bin": "blender --background --python",
+      "out_path": "studio/blender/scripts/texture_only_bake.py"
+    }
+  },
+
+  "depends_on": [
+    "core/lib/workflow_generator.py (CANONICAL_LAYERS)",
+    "core/lib/third_party/blender_mcp.py",
+    "core/lib/inference_logger.py"
+  ]
+}

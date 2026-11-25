@@ -1,0 +1,166 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "friend_graph_visualizer",
+  "state": "active",
+  "version": "v0",
+  "role": "VISUALIZATION · STATIC_SVG_SOCIAL_GRAPH_RENDERER",
+  "tier": "L0",
+  "module_path": "core/lib/friend_graph_visualizer.py",
+
+  "summary": "Pure-stdlib Python renderer that emits static SVG views of the MySpace++ social graph. Complements studio/godot/project/scenes/planet_map.tscn (interactive 3D) with a server-side 2D output suitable for OG/share previews, email reports, embedded dApp panels, dialectic_walker visualizations, and crystal-chain audit reports. Three render modes — world (equirectangular), globe (orthographic), progression (N globes side-by-side). Each render is anchored in the crystal chain via inference_logger so the SVG is auditable end-to-end.",
+
+  "engine_pattern": "Fetch graph -> BFS hop distances -> project (lat,lon) to canvas -> emit SVG via xml.etree.ElementTree. Edges are cubic/quadratic Bezier paths; control points are pulled toward the equator (equirectangular) or the projected sphere center (orthographic) to produce great-circle-ish arcs without computing them analytically. Continents are 14 generic polygons (NOT real geo data) embedded inline, so the map reads as a map without shipping GeoJSON.",
+
+  "render_modes": {
+    "world": {
+      "fn":          "render_world_map(player_id, output_path=None, max_hops=2, max_nodes=200, theme='dark')",
+      "projection":  "equirectangular: x = (lon+180)/360 * inner_w, y = (90-lat)/180 * inner_h",
+      "canvas":      "1200x630 (Open Graph / share preview aspect)",
+      "use_case":    "OG image, email hero, dApp share panel"
+    },
+    "globe": {
+      "fn":          "render_globe_view(player_id, output_path=None, orbit_lon=0.0, orbit_lat=15.0, max_hops=2, max_nodes=200, theme='dark')",
+      "projection":  "orthographic from (orbit_lon, orbit_lat) — back-face culled when cos(angular_dist) < 0",
+      "canvas":      "1200x630 with a 280px-radius disk centered",
+      "use_case":    "'Show friends visible from Asia' panel, regional view, crystal-chain audit"
+    },
+    "progression": {
+      "fn":          "render_progression(player_id, output_path=None, snapshots=None, theme='dark')",
+      "projection":  "N orthographic mini-globes side-by-side; each snapshot is a {label, players, friendships, orbit_lon, orbit_lat} dict",
+      "canvas":      "panel_w*n + 40*(n+1) wide, 480px tall",
+      "use_case":    "growth timeline, audit log replay, 'before vs after' diffs"
+    }
+  },
+
+  "projection_math": {
+    "equirectangular": "x = margin_x + (lon + 180)/360 * inner_w;  y = margin_y + (90 - lat)/180 * inner_h",
+    "orthographic_visibility": "cos(c) = sin(phi0)*sin(phi) + cos(phi0)*cos(phi)*cos(lam - lam0); point is hidden iff cos(c) < 0",
+    "orthographic_xy": "x = cx + r*cos(phi)*sin(lam - lam0);  y = cy - r*(cos(phi0)*sin(phi) - sin(phi0)*cos(phi)*cos(lam - lam0))",
+    "edge_bezier_world": "control point = midpoint of edge, pulled 30% toward the equator (sin-bell effect without trig at runtime)",
+    "edge_bezier_globe": "control point = midpoint of edge, pulled 35% toward the projected sphere center (approximates a great-circle arc on the visible hemisphere)"
+  },
+
+  "svg_output_shape": {
+    "xml_decl": "<?xml version='1.0' encoding='utf-8'?>",
+    "root":     "<svg viewBox='0 0 W H' width='W' height='H' xmlns='http://www.w3.org/2000/svg'>",
+    "layers_top_to_bottom": [
+      "background <rect> filling viewBox",
+      "<text> title + subtitle (counts, max_hops, stub note if applicable)",
+      "<g> grid lines (world mode) OR <circle> globe disk (globe/progression mode)",
+      "<g> continent polygons (14 generic shapes)",
+      "<g> friendship edges (<path d='M..C..' /> for world, <path d='M..Q..' /> for globe)",
+      "<g> player nodes (<circle> color-coded by hop distance) + source label",
+      "<text> footer with crystal_id short hash + ISO-UTC timestamp"
+    ],
+    "color_coding": {
+      "hop_0_source": "#ff3b30 (red)",
+      "hop_1":        "#ff9500 (orange)",
+      "hop_2":        "#ffcc00 (yellow)",
+      "hop_3":        "#ffe680 (faded yellow)",
+      "hop_4_plus":   "#a8b0c0 (grey)"
+    }
+  },
+
+  "exports": [
+    "render_world_map",
+    "render_globe_view",
+    "render_progression",
+    "equirectangular",
+    "orthographic",
+    "THEMES",
+    "CONTINENT_POLYGONS"
+  ],
+
+  "themes": ["dark", "light"],
+
+  "default_output_dir": "~/.cc/planet_renders/<crystal_short>.svg",
+
+  "integration": {
+    "social_graph_persistence": {
+      "expected_callable": "export_for_planet_map(player_id, max_hops, max_nodes) -> {players: [...], friendships: [...]}",
+      "edge_shape_accepted": [
+        "{'player_a': str, 'player_b': str}",
+        "{'a': str, 'b': str}",
+        "{'source': str, 'target': str}",
+        "{'from': str, 'to': str}",
+        "['a', 'b'] (tuple/list)"
+      ],
+      "graceful_fallback": "If social_graph_persistence is not importable (e.g. agent F still in progress), renderer emits a single-node stub SVG with a 'stub: social_graph_persistence unavailable' subtitle so chains depending on this output never crash."
+    },
+    "inference_logger": {
+      "called": "InferenceLogger().log(tier='visualization', model='friend_graph_visualizer', scope='svg_render', original_prompt=player_id, output_text=<output_path>, source_action='render_world_map|render_globe_view|render_progression')",
+      "purpose": "Each render is a crystal-anchored record in ~/.cc/inference_master_chain.jsonl — auditors can replay any render by walking back to its crystal_id"
+    },
+    "svg_vector_embed": {
+      "downstream_use": "After write, callers MAY run embed_svg_file(out) to compute geometry_crystal of every emitted path; this makes the rendered graph discoverable via the 5th MoE retrieval axis (geometric vector). Renderer itself does NOT call this — it's an optional pipeline step kept outside the hot path."
+    },
+    "godot_planet_map": {
+      "relationship": "Complement, not replacement. Both consume identical {players, friendships} payload from social_graph_persistence; Godot renders interactive 3D, this renders static 2D for web/email/print."
+    }
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "cc -friend-graph-render <player_id> (planned dispatcher route in core/cc.sh)",
+      "dapp_server /dapp/api/social_graph/svg?player_id=<id> (planned)",
+      "dialectic_walker — renders walked-subgraph snapshots between steps",
+      "crystal-chain audit reports — fetched via output_text path in inference log"
+    ],
+    "outbound_calls": [
+      "social_graph_persistence.export_for_planet_map (data source)",
+      "inference_logger.InferenceLogger.log (crystal anchor)",
+      "xml.etree.ElementTree.write (file emission)"
+    ],
+    "substrate_reads": "social_graph_persistence DB (via its export fn) — never touches the DB directly",
+    "substrate_writes": "SVG file at output_path + one row in inference_master_chain.jsonl per render"
+  },
+
+  "cli": [
+    "python3 core/lib/friend_graph_visualizer.py world  <player_id> [--out PATH] [--max-hops 2] [--max-nodes 200] [--theme dark|light]",
+    "python3 core/lib/friend_graph_visualizer.py globe  <player_id> [--out PATH] [--orbit-lon 0] [--orbit-lat 15] [--max-hops 2] [--theme dark|light]",
+    "python3 core/lib/friend_graph_visualizer.py progression <player_id> [--out PATH] [--weeks 4] [--snapshots-json PATH] [--theme dark|light]"
+  ],
+
+  "smoke_test_2026_05_28": {
+    "syntax_check":             "python3 -c 'import ast; ast.parse(open(...).read())' -> OK",
+    "world_render_3_nodes":     "viz_tom + 2 friends (Alice Paris, Bob Tokyo) -> SVG written with circle_count >= 3 and path_count >= 2",
+    "globe_render":             "orthographic at lon=0 lat=15 -> globe disk + continents + visible nodes drawn",
+    "stub_graceful":            "with social_graph_persistence absent -> stub SVG with subtitle warns 'social_graph_persistence unavailable'",
+    "crystal_anchor":           "InferenceLogger.log call wrapped in try/except so renderer still works in isolation"
+  },
+
+  "stdlib_only_guarantee": [
+    "math (trig for orthographic + edge curves)",
+    "xml.etree.ElementTree (SVG emission)",
+    "pathlib (file IO)",
+    "json (snapshot loading, edge dict parsing)",
+    "argparse (CLI)",
+    "time, os, sys (timestamps + env)",
+    "NO matplotlib, NO cairo, NO svglib, NO numpy, NO PIL"
+  ],
+
+  "guarantees": [
+    "Deterministic — same input graph + same theme + same projection params -> byte-identical SVG (modulo the embedded timestamp/crystal short which are explicitly time-bound)",
+    "Stdlib-only — runs in any Python 3.10+ environment without pip install",
+    "Graceful degradation — works without social_graph_persistence (stub render) and without inference_logger (no anchor, but SVG still written)",
+    "Crystal-anchored — every successful render becomes one row in the inference master chain",
+    "Themeable — dark / light palettes via the theme= parameter; extensible via THEMES dict"
+  ],
+
+  "limits_v0": [
+    "Continent polygons are GENERIC placeholders (~14 rectangles), not real geography — adequate for share-preview visual context, NOT for cartographic accuracy",
+    "Globe view is a single static orthographic — no perspective, no rotation animation (use the Godot scene for that)",
+    "Progression mode reuses one live graph at varying orbit_lon when --snapshots-json absent — for real historical data, caller must supply --snapshots-json with per-week graph state",
+    "Edge bezier control points use a simple lerp to equator/center — NOT true great-circle math; visually correct for short-to-medium edges, distorts for ~180° connections",
+    "No clustering/aggregation for very dense graphs — beyond ~500 nodes the canvas saturates (caller should down-sample via max_nodes/max_hops before requesting render)"
+  ],
+
+  "phase": "B.2 — server-side complement to planet_map.tscn. Pairs with social_graph_persistence (data) + dapp_server (HTTP exposure) + inference_logger (audit chain) + svg_vector_embed (optional post-render geometric indexing).",
+
+  "chain_runs": []
+}

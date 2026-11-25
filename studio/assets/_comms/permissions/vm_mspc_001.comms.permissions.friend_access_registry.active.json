@@ -1,0 +1,24 @@
+{
+  "_schema": "permissions_registry_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "comms",
+  "category": "permissions",
+  "name": "friend_access_registry",
+  "state": "active",
+  "version": "v0",
+  "registry": "studio/auth/keys.sqlite",
+  "mode": 600,
+  "token_lifetime": "per_host",
+  "distribution_cmd": "cc -keys-distribute",
+  "friends": [],
+  "scopes": [
+    {"scope": "studio_access", "level": "read_write"},
+    {"scope": "gpu_compute", "level": "read_only"},
+    {"scope": "mcp_tools", "level": "execute"},
+    {"scope": "livestream_view", "level": "view"}
+  ],
+  "ssh_friend_setup": true,
+  "ip_bind_login": true
+}

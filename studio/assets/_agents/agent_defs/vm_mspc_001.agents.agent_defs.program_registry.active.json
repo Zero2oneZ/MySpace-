@@ -1,0 +1,80 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "program_registry",
+  "state": "active",
+  "version": "v0",
+  "role": "ORACLE_DATA · PUBLIC_PROGRAM_CATALOG_FOR_OTHER_WEB3_APPS",
+  "tier": "L0",
+  "module_path": "core/lib/program_registry.py",
+
+  "summary": "Curated catalog of public Solana program IDs + Sui package IDs belonging to OTHER web3 apps (Jupiter, Raydium, Orca, Pump.fun, Drift, Mango, Kamino, Solend, Magic Eden, Tensor, Gamba, Cetus, DeepBook, etc.). NOT our programs (TROLLN/SYNTH stay in .env). Drives program_monitor's subscription set. Each entry has chain, program_id, name, category, source_url, verified_at, watch:bool, notes. Storage: studio/assets/_program_registry/catalog.jsonl (append-only, key=chain:program_id).",
+
+  "engine_pattern": "Plain stdlib JSONL persistence. Seed list of ~20 confirmed mainnet IDs (16 Solana, 2 Sui) covering 9 categories (DEX, DEX_AGGREGATOR, DEX_CLMM, DEX_ORDERBOOK, PERPS, LENDING, LIQUID_STAKING, NFT_MARKETPLACE, NFT_AGGREGATOR, MEMECOIN_LAUNCHPAD, CASINO, TOKEN_PROGRAM). watch=true by default except for system token programs which would flood. verify_format does base58 / 0x-hex checks (cheap, no RPC); a future verify-live mode would round-trip the RPC.",
+
+  "categories": [
+    "DEX", "DEX_AGGREGATOR", "DEX_CLMM", "DEX_ORDERBOOK",
+    "PERPS", "LENDING", "LIQUID_STAKING",
+    "NFT_MARKETPLACE", "NFT_AGGREGATOR",
+    "MEMECOIN_LAUNCHPAD", "CASINO",
+    "MEV", "TOKEN_PROGRAM", "SYSTEM",
+    "BRIDGE", "ORACLE", "UNKNOWN"
+  ],
+
+  "exports": ["ProgramEntry", "load", "save", "add", "find", "watchset", "seed",
+              "verify_format", "CATALOG", "CHAINS", "CATEGORIES"],
+
+  "cli": [
+    "seed [--force]",
+    "list [--chain X] [--cat X] [--watch]",
+    "watchset [--chain X]",
+    "add <chain> <id> <name> [category] [source_url]",
+    "set-watch <chain> <id> <on|off>",
+    "verify [--chain X]",
+    "categories",
+    "path"
+  ],
+
+  "cc_dispatchers": [
+    "cc programs-registry-seed",
+    "cc programs-registry-list [--chain X] [--cat X] [--watch]",
+    "cc programs-registry-add <chain> <id> <name> [category] [source_url]",
+    "cc programs-registry-verify [--chain X]",
+    "cc programs-registry-watch <chain> <id> <on|off>"
+  ],
+
+  "seed_size_2026_05_28": {
+    "total_entries": 20,
+    "watch_true": 18,
+    "watch_false": 2,
+    "solana_entries": 18,
+    "sui_entries": 2,
+    "format_validation_ok": 20,
+    "format_validation_bad": 0
+  },
+
+  "ethics_and_authorization": [
+    "All program IDs are PUBLIC on-chain addresses anyone can observe via mainnet RPC.",
+    "Monitoring is read-only — no transactions are sent, no accounts are interacted with.",
+    "This is an oracle pattern: we listen to public chain state for signal-mining purposes.",
+    "Tom's own programs (TROLLN/SYNTH) deliberately NOT here; they live in .env."
+  ],
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/program_monitor.py (reads watchset() to decide what to subscribe)",
+      "core/lib/program_correlator.py (lookup top_program metadata)",
+      "cc programs-registry-* dispatcher"
+    ],
+    "outbound_calls": [],
+    "substrate_reads": "studio/assets/_program_registry/catalog.jsonl",
+    "substrate_writes": "studio/assets/_program_registry/catalog.jsonl"
+  },
+
+  "chain_runs": ["external_oracle_chain"],
+  "phase": "Substrate · oracle catalog"
+}

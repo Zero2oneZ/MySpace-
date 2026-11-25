@@ -1,0 +1,43 @@
+[project]
+title = MySpace++ Walkthrough
+version = 0.1
+write_log = 0
+compress_archive = 1
+publisher = Zero2oneZ
+developer = Tom Lee
+
+[display]
+width = 1280
+height = 720
+high_dpi = 0
+samples = 0
+fullscreen = 0
+update_frequency = 60
+vsync = 1
+dynamically_scale = 1
+
+[render]
+clear_red = 0.1
+clear_green = 0.1
+clear_blue = 0.1
+clear_alpha = 1.0
+
+[physics]
+type = 2D
+max_collisions = 64
+max_contacts = 128
+contact_wakeup_threshold = 10.0
+gravity_y = -10.0
+pixel_scale = 1.0
+
+[script]
+shared_state = 1
+
+[tracking]
+app_id =
+
+[android]
+app_version_code = 1
+
+[library]
+include_dirs =

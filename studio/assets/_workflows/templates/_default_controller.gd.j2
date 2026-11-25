@@ -1,0 +1,89 @@
+extends Node3D
+## {{ card.name }} — auto-generated from workflow_card_v0 (_default_controller.gd.j2)
+##
+## card_crystal:  {{ card_crystal }}
+## category:      {{ card.category }}
+## rendered_ts:   {{ rendered_ts }}
+{%- if card.summary %}
+## summary:       {{ card.summary }}
+{%- endif %}
+##
+## DO NOT EDIT BY HAND. Regenerate via:
+##     cc workflow generate {{ card.name }} --target godot
+
+const CARD_NAME := "{{ card.name }}"
+const CARD_CRYSTAL := "{{ card_crystal }}"
+const CARD_CATEGORY := "{{ card.category }}"
+
+# ── @export inputs (type-mapped from card.inputs) ──────────────────────────
+{% for inp in card.inputs -%}
+{%- set t = inp.type | lower | default('str') -%}
+{%- if t.startswith('image') or t.startswith('audio') or t == 'str' or t == 'string' or t == 'path' -%}
+@export var {{ inp.name }}: String = ""
+{% elif t == 'int' or t == 'integer' -%}
+@export var {{ inp.name }}: int = {{ inp.default | default(0) }}
+{% elif t == 'float' or t == 'number' -%}
+@export var {{ inp.name }}: float = {{ inp.default | default(0.0) }}
+{% elif t == 'bool' or t == 'boolean' -%}
+@export var {{ inp.name }}: bool = {{ inp.default | default(false) | string | lower }}
+{% elif t.startswith('list') or t.startswith('array') -%}
+@export var {{ inp.name }}: Array = []
+{% else -%}
+@export var {{ inp.name }}: String = ""  # raw type: {{ inp.type }}
+{% endif -%}
+{% endfor %}
+
+# ── signals (one per output + universal pipeline ones) ─────────────────────
+{% for out in card.outputs %}signal {{ out.name }}_ready(payload)
+{% endfor %}signal pass_completed(pass_id: String, crystal: String)
+signal pipeline_done(payload: Dictionary)
+
+
+# ── pipeline state ─────────────────────────────────────────────────────────
+
+var _passes: Array = []
+var _layer_stack: Array = [
+{%- for layer in card.layer_stack %}
+	{"name": "{{ layer.name }}", "source": "{{ layer.source }}", "blend": "{{ layer.blend }}"},
+{%- endfor %}
+]
+
+
+func _ready() -> void:
+	_passes = [
+{%- for p in card.passes %}
+		{"id": "{{ p.id }}", "agent": "{{ p.agent | default('') }}", "engine": "{{ p.engine }}", "tier": "{{ p.tier }}", "status": "{{ p.status | default('ACTIVE') }}"},
+{%- endfor %}
+	]
+	print("[{{ card.name }}] ready — ", _passes.size(), " passes, ",
+			_layer_stack.size(), " layers, crystal=", CARD_CRYSTAL.substr(0, 12))
+
+
+func run_pipeline() -> void:
+	for p in _passes:
+		var crystal = await _dispatch_pass(p)
+		pass_completed.emit(p.id, crystal)
+	pipeline_done.emit({"card": CARD_NAME, "crystal": CARD_CRYSTAL})
+
+
+func _dispatch_pass(p: Dictionary) -> String:
+	match p.engine:
+		"comfyui":
+			if has_node("/root/ChainRunner"):
+				return await get_node("/root/ChainRunner").fire_comfy_workflow(p.id)
+			return ""
+		"mcp", "deterministic", "hf", "remotion", "diffusers", "spriteforge":
+			if has_node("/root/CCBridge"):
+				get_node("/root/CCBridge").dispatch({
+					"protocol": "cc_godot_bridge_v1",
+					"card_crystal": CARD_CRYSTAL,
+					"pass": p,
+				})
+			return ""
+		"blender":
+			# Posts to webhook receiver; sidecar handles actual blender exec.
+			push_warning("[{{ card.name }}] blender pass — webhook stub: " + str(p.id))
+			return ""
+		_:
+			push_warning("[{{ card.name }}] unknown engine: " + str(p.engine))
+			return ""

@@ -1,0 +1,82 @@
+{"attributes":{"_quality":"godot_v1","_source":"godot","site_name":"Godot Engine documentation","title":"XMLParser \u2014 Godot Engine (stable) documentation in English Copy to clipboard Copy to clipboard","url":"https://docs.godotengine.org/en/stable/classes/class_xmlparser.html"},"data":"XMLParser \u2014 Godot Engine (stable) documentation in English Copy to clipboard Copy to clipboard","depth":0,"name":"document","parent":null,"type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_name":"","node_type":"section","tag":"h1"},"data":"XMLParser \uf0c1","depth":1,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"section","tag":"h2"},"data":"Description \uf0c1","depth":2,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"method_group","tag":"h2"},"data":"Methods \uf0c1","depth":2,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"enum_group","tag":"h2"},"data":"Enumerations \uf0c1","depth":2,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"method_group","tag":"h2"},"data":"Method Descriptions \uf0c1","depth":2,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"section","tag":"h2"},"data":"User-contributed notes","depth":2,"name":"section","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Languages"},"data":"Languages","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"cs","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"de","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"en","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"es","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"fr","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"it","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ja","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ko","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"pl","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"pt-br","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ru","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"uk","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"zh-cn","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"zh-tw","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Versions"},"data":"Versions","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"latest","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"stable","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.6","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.5","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.4","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.3","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.2","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.0","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.6","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.5","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.4","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.3","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.2","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.0","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"2.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"On Read the Docs"},"data":"On Read the Docs","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"On Read the Docs"},"data":"Project Home","depth":4,"name":"definition","parent":"On Read the Docs","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"On Read the Docs"},"data":"Builds","depth":4,"name":"definition","parent":"On Read the Docs","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Search"},"data":"Search","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Languages"},"data":"Languages","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"pt-br","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"cs","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"en","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"fr","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"de","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"it","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ja","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ko","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"pl","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"ru","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"zh-cn","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"es","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"zh-tw","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Languages"},"data":"uk","depth":4,"name":"definition","parent":"Languages","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Versions"},"data":"Versions","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"latest","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"stable","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.6","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.5","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.4","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.3","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.2","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"4.0","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.6","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.5","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.4","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.3","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.2","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"3.0","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"Versions"},"data":"2.1","depth":4,"name":"definition","parent":"Versions","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"On Read the Docs"},"data":"On Read the Docs","depth":3,"name":"term","parent":"document","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"On Read the Docs"},"data":"Project Home","depth":4,"name":"definition","parent":"On Read the Docs","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"On Read the Docs"},"data":"Builds","depth":4,"name":"definition","parent":"On Read the Docs","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","node_type":"doc","term":"On Read the Docs"},"data":"Downloads","depth":4,"name":"definition","parent":"On Read the Docs","type":"element"}
+{"attributes":{"_quality":"godot_v1","_source":"godot","class_context":"","dt_class":"","node_type":"symbol","signature":"Search"},"data":"Search","depth":3,"name":"term","parent":"document","type":"element"}

@@ -1,0 +1,23 @@
+{
+  "_schema": "network_router_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "network",
+  "category": "routers",
+  "name": "droplet_main",
+  "state": "active",
+  "version": "v0",
+  "host": "159.89.181.146",
+  "services": {
+    "caddy_tls": {"port": 443, "type": "reverse_proxy"},
+    "watchdog_mcp": {"port": 3100, "type": "mcp_server"},
+    "trollz_api": {"port": 8080, "type": "axum_api"}
+  },
+  "wireguard_peers": ["z21_local"],
+  "routes": [
+    {"from": "/api/*", "to": "localhost:8080"},
+    {"from": "/mcp/*", "to": "localhost:3100"}
+  ],
+  "last_configured": "2026-05-27T23:00:00Z"
+}

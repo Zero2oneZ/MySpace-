@@ -1,0 +1,138 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "document_processing",
+  "category": "scope",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Document-processing scope. Ingest → parse → extract → segment → summarize → embed → index. Drops the active card to a morph.engine seeded with a doc.primary base, surfaces the parse/OCR/summarize/translate leaves, and pins the sentence_chain + svg_vector_embed kernels as composition layers. Useful for any flow that turns documents into queryable structured artifacts.",
+
+  "inputs": [
+    {"name": "doc_source", "type": "str", "required": true,
+      "notes": "Path to PDF/DOCX/HTML/MD/EPUB or URL"},
+    {"name": "lang", "type": "str", "required": false, "default": "en"},
+    {"name": "target_chunk_size", "type": "int", "required": false, "default": 512,
+      "notes": "Token target per chunk for embedding"},
+    {"name": "include_svg_extraction", "type": "bool", "required": false,
+      "default": true, "notes": "Pull SVG diagrams + run svg_vector_embed"}
+  ],
+
+  "outputs": [
+    {"name": "scope_crystal", "type": "str"},
+    {"name": "parsed_jsonl", "type": "path"},
+    {"name": "chunk_embeddings_jsonl", "type": "path"},
+    {"name": "svg_motifs", "type": "json"},
+    {"name": "summary_text", "type": "str"}
+  ],
+
+  "passes": [
+    {
+      "id": "scope_mint",
+      "agent": "loom",
+      "model_path": "core/lib/loom.py::mint",
+      "engine": "deterministic",
+      "in": ["doc_source"],
+      "out": "scope_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Scope row at ~/.cc/loom/scopes.jsonl"
+    },
+    {
+      "id": "parse",
+      "agent": "doc_parser",
+      "model_path": "core/lib/doc_parser.py::parse",
+      "engine": "deterministic",
+      "in": ["doc_source"],
+      "out": "parsed_jsonl",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Stdlib + selective HF leaves: PDF via pdfminer, DOCX via python-docx, HTML via html.parser, MD via markdown-it. Output normalized to JSONL of {chunk_id, type, text, page_num, bbox?}"
+    },
+    {
+      "id": "extract_svg",
+      "agent": "svg_harvester",
+      "model_path": "core/lib/svg_vector_embed.py::extract_from_doc",
+      "engine": "deterministic",
+      "in": ["parsed_jsonl"],
+      "out": "svg_motifs",
+      "tier": "fast",
+      "status": "ACTIVE",
+      "notes": "Pull <svg> elements + diagram-like figures, run through svg_vector_embed to extract shape-family motifs. Conditional on include_svg_extraction."
+    },
+    {
+      "id": "chunk_and_embed",
+      "agent": "stream_encoder",
+      "model_path": "core/lib/stream_encoder.py::encode_text",
+      "engine": "diffusers",
+      "in": ["parsed_jsonl", "target_chunk_size"],
+      "out": "chunk_embeddings_jsonl",
+      "tier": "medium",
+      "status": "ACTIVE",
+      "notes": "Tokenize → chunk → CLIP text encode each chunk → write to ~/.cc/embeddings/doc_chunks/<scope>/<date>.jsonl. Same 512-d space as chain events for cross-modal retrieval."
+    },
+    {
+      "id": "build_sentence_chain",
+      "agent": "sentence_chain",
+      "model_path": "core/lib/sentence_chain.py::build",
+      "engine": "deterministic",
+      "in": ["parsed_jsonl"],
+      "out": "sentence_chain_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Free syntactic embedding axis: builds a sentence dependency graph and feeds it into multi_layer_hex.pack_layers under the sentence slot."
+    },
+    {
+      "id": "summarize",
+      "agent": "deepseek_mcp",
+      "model_path": "core/lib/third_party/deepseek_mcp.py::chat_complete",
+      "engine": "mcp",
+      "in": ["chunk_embeddings_jsonl"],
+      "out": "summary_text",
+      "tier": "cheap",
+      "status": "ACTIVE",
+      "notes": "Top-K chunks by centrality → DeepSeek chat with summarize prompt. Cheap-tier rail; HF fallback to mistralai/Mistral-7B-Instruct."
+    },
+    {
+      "id": "index_into_embedding_index",
+      "agent": "embedding_index",
+      "model_path": "core/lib/embedding_index.py::ingest_jsonl",
+      "engine": "deterministic",
+      "in": ["chunk_embeddings_jsonl"],
+      "out": "indexed_count",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Merge into the global cosine-similarity index. Enables 'find me the chain event most similar to this document chunk' retrieval."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "structure", "source": "pass:parse", "blend": "base"},
+    {"name": "semantics", "source": "pass:chunk_and_embed", "blend": "screen"},
+    {"name": "diagrams", "source": "pass:extract_svg", "blend": "additive"}
+  ],
+
+  "surfaces": {
+    "streamlit": {
+      "template": "templates/document_processing_proto.py.j2",
+      "out_path": "studio/web/streamlit/document_processing.py"
+    }
+  },
+
+  "leaves_surfaced": [
+    "text-extraction",
+    "summarization",
+    "translation",
+    "named-entity-recognition",
+    "table-question-answering"
+  ],
+
+  "depends_on": [
+    "core/lib/doc_parser.py",
+    "core/lib/svg_vector_embed.py",
+    "core/lib/sentence_chain.py",
+    "core/lib/stream_encoder.py",
+    "core/lib/embedding_index.py",
+    "core/lib/third_party/deepseek_mcp.py"
+  ]
+}

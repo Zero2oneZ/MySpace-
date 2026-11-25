@@ -1,0 +1,169 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "morph_game_runtime",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · POLYMORPHIC_SCENE_PLANNER",
+  "tier": "L0",
+  "module_path": "core/lib/morph_game_runtime.py",
+
+  "summary": "The brain behind the user's vision: a game that changes depending on who sees it. Takes an AudiencePersonaVector (built by identity_resolver — sibling agent F module) and emits a deterministic ScenePlan describing which Godot scene variant + which dApp face + which Snap lens deeplink + which Solana coin variant + which Sui NFT recommendation + which cost class to use for this specific viewer. Realtor sees the staging tool, buyer sees the avatar walkthrough, gamer sees the leaderboard, developer sees the substrate dashboard, unknown sees the welcome shell — all from the SAME single-page entrypoint. Routing is a pure table lookup + hash-mod arithmetic; NO LLM call is ever made.",
+
+  "engine_pattern": "Stdlib-only. Persona normalized to dict (accepts dataclass, dict, JSON string, or None). Role coerced into one of {realtor, buyer, gamer, developer, unknown} via the routing table, with a small synonym map (agent→realtor, hacker→developer, etc.). Coin variant picked by SHA256(persona_id|role)[:8] mod 8 over the 8-bucket _COIN_VARIANTS tuple. Snap lens deeplink derived from the coin variant so the on-chain coin tier and the AR lens always tell the same story. Sui NFT recommendation comes straight from _SUI_NFT_BY_ROLE. Plan crystal-anchors via inference_logger at tier='morph_plan' before being returned, persists to studio/assets/_morph_plans/<persona_id>.json with a 6h TTL.",
+
+  "deterministic_property": "plan_for(persona) is a PURE function modulo (time, crystal_id). Same persona_id + same inferred_role → same primary_face, godot_scene, snap_lens_deeplink, solana_coin_variant, sui_nft_recommendation, workflow_card, cost_class, custom_css_vars, byte-for-byte. No LLM call, no network call, no rng — replay-safe forever. The crystal_id is the audit anchor; the file under _morph_plans/ is a convenience cache.",
+
+  "the_5_role_routing_table": {
+    "realtor": {
+      "primary_face":  "play_realtor",
+      "godot_scene":   "scenes/realestate_walkthrough_full.tscn",
+      "workflow_card": "realestate_walkthrough_full",
+      "cost_class":    "cheap",
+      "accent":        "#FFD250"
+    },
+    "buyer": {
+      "primary_face":  "play_buyer",
+      "godot_scene":   "scenes/avatar_rigged.tscn",
+      "workflow_card": "photo_to_avatar_rigged",
+      "cost_class":    "cheap",
+      "accent":        "#5b8def"
+    },
+    "gamer": {
+      "primary_face":  "play_gamer",
+      "godot_scene":   "scenes/planet_map.tscn",
+      "workflow_card": "pinterest_vector_motherload",
+      "cost_class":    "fast",
+      "accent":        "#e53935"
+    },
+    "developer": {
+      "primary_face":  "play_developer",
+      "godot_scene":   "scenes/main.tscn",
+      "workflow_card": "autonomous_3d_asset",
+      "cost_class":    "premium",
+      "accent":        "#9c27b0"
+    },
+    "unknown": {
+      "primary_face":  "play_default",
+      "godot_scene":   "scenes/main.tscn",
+      "workflow_card": "realestate_walkthrough_full",
+      "cost_class":    "free",
+      "accent":        "#4caf50"
+    }
+  },
+
+  "synonym_map": {
+    "agent": "realtor",
+    "broker": "realtor",
+    "homeowner": "buyer",
+    "homebuyer": "buyer",
+    "shopper": "buyer",
+    "player": "gamer",
+    "kid": "gamer",
+    "dev": "developer",
+    "engineer": "developer",
+    "builder": "developer",
+    "hacker": "developer"
+  },
+
+  "coin_variants_8": [
+    "tier_seed", "tier_sprout", "tier_bloom", "tier_canopy",
+    "tier_fruit", "tier_root",   "tier_drift", "tier_signal"
+  ],
+
+  "snap_lens_per_coin": {
+    "tier_seed":   "lens_mspc_seed_v0",
+    "tier_sprout": "lens_mspc_sprout_v0",
+    "tier_bloom":  "lens_mspc_bloom_v0",
+    "tier_canopy": "lens_mspc_canopy_v0",
+    "tier_fruit":  "lens_mspc_fruit_v0",
+    "tier_root":   "lens_mspc_root_v0",
+    "tier_drift":  "lens_mspc_drift_v0",
+    "tier_signal": "lens_mspc_signal_v0"
+  },
+
+  "sui_nft_by_role": {
+    "realtor":   "sui_walkthrough_certificate_v0",
+    "buyer":     "sui_avatar_passport_v0",
+    "gamer":     "sui_planet_emblem_v0",
+    "developer": "sui_substrate_credential_v0",
+    "unknown":   "sui_visitor_seal_v0"
+  },
+
+  "expected_tools": [
+    "plan_for(persona) -> ScenePlan",
+    "render_dapp_overrides(plan) -> str  (returns <style>+<meta>+<script type='application/json' id='mspc-morph-plan'>)",
+    "emit_plan(plan, output_path=None) -> Path",
+    "ScenePlan (dataclass: persona_id, inferred_role, primary_face, godot_scene, snap_lens_deeplink, solana_coin_variant, sui_nft_recommendation, workflow_card, cost_class, custom_css_vars, crystal, created_at, expires_at)"
+  ],
+
+  "env_vars": {
+    "MYSPACE_MORPH_PLANS_DIR": "Override path to the emitted-plans dir (default: studio/assets/_morph_plans)"
+  },
+
+  "exports": [
+    "ScenePlan", "plan_for", "render_dapp_overrides", "emit_plan",
+    "ROLES", "PLAN_TTL_SECONDS", "MORPH_PLANS_DIR"
+  ],
+
+  "substrate": "studio/assets/_morph_plans/<persona_id>.json (6h TTL plan cache) + crystal chain entries tier='morph_plan' model='morph_game_runtime' scope='scene_plan_emitted'",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py (pending /dapp/play_morph route — calls render_dapp_overrides at request time)",
+      "identity_resolver (sibling agent F module — calls plan_for after persona vector is finalized)",
+      "core/cc.sh::cmd_morph_plan (planned CLI verb for ad-hoc plan emission)",
+      "CLI: python3 core/lib/morph_game_runtime.py plan-from-{persona,token}"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (every plan_for: tier='morph_plan' model='morph_game_runtime' scope='scene_plan_emitted')",
+      "freetier_gate.verify_token (only via plan-from-token CLI helper)",
+      "filesystem: studio/assets/_morph_plans/<persona_id>.json on emit_plan",
+      "NO LLM call. NO cloud_providers.pick. NO network."
+    ],
+    "substrate_reads": "AudiencePersonaVector from identity_resolver when present; degrades to dict-shaped fallback when sibling module not yet built",
+    "substrate_writes": "morph_plans dir + crystal chain"
+  },
+
+  "graceful_degradations": [
+    "identity_resolver.AudiencePersonaVector not importable yet → persona dict accepted directly (dataclass / dict / JSON string / None all normalize)",
+    "Unknown inferred_role string → coerced to 'unknown' (welcome shell). No exception ever raised on bad input",
+    "freetier_gate token invalid in plan-from-token CLI → persona keeps role='unknown' and plan still emits",
+    "inference_logger missing → crystal field is empty string, plan still returned and persisted",
+    "None / empty persona → persona_id='anonymous_default', role='unknown'",
+    "Empty CSS vars → render_dapp_overrides omits the <style> tag but still returns the JSON+meta blocks"
+  ],
+
+  "guarantees": [
+    "Deterministic: same persona_id+inferred_role → same plan fields (modulo created_at/crystal). Replay-safe.",
+    "Zero LLM calls. Zero network calls. Pure stdlib lookup + SHA256 mod 8 picker.",
+    "Coin variant and Snap lens deeplink always agree (lens id derived from coin slug).",
+    "render_dapp_overrides hardens inline JSON against </script> escape (replaces </ with <\\/).",
+    "Crystal-anchored every plan_for call so the 'who saw which face' history is replayable forever.",
+    "Plan persistence is idempotent overwrite — same persona always writes to the same filename."
+  ],
+
+  "smoke_test_results_2026_05_28": {
+    "syntax_check":               "ok — ast.parse passes",
+    "plan_from_token_unknown":    "ok — role='unknown', face='play_default', scene='scenes/main.tscn', crystal anchored",
+    "all_5_roles":                "ok — realtor/buyer/gamer/developer/unknown each route to the correct face+scene+workflow+cost+accent",
+    "synonym_coercion":           "ok — agent→realtor, homeowner→buyer, hacker→developer, player→gamer, xyz→unknown",
+    "determinism":                "ok — same persona_id+role → identical plan fields (ignoring created_at/expires_at/crystal)",
+    "render_dapp_overrides":      "ok — emits <style>+<meta>+<script type='application/json' id='mspc-morph-plan'>",
+    "inline_json_escape":         "ok — </ inside JSON replaced with <\\/ to prevent </script> escape",
+    "anonymous_persona":          "ok — empty dict → persona_id='anonymous_default', role='unknown'",
+    "json_string_input":          "ok — JSON string accepted directly without identity_resolver",
+    "none_input":                 "ok — None → role='unknown' graceful default",
+    "stats_cli":                  "ok — counts plans in _morph_plans/ by role + reports expired",
+    "morph_plans_dir_auto_create": "ok — first emit_plan() creates studio/assets/_morph_plans/"
+  },
+
+  "usage_example": "from core.lib.morph_game_runtime import plan_for, render_dapp_overrides, emit_plan\\n# At /dapp/play_morph request time:\\npersona = identity_resolver.resolve(viewer_token)  # returns AudiencePersonaVector\\nplan = plan_for(persona)\\nemit_plan(plan)  # caches under studio/assets/_morph_plans/<persona_id>.json\\nhead_inject = render_dapp_overrides(plan)  # <style>+<meta>+<script application/json>\\n# Plug head_inject into the page template's <head>. The HTMX surface reads\\n# window.__MSPC_PLAN at boot and morphs the page to that viewer's face.",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Polymorphic-game brain. Pairs with identity_resolver (agent F — building) on the inbound side and dapp_server's /dapp/play_morph route + Godot scene loader + snap_camera_kit deeplink builder + sui_mcp NFT mint payload + Solana Token-2022 metadata mutator on the outbound side. Next: identity_resolver lands → wire AudiencePersonaVector type hint + add /dapp/play_morph route in dapp_play_extension."
+}

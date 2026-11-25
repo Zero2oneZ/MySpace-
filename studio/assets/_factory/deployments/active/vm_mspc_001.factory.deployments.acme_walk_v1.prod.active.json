@@ -1,0 +1,28 @@
+{
+  "_schema": "factory_deployment_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "factory",
+  "category": "deployments",
+  "name": "acme_walk_v1.prod",
+  "state": "active",
+  "version": "v0",
+  "deployment_id": "dpl_42",
+  "build_id": "bld_99",
+  "tenant_id": "tnt_acme_corp",
+  "environment": "production",
+  "host": "acme.zero2onez.studio",
+  "cdn_url": "https://cdn.zero2onez.studio/acme/walkthrough_v1",
+  "status": "active",
+  "healthcheck_url": "https://acme.zero2onez.studio/health",
+  "last_healthcheck": "2026-05-27T23:00:00Z",
+  "deployed_at": "2026-05-27T22:05:00Z",
+  "tls_cert": "letsencrypt",
+  "scaling": {
+    "min_instances": 1,
+    "max_instances": 3,
+    "current_instances": 1
+  },
+  "crystal": "<sha256 of this file content>"
+}

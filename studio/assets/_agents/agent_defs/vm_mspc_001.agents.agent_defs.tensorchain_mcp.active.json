@@ -1,0 +1,112 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "tensorchain_mcp",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · TENSORCHAIN_DAPP_MINT_AND_ESCROW",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/tensorchain_mcp.py",
+
+  "summary": "TensorChain (Tom-owned L1) connector — NFT mint / contract deploy / escrow settle / royalty split / balance query / tx broadcast. Three-backend resolution (RPC → cargo → stub). Most Rust-side methods are not yet implemented; STUB mode + cargo subprocess fallback + a SUI two-chain bridge keep the connector graceful while tensorchain-service grows. Every call crystal-anchors via inference_logger.log(tier='monetization', model='tensorchain'|'tensorchain_sui_fallback', scope='tensorchain_<tool>').",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp + deepseek_mcp shape. SERVICE='tensorchain'. Connect() resolves backend in priority order: (1) TENSORCHAIN_RPC env → JSON-RPC 2.0 via stdlib urllib POST, (2) /data/Projects/gently/crates/tensorchain-service/Cargo.toml present → subprocess cargo run --bin tensorchain-service <method> <json> (timeout=120s), (3) STUB → SendResult(success=False, error='tensorchain unreachable: ...') with crystal anchor for audit. Tool dispatch via send(recipient=tool_name, message=json_args).",
+
+  "expected_tools": [
+    "mint_nft",
+    "deploy_contract",
+    "escrow_settle",
+    "royalty_split",
+    "query_balance",
+    "tx_broadcast"
+  ],
+
+  "rpc_method_map": {
+    "mint_nft":        "nft/mint",
+    "deploy_contract": "contract/deploy",
+    "escrow_settle":   "escrow/settle",
+    "royalty_split":   "royalty/split",
+    "query_balance":   "balance/query",
+    "tx_broadcast":    "tx/broadcast"
+  },
+
+  "env_vars": {
+    "TENSORCHAIN_RPC": "JSON-RPC 2.0 endpoint URL (http(s)://...) — primary backend. Note: keys.upstream_key('tensorchain') falls back to SUI_WALLET in auth/keys.py, but a wallet address is NOT a valid RPC URL — connector only accepts http(s):// scheme as RPC.",
+    "SUI_WALLET":      "Read by keys.upstream_key for the parallel sui_mcp connector during two-chain fallback",
+    "SUI_FALLBACK":    "Set to '1' to enable two-chain bridge: on JSON-RPC -32601 (method not found), route mint_nft / query_balance through sui_mcp (TROLLN package). Unset = strict tensorchain only."
+  },
+
+  "two_chain_bridge": {
+    "purpose": "Tom's tensorchain L1 is in early Rust development — most methods (mint_nft, escrow_settle, royalty_split) are NOT yet implemented Rust-side. The SUI bridge lets the dApp keep shipping primitives by transparently falling back to Sui's TROLLN package for the subset of tools that have a Sui equivalent.",
+    "activation": "env SUI_FALLBACK=1 AND tool in SUI_BRIDGEABLE AND backend returned JSON-RPC code -32601 (or textual equivalent in stub/cargo output)",
+    "bridgeable_tools": {
+      "mint_nft":      "sui_mcp.SuiMCPConnector.send('nft_mint', ...)  — mints on TROLLN package",
+      "query_balance": "sui_mcp.SuiMCPConnector.send('query_balance', ...)"
+    },
+    "non_bridgeable": [
+      "deploy_contract  — WASM only on tensorchain, no Sui Move equivalent here",
+      "escrow_settle    — tensorchain-native escrow program, no fallback yet",
+      "royalty_split    — tensorchain-native royalty distribution",
+      "tx_broadcast     — chain-specific, no fallback"
+    ],
+    "audit_trail": "When fallback fires, the InferenceRecord is logged with model='tensorchain_sui_fallback' (not 'tensorchain') so the audit chain distinguishes native vs bridged calls. metadata.sui_fallback_used=True in SendResult.",
+    "import_safety": "sui_mcp import is wrapped in try/except — if the SUI connector module is missing (e.g. parallel agent hasn't shipped it yet), the fallback returns SendResult(success=False, error='sui_fallback unavailable: ...') without crashing the call site."
+  },
+
+  "convenience_wrappers": [
+    "mint_nft(metadata_uri, royalty_bps, owner)",
+    "deploy_contract(wasm_path, init_args)",
+    "escrow_settle(escrow_id, beneficiary)",
+    "royalty_split(asset_id, splits)",
+    "query_balance(addr)",
+    "tx_broadcast(payload)"
+  ],
+
+  "exports": ["TensorChainMCPConnector", "EXPECTED_TOOLS", "RPC_METHOD", "SUI_BRIDGEABLE"],
+
+  "substrate": "studio/third_party/tensorchain/ (per-config persistence) + ~/.cc/third_party_logs/tensorchain_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored monetization records, tier='monetization'). Cross-references the gently Rust crate at /data/Projects/gently/crates/tensorchain-service/ READ-ONLY for existence detection.",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py /dapp/api/mint and /dapp/api/escrow_settle (future)",
+      "core/cc.sh::cmd_tensorchain_test (future)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='tensorchain')",
+      "stripe_mcp webhook handler → escrow_settle on successful payment_intent (A.7 of plan)"
+    ],
+    "outbound_calls": [
+      "JSON-RPC POST to $TENSORCHAIN_RPC (rpc backend)",
+      "subprocess cargo run --bin tensorchain-service (cargo backend)",
+      "third_party.sui_mcp.SuiMCPConnector.send (two-chain bridge fallback)",
+      "inference_logger.log (every call: tier='monetization')"
+    ],
+    "substrate_reads": "TENSORCHAIN_RPC via keys.upstream_key('tensorchain') + load_env; gently crate Cargo.toml existence check",
+    "substrate_writes": "send_log entries + crystal_chain monetization records"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse": "ast.parse — ok",
+    "connect": "cargo backend resolved (gently crate present, TENSORCHAIN_RPC not set)",
+    "mint_nft_real_invocation": "cargo run invoked, rc=101 — expected: tensorchain-service binary not yet wired in gently workspace. Error surfaced cleanly without crash or hang.",
+    "stub_path": "ok — forcing GENTLY_CRATE to nonexistent path resolves to stub; mint returns success=False with 'tensorchain unreachable' error",
+    "rpc_minus_32601_detect": "ok — detects {error:{code:-32601}} and textual '-32601' in _error",
+    "sui_fallback_runtime": "ok — sui_mcp.SuiMCPConnector import succeeded (parallel agent shipped it), bridge call executed end-to-end and returned a real Sui RPC error from the network for the placeholder owner address"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every call (success OR failure) has a deterministic InferenceRecord with tier='monetization'",
+    "Stdlib-only — urllib for JSON-RPC, subprocess for cargo, no pip deps",
+    "Graceful triple fallback — RPC → cargo → stub, never crashes, never hangs (cargo has 120s timeout)",
+    "Two-chain bridge — opt-in via SUI_FALLBACK=1, only on JSON-RPC -32601, audit-distinguishable via model='tensorchain_sui_fallback'",
+    "Read-only of gently — checks Cargo.toml existence but never writes into /data/Projects/gently/",
+    "Wallet-address-not-RPC guard — TENSORCHAIN_RPC must be http(s):// scheme; SUI_WALLET fallback in keys.upstream_key is ignored for RPC routing"
+  ],
+
+  "usage_example": "from core.lib.third_party.tensorchain_mcp import TensorChainMCPConnector\\nc = TensorChainMCPConnector()\\nbackend = c.connect()  # 'rpc' | 'cargo' | 'stub'\\nr = c.send('mint_nft', '{\"metadata_uri\":\"ipfs://Qm...\",\"royalty_bps\":500,\"owner\":\"0xabc\"}')\\nprint(r.metadata['tx_hash'], r.crystal_id, r.metadata['sui_fallback_used'])",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "A.4 of lively-enchanting-parrot plan"
+}

@@ -1,0 +1,93 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "program_correlator",
+  "state": "active",
+  "version": "v0",
+  "role": "INFERENCE_FEATURE_BUILDER · ASOF_TIMEWINDOW_JOIN",
+  "tier": "L0",
+  "module_path": "core/lib/program_correlator.py",
+
+  "summary": "Asof time-window join of two streams: ~/.cc/phantom_dom_events.jsonl (intent — what the user *tried* to do, captured by a Phantom-wrapper / browser-console miner) and ~/.cc/program_events/**/*.jsonl (truth — what actually landed on chain, captured by program_monitor). For each DOM event, finds chain events within a ±window (default 5s), then emits one correlation row carrying the closest chain event, the frequency distribution of programs and actions in the window, and the dimension_pack rgba. These rows are the training feed for the bot-vs-human / chain-intent classifier (GMM + XGBoost).",
+
+  "engine_pattern": "Stream sort + bisect for O((D+C) log C) lookup. Stdlib only (bisect, collections.Counter). Polars-free; would benefit from polars.join_asof when D becomes large but not needed at current scale. When phantom_dom_events.jsonl is empty (miner not running yet), an optional --synth N flag synthesizes DOM rows from chain (back-dated 50-4500 ms) so the row format and aggregator can be validated end-to-end.",
+
+  "join_semantics": {
+    "key": "ts (wall-clock seconds, UTC)",
+    "predicate": "|chain_event.ts - dom_event.ts| <= window_s",
+    "default_window_s": 5.0,
+    "closest_winner": "argmin |Δts|",
+    "carries_per_row": [
+      "dom_ts", "dom_kind", "dom_payload_short",
+      "window_s", "n_chain_events",
+      "top_program (most-frequent program in bucket)",
+      "top_category (its category)",
+      "chain_actions: Counter of action tags",
+      "closest_lag_ms (signed)", "closest_signature", "closest_program",
+      "rgba (from dimension_pack)"
+    ]
+  },
+
+  "smoke_2026_05_28": {
+    "chain_events_loaded": 401,
+    "dom_events_synthesized": 30,
+    "correlation_rows": 30,
+    "match_rate": 1.0,
+    "lag_ms_mean": 496.3,
+    "lag_ms_min": -362.09,
+    "lag_ms_max": 3698.75,
+    "top_categories": {"MEMECOIN_LAUNCHPAD": 30},
+    "persisted_path": "~/.cc/correlations/2026-05-29.jsonl"
+  },
+
+  "exports": ["DomEvent", "ChainEvent", "Correlation",
+              "load_dom", "load_chain", "synth_dom_from_chain",
+              "correlate", "persist", "aggregate",
+              "DOM_LOG", "CHAIN_ROOT", "OUT_ROOT"],
+
+  "cli": [
+    "run [--window 5] [--since SECONDS_AGO] [--limit N] [--synth N] [--persist] [--print N]",
+    "stats",
+    "clear"
+  ],
+
+  "cc_dispatchers": [
+    "cc programs-correlate [--window 5] [--synth N] [--persist]",
+    "cc programs-correlate-stats"
+  ],
+
+  "feeds_into": [
+    "core/lib/pump_feature_extractor (correlation rows are a richer feature input than raw chain events alone)",
+    "core/lib/pump_gmm_classifier (unsupervised cluster step)",
+    "core/lib/pump_xgboost_gate (supervised gate)",
+    "core/lib/telegram (Tom has a bot pre-wired; high-signal correlations become telegram alerts)"
+  ],
+
+  "ethics_and_authorization": [
+    "DOM event ingest assumes the user OPTED IN via a consent flow (e.g., freetier_callback's terms+policies acceptance + friends_consent claim).",
+    "Chain side is public state; correlator never sees private keys or signed payloads.",
+    "Synthetic DOM rows are flagged payload.synthetic=true and source_url='phantom://synth' — clearly distinguishable from real intent in audits."
+  ],
+
+  "routing_connections": {
+    "inbound_callers": [
+      "cc programs-correlate dispatcher",
+      "future: pump_feature_extractor as enriched input source"
+    ],
+    "outbound_calls": [
+      "core/lib/dimension_pack.emit() once per correlation row"
+    ],
+    "substrate_reads": [
+      "~/.cc/phantom_dom_events.jsonl (DOM miner output; may be absent)",
+      "~/.cc/program_events/<chain>/<short>/*.jsonl (program_monitor output)"
+    ],
+    "substrate_writes": "~/.cc/correlations/<YYYY-MM-DD>.jsonl"
+  },
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Substrate · feature builder"
+}

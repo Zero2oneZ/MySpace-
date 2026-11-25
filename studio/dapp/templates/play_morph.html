@@ -1,0 +1,86 @@
+<h1>Morphing game · embed</h1>
+<p class="meta">The page asks <code>/dapp/api/morph_plan</code> for a ScenePlan derived from
+your bearer token (identity_resolver &rarr; morph_game_runtime). The plan morphs the
+local UI accent and tells the Godot iframe which scene to load.</p>
+
+<style id="persona-style">
+  :root { --persona-accent: {brand_bg}; }
+  #persona-panel .accent-bar {
+    background: var(--persona-accent);
+    height: 6px; border-radius: 3px; margin-top: .6rem;
+  }
+</style>
+
+<div id="persona-panel" class="panel tight">
+  <h3 style="margin-top:0;">Persona</h3>
+  <div class="grid-2">
+    <div><span class="meta">persona_id</span><br><code id="ppid">(loading)</code></div>
+    <div><span class="meta">inferred_role</span><br><code id="prole">(loading)</code></div>
+    <div><span class="meta">primary_face</span><br><code id="pface">(loading)</code></div>
+    <div><span class="meta">godot_scene</span><br><code id="pscene">(loading)</code></div>
+  </div>
+  <div class="accent-bar"></div>
+
+  <div id="morph-fetch" style="display:none;"
+       hx-get="/dapp/api/morph_plan"
+       hx-trigger="load"
+       hx-swap="none"
+       hx-on::after-request="updatePersonaStyle(event)">
+  </div>
+  <p class="stamp">Auth: <code>Authorization: Bearer &lt;localStorage.mspc_freetier_token&gt;</code> —
+    set on this page by the bridge script below.</p>
+</div>
+
+<div class="panel" style="padding:0;overflow:hidden;">
+  <iframe id="godot-frame"
+          src="{embed_src}"
+          width="100%"
+          height="640"
+          style="border:0;display:block;background:#000;"
+          allow="autoplay; fullscreen; gamepad; cross-origin-isolated"
+          referrerpolicy="strict-origin-when-cross-origin"
+          loading="eager"
+          title="morphing_game · Godot Instant Games"></iframe>
+</div>
+
+<details class="panel tight">
+  <summary>Raw ScenePlan JSON</summary>
+  <pre id="raw-plan" class="panel dark" style="white-space:pre-wrap;">(awaiting fetch)</pre>
+</details>
+
+<p class="stamp">Iframe src: <code>{embed_src}</code> · plan endpoint: <code>/dapp/api/morph_plan</code></p>
+
+<script src="/dapp/play/sdk-bridge.js"></script>
+<script>
+(function(){
+  // Stamp the localStorage token onto every HTMX request as an Authorization header.
+  document.body.addEventListener('htmx:configRequest', function(ev){
+    var t = (window.MspcDappBridge && window.MspcDappBridge.token)
+            || localStorage.getItem('mspc_freetier_token')
+            || '';
+    if (t) { ev.detail.headers['Authorization'] = 'Bearer ' + t; }
+  });
+})();
+
+function updatePersonaStyle(ev){
+  try {
+    var xhr = ev && ev.detail && ev.detail.xhr;
+    if (!xhr || !xhr.responseText) { return; }
+    var plan = JSON.parse(xhr.responseText);
+    var vars = plan.custom_css_vars || {};
+    var accent = vars['--accent'] || '{brand_bg}';
+    document.getElementById('persona-style').innerHTML =
+      ':root { --persona-accent: ' + accent + '; }\n' +
+      '#persona-panel .accent-bar { background: var(--persona-accent); ' +
+      'height: 6px; border-radius: 3px; margin-top: .6rem; }';
+    document.getElementById('ppid').textContent   = plan.persona_id    || '(unknown)';
+    document.getElementById('prole').textContent  = plan.inferred_role || '(unknown)';
+    document.getElementById('pface').textContent  = plan.primary_face  || '(unknown)';
+    document.getElementById('pscene').textContent = plan.godot_scene   || '(unknown)';
+    document.getElementById('raw-plan').textContent =
+      JSON.stringify(plan, null, 2);
+  } catch (err) {
+    document.getElementById('raw-plan').textContent = 'parse error: ' + err;
+  }
+}
+</script>

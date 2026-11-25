@@ -1,0 +1,19 @@
+[Unit]
+Description=MySpace++ Pattern Intelligence Dashboard (:8767)
+After=network.target mspc-solana-feed.service
+
+[Service]
+Type=simple
+User=mspc
+Group=mspc
+WorkingDirectory=/opt/mspc-public/solana
+Environment="PYTHONPATH=/opt/mspc-public/lib"
+ExecStart=/usr/bin/python3 /opt/mspc-public/solana/dashboard_server.py --port 8767
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/mspc/pattern-dashboard.log
+StandardError=append:/var/log/mspc/pattern-dashboard.log
+
+[Install]
+WantedBy=multi-user.target

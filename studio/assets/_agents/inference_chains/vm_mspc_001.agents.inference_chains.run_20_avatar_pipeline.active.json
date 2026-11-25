@@ -1,0 +1,27 @@
+{
+  "_schema": "inference_chain_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "inference_chains",
+  "name": "run_20_avatar_pipeline",
+  "state": "active",
+  "version": "v0",
+  "chain_id": "run_20",
+  "steps": [
+    {"op": "predict", "model": "codie-v4-predict", "input": "script + intent"},
+    {"op": "asr", "model": "whisper_large_v3", "input": "audio"},
+    {"op": "llm_rewrite", "model": "kimi_k2_6", "input": "text"},
+    {"op": "tts", "model": "f5_tts", "input": "script"},
+    {"op": "img2video", "model": "longcat_video_avatar", "input": "face_image + audio"},
+    {"op": "pose_extract", "model": "mediapipe_pose", "input": "video_frames"},
+    {"op": "physics_context", "model": "gently_ik_solver", "input": "skeletal_coords"},
+    {"op": "depth_fusion", "model": "spatial_bridge", "input": "[acoustic, visual, meta_3d]"},
+    {"op": "composite", "model": "blender_eevee", "input": "N001_mesh + pose_sequence"},
+    {"op": "mirror_pass", "model": "mirror_check", "input": "forward_crystal + inverse_crystal"},
+    {"op": "crystallize", "model": "sha256", "input": "forward || mirror"}
+  ],
+  "free_concurrent": ["depth_pro", "mediapipe_pose", "spacetimegpt", "qwen_anypose", "ik_delta"],
+  "crystal": "<sha256 of chain_def>"
+}

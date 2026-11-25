@@ -1,0 +1,52 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "inference_logger",
+  "state": "active",
+  "version": "v1",
+  "role": "SUBSTRATE · CRYSTAL_CHAIN",
+  "tier": "L0",
+  "module_path": "core/lib/inference_logger.py",
+  "summary": "Append-only blake3-chained audit trail of every inference call. The crystal chain. Tamper-evident; verifiable by replaying every hash.",
+  "engine_pattern": "writes one JSONL line per InferenceRecord; the chain is then walked by CrystalChainCursor in moe_router (XMLParser-shaped)",
+  "storage": {
+    "master_chain": "~/.cc/inference_master_chain.jsonl",
+    "session_logs": "~/.cc/inference_logs/session_<id>.jsonl",
+    "semantic_index": "~/.cc/inference_semantic_index.json"
+  },
+  "record_fields": {
+    "identity": ["crystal_id", "prev_crystal", "master_index", "agent_uuid", "correlation_id", "session_id"],
+    "timing": ["timestamp", "latency_ms"],
+    "input": ["original_prompt", "enhanced_prompt", "chain_context"],
+    "route": ["tier", "model", "scope", "tokens_in", "tokens_out", "complexity"],
+    "output": ["output_text", "done_flag", "rc"],
+    "reasoning_layer_v1": ["reasoning_trace", "forward_chain_inline", "forward_chain_posthoc", "forward_source"],
+    "coordinates": ["coordinates", "source_file", "source_folder", "source_action", "source_step"]
+  },
+  "exports": ["InferenceRecord", "InferenceLogger", "SemanticIndex", "crystal_hash"],
+  "substrate": "crystal_chain",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::_log_inference (cmd_full + cmd_godot end-of-pipeline)",
+      "core/lib/moe_router.py::CrystalChainCursor (read-only walk)",
+      "cc inference-chain / verify / search / get (CLI)"
+    ],
+    "outbound_calls": ["blake3 (or blake2b fallback) for crystal hashing"],
+    "substrate_reads": "self (replay for verify_chain + get_record + get_chain)",
+    "substrate_writes": "~/.cc/inference_master_chain.jsonl + ~/.cc/inference_logs/session_*.jsonl + ~/.cc/inference_semantic_index.json"
+  },
+  "guarantees": [
+    "Append-only — no UPDATE, no DELETE",
+    "Tamper-evident — every record blake3-chains via prev_crystal",
+    "Deterministic — same input → same crystal_id, byte-for-byte",
+    "Backward-compatible — old records missing reasoning_layer_v1 fields still verify",
+    "Genesis-anchored — chain starts with a deterministic genesis record"
+  ],
+  "v1_extension_2026_05_28": "Added reasoning_trace, forward_chain_inline, forward_chain_posthoc, forward_source. SemanticIndex now indexes these fields too.",
+  "usage_example": "from inference_logger import InferenceLogger\\nlogger = InferenceLogger()\\ncrystal = logger.log(original_prompt='...', enhanced_prompt='...', output_text='...', tier='large', model='claude-sonnet-4-6', scope='broad', reasoning_trace='...', forward_chain_posthoc='- step1\\\\n- step2', forward_source='posthoc')\\nassert logger.verify_chain()",
+  "chain_runs": ["moe_chain_router_v0"]
+}

@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://0dbb685dc6f60af4ac9c1026"]
+
+[ext_resource type="Script" path="res://src/pump_surf_pipeline_controller.gd" id="1_main"]
+
+; GENERATED · card_crystal=0dbb685dc6f60af4ac9c1026124cb36d2ceddf16ca55fb6f34301cbd8199177c31a77cdb7bad5e9a5f30551866ddf1cf7869112f262e75c966e2d8cbae9931e1
+[node name="PumpSurfPipeline" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 2.5, 5)
+
+[node name="Light" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 0, 4, 0)
+
+[node name="AvatarMount" type="Node3D" parent="."]

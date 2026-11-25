@@ -1,0 +1,20 @@
+{
+  "_doc": "task_kind → routing target. 'all models plugged in where they belong'. Consumed by model_registry.resolve_role() and model_api. target=provider→cloud_providers ladder; target=connector→core/lib/third_party/<connector>; target=endpoint→hf_endpoints per-modality.",
+  "version": 1,
+  "roles": {
+    "chat":    {"target": "provider",  "provider": "deepseek-chat",     "family": "chat", "cost_class": "cheap"},
+    "code":    {"target": "provider",  "provider": "deepseek-coder",    "family": "code", "cost_class": "cheap"},
+    "reason":  {"target": "provider",  "provider": "deepseek-reasoner", "family": "chat", "cost_class": "cheap"},
+    "fast":    {"target": "provider",  "provider": "hf:groq",           "family": "chat", "cost_class": "fast"},
+    "local":   {"target": "provider",  "provider": "ollama-local",      "family": "chat", "cost_class": "free"},
+    "embed":   {"target": "endpoint",  "endpoint": "hf-endpoint:embed", "modality": "embed"},
+    "image":   {"target": "connector", "connector": "comfyui",          "modality": "image"},
+    "video":   {"target": "connector", "connector": "comfyui",          "modality": "video"},
+    "3d":      {"target": "connector", "connector": "blender",          "modality": "3d"},
+    "speech":  {"target": "connector", "connector": "comfyui",          "modality": "audio"},
+    "tweet":   {"target": "connector", "connector": "twitter"},
+    "trade":   {"target": "connector", "connector": "topstep"},
+    "app":     {"target": "connector", "connector": "replit"}
+  },
+  "default_role": "chat"
+}

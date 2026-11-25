@@ -1,0 +1,23 @@
+{
+  "_schema": "compute_worker_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "compute",
+  "category": "workers",
+  "name": "droplet_159_89_181_146",
+  "state": "online",
+  "version": "v0",
+  "worker_type": "droplet_router",
+  "host": "159.89.181.146",
+  "ports": {
+    "caddy_tls": 443,
+    "watchdog_mcp": 3100,
+    "trollz_api": 8080
+  },
+  "role": "router",
+  "upstream": [],
+  "downstream": ["z21_local"],
+  "last_heartbeat": "2026-05-27T23:00:00Z",
+  "capabilities": ["http", "mcp", "api"]
+}

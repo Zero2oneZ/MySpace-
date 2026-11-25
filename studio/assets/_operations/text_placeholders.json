@@ -1,0 +1,259 @@
+{
+  "_schema": "ops_text_placeholders_v0",
+  "vm_id": "vm_mspc_001",
+  "description": "Hand-authored placeholder operations. Each one is a TEXT-PLACEHOLDER node in the ops DAG. When the real implementation lands, change status to ACTIVE and update module_path. The DAG structure stays stable.",
+  "placeholders": [
+    {
+      "id": "op_tri_modal_logger_wiring",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Extend inference_logger.InferenceRecord with optional wave_emb + time_vec + tri_modal_crystal fields. Backward compat: missing fields still verify the chain.",
+      "expected_after":  ["op_inference_logger", "op_tri_modal_embedder"],
+      "expected_before": ["op_moe_router_wave_neighbors"],
+      "cost_class": "deterministic"
+    },
+    {
+      "id": "op_moe_router_wave_neighbors",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Add MoERouter.find_wave_neighbors(query_wave, k) — cosine-similarity retrieval over the wave_emb axis of past inference records.",
+      "expected_after":  ["op_moe_router", "op_tri_modal_logger_wiring"],
+      "expected_before": ["op_cross_modal_chat"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_moe_router_time_neighbors",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Add MoERouter.find_time_neighbors(query_time, k) — euclidean retrieval over the forward-time axis of past inference records.",
+      "expected_after":  ["op_moe_router", "op_tri_modal_logger_wiring"],
+      "expected_before": ["op_cross_modal_chat"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_cross_modal_chat",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "chat.py::_moe_find_experts becomes _moe_find_experts_cross_modal — combines vector + wave + time scores into one ranking. The MoE prior block now surfaces ngram-distant but wave-resonant or time-adjacent experts.",
+      "expected_after":  ["op_moe_router_wave_neighbors", "op_moe_router_time_neighbors"],
+      "expected_before": ["op_chat_v2"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_mcp_bridge",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "core/lib/mcp_bridge.py — WebSocket broker on :7779. Godot HTTP/WS calls → MCP stdio/HTTP tool invocations across the 14 READY MCP servers (spriteforge-mcp, gently-watchdog, eva-mcp, gently-mcp, claude-cloud-mcp, etc.). Every call logged to crystal chain.",
+      "expected_after":  ["op_task_queue", "op_inference_logger"],
+      "expected_before": ["op_godot_studio_runtime"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_pinterest_third_party",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "core/lib/third_party/pinterest.py mirroring discord.py shape. Curated boards for blueprint/furniture/interior-design. Pin metadata enriched with room_type/style/color. Output: workflow card pinterest_blueprint_harvest.v0.json.",
+      "expected_after":  ["op_third_party"],
+      "expected_before": ["op_realestate_walkthrough"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_bb_emit_godot",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Bridge B — GDScript ↔ bb-emit. Every Godot scene exports a parallel program.bb. Unlocks crystal-hashing + Sui-anchoring of every Studio output.",
+      "expected_after":  ["op_workflow_generator"],
+      "expected_before": ["op_studio_marketplace"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_zpin_identity",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Sovereign SVG identity generator. Signup event captures user system traits → BLAKE3 hex layer styles → SVG file. Drag-and-drop login parser in JS. Replaces OAuth entirely.",
+      "expected_after":  ["op_tri_modal_embedder"],
+      "expected_before": ["op_htmx_morphing_platform"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_berlin_clock_btc",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Live BTC block height → Berlin Clock cryptographic matrix. Living entropy layer wrapping the crystal chain. Unplugs by sealing final state + propagating to next peer via P2P ring.",
+      "expected_after":  ["op_zpin_identity", "op_tri_modal_embedder"],
+      "expected_before": ["op_htmx_morphing_platform"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_p2p_ring_buffer",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "DO droplet (159.89.181.146) as signal router. WebRTC daisy-chain: P1 updates P2, P2 updates P3, loops. Heartbeat failover bypasses dead peers. Each peer's nano weights.bin contributes inference.",
+      "expected_after":  ["op_zpin_identity", "op_berlin_clock_btc"],
+      "expected_before": ["op_htmx_morphing_platform"],
+      "cost_class": "expensive"
+    },
+    {
+      "id": "op_htmx_morphing_platform",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Single-page HTMX platform — 5+ faces (Real Estate / Legalese / Insurance / Studio admin / Market). Face morph driven by viewer zpin identity. Godot embedded as renderer inside Studio face.",
+      "expected_after":  ["op_zpin_identity", "op_berlin_clock_btc", "op_p2p_ring_buffer", "op_bb_emit_godot"],
+      "expected_before": ["op_studio_marketplace"],
+      "cost_class": "expensive"
+    },
+    {
+      "id": "op_realestate_walkthrough",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "First flagship factory template — Real Estate walkthrough. Uses studio/media/Models + Furniture + House_Blueprints + HEAD_TEMPLET + datasets/3d Mixamo FBX. Output: per-tenant deployed walkthrough site.",
+      "expected_after":  ["op_workflow_generator", "op_pinterest_third_party", "op_datasets_index"],
+      "expected_before": ["op_studio_marketplace"],
+      "cost_class": "expensive"
+    },
+    {
+      "id": "op_studio_marketplace",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Market face of the HTMX platform. License tiers ($99 template / $999/mo Studio / $5k engine). Wallet-anchored on user's own chain (not Sui). Royalty flows back to template authors.",
+      "expected_after":  ["op_htmx_morphing_platform", "op_realestate_walkthrough", "op_bb_emit_godot"],
+      "expected_before": [],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_xml_vector_inference",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Treat XML/SVG nodes as tensor-shaped data. <path d='...'> = polyline tensor; transform='matrix(...)' = affine map; custom data-* attrs = embedding coordinates. XML nodes act as MoE gating layers; layer-skipping routes inference straight to the relevant transform. Hardware-accelerated SVG filters in Chromium = the GPU compositor runtime. Uses parser_cursor as the engine pattern.",
+      "expected_after":  ["op_parser_cursor", "op_tri_modal_embedder"],
+      "expected_before": ["op_zpin_identity", "op_htmx_morphing_platform"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_morph_layer_polymorphism",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Enforce the canonical layer_stack vocabulary (alpha/normal/depth/albedo/opacity/AO/gradient + Photoshop/Hypershade blend modes) across ALL surface emitters. Each layer can morph the next; same names appear as Godot shader uniforms, Blender Principled BSDF sockets, SpriteForge layers, ComfyUI image-mix nodes. Surface-equivalence enforced via shared vocabulary.",
+      "expected_after":  ["op_workflow_generator"],
+      "expected_before": ["op_realestate_walkthrough", "op_studio_marketplace"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_kimi_moe_routing",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Stack our crystal-chain MoE on top of kimi-k2.6:cloud and kimi-k2-thinking:cloud (Ollama integration). Don't pin behavior to a specific model — pin to a routing decision over (vector, wave, time) coordinate. kimi MoE provides specialists; our MoE picks which fires. Why 'no training cost' works: smartness grows from the retrieval index, not from weight updates. Polymorphism = same input → different specialist behavior.",
+      "expected_after":  ["op_moe_router", "op_token_router", "op_tri_modal_embedder"],
+      "expected_before": ["op_cross_modal_chat", "op_studio_marketplace"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_meta_model_bb_compile",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "The bridge to .bb — gently/BB.md canonical compile target. Every workflow_card output, every chain emission, every crystal SHOULD map to a .bb program. Stack machine with 7 frozen symbols (f ~ d l s a m) + 2 value types (Num f64, Hash [u8;32]). Two wire formats: gui.bb (136-byte records) + program.bb. Same .bb + same seed.json = same crystal hash, always. When this lands, MySpace++ outputs become first-class gently artifacts (IPFS pin, Sui mint, reproducible NFT).",
+      "expected_after":  ["op_workflow_generator", "op_tri_modal_embedder"],
+      "expected_before": ["op_bb_emit_godot", "op_studio_marketplace"],
+      "cost_class": "expensive"
+    },
+    {
+      "id": "op_object_placement",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "From bcmi/Awesome-Image-Composition — determine optimal positions for vector shapes within scenes. Inputs: harvested SVG path (from svg_vector_embed) + scene context (room blueprint from pinterest_vector_motherload). Outputs: (x, y) placement + scale + rotation that respects layout constraints. Free axis using geometry crystal + bbox + layout DAG; LLM optional for scoring.",
+      "expected_after":  ["op_svg_vector_embed", "op_pinterest_third_party"],
+      "expected_before": ["op_realestate_walkthrough"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_spatial_transformation",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "From bcmi — scale/rotate/perspective-correct vector shapes for different contexts. Reuses svg_vector_embed's normalize_points + adds rotation-PCA normalization. Pairs with object_placement to position shapes correctly across viewport transforms.",
+      "expected_after":  ["op_svg_vector_embed"],
+      "expected_before": ["op_object_placement", "op_realestate_walkthrough"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_image_harmonization",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "From bcmi — color/style matching between vector elements and backgrounds. Uses svg_vector_embed.attribute_signature (fill/stroke RGB) + the morph_layer_polymorphism canonical blend vocab. The 'square to blue square' family lens — same geometry_crystal, different attribute_signature = candidates for harmonization.",
+      "expected_after":  ["op_svg_vector_embed", "op_morph_layer_polymorphism"],
+      "expected_before": ["op_realestate_walkthrough", "op_studio_marketplace"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_occlusion_handling",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "From bcmi — manage layering and depth ordering of overlapping vector shapes. Uses bbox + svg_path_emb adjacency + layer_stack depth_uniform channel. Builds an occlusion DAG per scene that the workflow_generator emits to Godot z-order + Blender Cycles render layers.",
+      "expected_after":  ["op_object_placement", "op_workflow_generator"],
+      "expected_before": ["op_realestate_walkthrough"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_shape_family_index",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Catalog SVG paths by geometry_crystal — all paths with the same shape, regardless of color/stroke/opacity. The 'square → blue square → red square' family is one geometry_crystal with many attribute_signatures. Pairs with energy_inversion antithesis lens: query a shape → find both same-family variants AND geometric opposites. Foundation for Pinterest mass harvest where 100 pins of similar shapes get clustered into 1 family with 100 attribute variants.",
+      "expected_after":  ["op_svg_vector_embed", "op_energy_inversion"],
+      "expected_before": ["op_image_harmonization", "op_studio_marketplace"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_remotion_video_compose",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "workflow_generator --target remotion emits a React component skeleton from a workflow_card. Each card's layer_stack + passes maps to a Remotion Composition: passes that produce images become <Img /> layers, audio passes become <Audio />, animated layers use spring + interpolate, captions auto-generated from forward_chain text. Crystal-anchored render output (.mp4) joins crystal chain via 'tier=render'. Bridge between the 5-axis MoE retrieval substrate and the video-composition delivery surface.",
+      "expected_after":  ["op_workflow_generator", "op_remotion", "op_morph_layer_polymorphism"],
+      "expected_before": ["op_studio_marketplace", "op_realestate_walkthrough"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_acoustic_echo_map",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "MATH ACTIVE in core/lib/spatial_anchor.py (AcousticEcho dataclass + room_signature_dct). Remaining: hardware capture layer — Web Audio API ultrasonic impulse emission + ToA detection (or Meta Glasses local transceiver). When this lands, runtime ping_times feed AcousticEcho.from_ping_times() and every scan event auto-crystallizes.",
+      "expected_after":  ["op_spatial_anchor", "op_tri_modal_embedder"],
+      "expected_before": ["op_real_world_render", "op_mr_walkthrough_card"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_wifi_rtt_position",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "MATH ACTIVE in core/lib/spatial_anchor.py (WifiRTTBeacon dataclass + position_encoding). Remaining: hardware capture — Wi-Fi RTT API (Chromium modern) + Geolocation fallback. Runtime polls feed WifiRTTBeacon.from_position(x, y, z, heading).",
+      "expected_after":  ["op_spatial_anchor"],
+      "expected_before": ["op_coord_graph", "op_real_world_render"],
+      "cost_class": "cheap"
+    },
+    {
+      "id": "op_coord_graph",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "MATH ACTIVE in core/lib/spatial_anchor.py (CoordGraph dataclass + composed_affine + transform_point). Remaining: wire to Godot scene origin + SVG bbox alignment + Remotion overlay. Provides the 4×4 affine that welds digi-land and me-land into one coordinate space.",
+      "expected_after":  ["op_acoustic_echo_map", "op_wifi_rtt_position"],
+      "expected_before": ["op_real_world_render", "op_mr_walkthrough_card"],
+      "cost_class": "medium"
+    },
+    {
+      "id": "op_real_world_render",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "Inverts the rendering pipeline. Instead of drawing into a viewport, MAPS workflow_card vector coordinates onto physical room boundaries via WebXR / CSS3D / Meta Glasses HUD. Avatar mesh anchors to physical floor (no clipping). Wallpaper textures snap onto real walls. The friend's renovation preview appears IN the client's actual room.",
+      "expected_after":  ["op_coord_graph", "op_workflow_generator"],
+      "expected_before": ["op_mr_walkthrough_card", "op_realestate_walkthrough"],
+      "cost_class": "expensive"
+    },
+    {
+      "id": "op_mr_walkthrough_card",
+      "kind": "placeholder",
+      "status": "TEXT-PLACEHOLDER",
+      "description": "New workflow_card category 'mr_walkthrough'. Inputs: photo + room_id + planned_changes. Outputs: WebXR scene rendered ANCHORED to physical floor coordinates. Surfaces: streamlit (config) + godot_scene (preview) + remotion (recap video) + xr (live Meta Glasses overlay). First real-world rendering of the friend's renovation pipeline.",
+      "expected_after":  ["op_real_world_render", "op_workflow_generator", "op_pinterest_vector_motherload"],
+      "expected_before": ["op_realestate_walkthrough", "op_studio_marketplace"],
+      "cost_class": "expensive"
+    }
+  ]
+}

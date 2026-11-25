@@ -1,0 +1,114 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "chain_event_render",
+  "state": "active",
+  "version": "v0",
+  "role": "INFERENCE · CHAIN_EVENT_TO_IMAGE_VIDEO_DISPATCHER",
+  "tier": "L0",
+  "module_path": "core/lib/chain_event_render.py",
+
+  "summary": "Takes a normalized chain event (program_id, category, action, signature, ts) and renders an image (synchronous via ComfyUI MCP) and/or queues a video (HunyuanVideo via MediaLab — queue file only in v0). Two trigger paths converge here: (a) PUSH from studio/endpoints/webhook/solana_webhook.py when Helius/Triton fires, (b) PULL from tail_loop() watching ~/.cc/program_events/**/*.jsonl. Same event always produces the same prompt + seed → deterministic. Graceful degradation: if ComfyUI is not on :8188, image_status='queued_offline' and the manifest is still written so work resumes when comfy is up.",
+
+  "engine_pattern": "Stdlib + ComfyUIMCPConnector. Per (category, action) → archetype prompt template (15 templates locked, covering the main DEX/perps/lending/NFT/casino/MEV/memecoin archetypes). Per-event variation injected via 'sigil_seed' tail (first 8 chars of signature) — same archetype, different concrete render. Seed for the diffusion sampler is SHA-256(signature+ts) truncated to 32 bits.",
+
+  "output_layout": {
+    "root": "~/.cc/chain_renders/<crystal_short>/",
+    "files": [
+      "event.json   — the source ChainEvent",
+      "prompt.txt   — the derived prompt (deterministic)",
+      "image.png    — rendered image (only if ComfyUI was reachable)",
+      "video.mp4    — placeholder; video path appends to ~/.cc/chain_renders/_video_queue.jsonl",
+      "manifest.json — render metadata + crystal_id + dim_pack"
+    ]
+  },
+
+  "prompt_templates": {
+    "MEMECOIN_LAUNCHPAD:create": "explosive emergence, golden vortex of particles...",
+    "MEMECOIN_LAUNCHPAD:buy": "rising tide of liquid amber, ascending arrows...",
+    "MEMECOIN_LAUNCHPAD:sell": "cascading sapphire fragments falling through midnight sky...",
+    "DEX:buy": "vortex of cyan liquid currents converging...",
+    "DEX:sell": "vortex of crimson currents diverging...",
+    "DEX_AGGREGATOR:other": "branching network of luminous pathways, fractal route mesh...",
+    "DEX_CLMM:other": "concentrated bands of color in a tight spectrum...",
+    "PERPS:order_place": "geometric grid lattice expanding into 3D space, neon orderbook...",
+    "LENDING:borrow": "interlocking gears of liquid metal, weight and counterweight...",
+    "LENDING:deposit": "spiraling silver river flowing into a luminous vault...",
+    "NFT_MARKETPLACE:other": "crystalline gallery of floating frames, prismatic reflections...",
+    "CASINO:other": "kaleidoscopic prism wheel spinning, fractal reflections of luck...",
+    "MEV:other": "ghostly arbitrage filaments threading through dark transactions...",
+    "LIQUID_STAKING:other": "luminous chain of interlocking rings, stable spiral ascending..."
+  },
+
+  "smoke_test_2026_05_28": {
+    "n_synthetic_events": 4,
+    "categories_covered": ["MEMECOIN_LAUNCHPAD", "DEX", "CASINO", "MEV"],
+    "all_image_status": "queued_offline (ComfyUI not running on :8188 — graceful skip)",
+    "all_manifests_written": true,
+    "all_crystals_anchored": true,
+    "prompt_determinism_verified": "same (category, action, signature) → same prompt + seed"
+  },
+
+  "exports": ["RenderRequest", "RenderResult", "render_one", "tail_loop",
+              "derive_prompt", "derive_seed",
+              "PROMPT_TEMPLATES", "DEFAULT_PROMPT", "NEGATIVE_PROMPT",
+              "OUT_ROOT", "EVENT_ROOT"],
+
+  "cli": [
+    "one --event-file <path>            — render one event from JSON file",
+    "tail [--cat C] [--action A] [--video] [--max N] [--verbose]",
+    "prompt --cat C --action A          — show what prompt would render",
+    "sample --n 4                       — render N synthetic events"
+  ],
+
+  "cc_dispatchers": [
+    "cc chain-render-one --event-file <path>",
+    "cc chain-render-tail [--cat CASINO --action other --verbose]",
+    "cc chain-render-prompt --cat DEX --action buy",
+    "cc chain-render-sample --n 4"
+  ],
+
+  "video_path_status": {
+    "v0_2026_05_28": "queue-only — appends to ~/.cc/chain_renders/_video_queue.jsonl",
+    "v1_pending": "MediaLab worker reads queue → HunyuanVideo job → writes video.mp4 to render dir",
+    "model_id": "tencent/HunyuanVideo",
+    "duration_s_default": 5,
+    "blocker": "no MediaLab adapter wrapping HunyuanVideo yet"
+  },
+
+  "five_canonical_frames_per_render": {
+    "vector": "SHA-256 of canonical event payload (per-event unique)",
+    "circle": "render:<category>:<action> (categorical bucket for NN clustering)",
+    "hex": "InferenceLogger crystal_id",
+    "rgb": "deterministic HSV(sub_dag=INFERENCE hue 30°, cost_class=expensive sat 0.50, tier=chain_event_render val 0.55)",
+    "fps": "frame_pack across all 5 canonical FPS (24/30/60/90/120)"
+  },
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/endpoints/webhook/solana_webhook.py (PUSH path)",
+      "tail_loop() reading ~/.cc/program_events/**/*.jsonl (PULL path)",
+      "cc chain-render-* dispatcher"
+    ],
+    "outbound_calls": [
+      "core/lib/third_party/comfyui_mcp.ComfyUIMCPConnector.send('submit_workflow', ...)",
+      "core/lib/inference_logger.log() once per render",
+      "core/lib/dimension_pack.emit() once per render"
+    ],
+    "substrate_reads": [
+      "~/.cc/program_events/**/*.jsonl (PULL mode)",
+      "OPTIONAL: workflow_template arg path"
+    ],
+    "substrate_writes": [
+      "~/.cc/chain_renders/<crystal_short>/{event.json, prompt.txt, image.png, manifest.json}",
+      "~/.cc/chain_renders/_video_queue.jsonl (when want_video=True)"
+    ]
+  },
+
+  "chain_runs": ["external_oracle_chain", "moe_chain_router_v0"],
+  "phase": "Inference · render bridge"
+}

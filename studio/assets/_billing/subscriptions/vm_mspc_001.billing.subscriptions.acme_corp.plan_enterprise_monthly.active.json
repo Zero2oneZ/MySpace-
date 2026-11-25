@@ -1,0 +1,21 @@
+{
+  "_schema": "subscription_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "billing",
+  "category": "subscriptions",
+  "name": "acme_corp.plan_enterprise_monthly",
+  "state": "active",
+  "version": "v0",
+  "subscription_id": "sub_acme_ent_001",
+  "tenant_id": "tnt_acme_corp",
+  "plan_id": "plan_enterprise_monthly",
+  "billing_account": "bill_acme_001",
+  "status": "active",
+  "started_at": "2026-05-01T00:00:00Z",
+  "renews_at": "2026-06-01T00:00:00Z",
+  "payment_method": "stripe_card_****4242",
+  "auto_renew": true,
+  "crystal": "<sha256 of this file content>"
+}

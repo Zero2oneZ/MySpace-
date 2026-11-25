@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:gently="https://gently.dev/svg-layers/v1"
+     xmlns:mspc="https://myspace.local/tesseract"
+     xmlns:mirror="https://gently.dev/mirror-pair/v1"
+     width="2600" height="2200"
+     viewBox="0 0 2600 2200"
+     font-family="monospace" font-size="13"
+     mirror:pair="MASTER-INWARD.svg"
+     mirror:role="mirror"
+     mirror:axiom="MASTER-INWARD ⊕ MASTER-OUTWARD = SealedChain.crystal">
+
+  <metadata>
+    <mirror:about>
+      MASTER-OUTWARD.svg — the MIRROR chain of the project.
+      All exports / served surfaces / downstream effects / what we publish
+      to the world. Every node has a forward counterpart in
+      MASTER-INWARD.svg via the matching mirror:id attribute. Updates on
+      one side propagate to the other via the gently-mirror-pair contract.
+      See: /data/Projects/MySpace++/REFLECTION.md
+    </mirror:about>
+    <mirror:partner>MASTER-INWARD.svg</mirror:partner>
+    <mirror:contract>/data/Projects/MySpace++/REFLECTION.md</mirror:contract>
+    <mirror:role>mirror (export)</mirror:role>
+    <mirror:crystal>sha256:d25eee261f22ca0c4d36c08e23ced778ef371ac2ddefe97e48c57ff067c7be81</mirror:crystal>
+    <mirror:crystal-method>sha256(forward_bytes XOR mirror_bytes), zero-pad shorter to longer; v1 method. Daemon will switch to blake3-FNV-interleave once shipped.</mirror:crystal-method>
+    <mirror:updated-at>2026-05-26T17:55:00Z</mirror:updated-at>
+    <mirror:updated-by>gently (main) — SYNC-7 practice update; bumped index-published node to reflect 208,550 Kimi entries (was implicit ~38k); pair crystal verified manually via python xor+sha256.</mirror:updated-by>
+  </metadata>
+
+  <defs>
+    <linearGradient id="bg-mirror" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#301020"/>
+      <stop offset="100%" stop-color="#14040a"/>
+    </linearGradient>
+    <linearGradient id="cell-consumer" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3d1a40"/>
+      <stop offset="100%" stop-color="#1a0a20"/>
+    </linearGradient>
+    <linearGradient id="cell-egress" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4d1f3d"/>
+      <stop offset="100%" stop-color="#280a1c"/>
+    </linearGradient>
+    <linearGradient id="cell-served" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4d2f1c"/>
+      <stop offset="100%" stop-color="#1c1408"/>
+    </linearGradient>
+    <linearGradient id="cell-endpoint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3d1c2c"/>
+      <stop offset="100%" stop-color="#1c0814"/>
+    </linearGradient>
+    <style>
+      .h1   { fill: #ffccaa; font-size: 24px; font-weight: bold; }
+      .h2   { fill: #ffffff; font-size: 17px; font-weight: bold; }
+      .h3   { fill: #dddddd; font-size: 13px; }
+      .mono { fill: #eeaacc; font-size: 11px; }
+      .note { fill: #888;    font-size: 11px; font-style: italic; }
+      .mirror { fill: #66ccee; font-size: 10px; font-style: italic; }
+      .arr-out  { stroke: #e96; stroke-width: 2; fill: none; marker-end: url(#arr-orange); }
+      .arr-mirror { stroke: #66ccee; stroke-width: 1; stroke-dasharray: 4 4; fill: none; marker-end: url(#arr-blue); }
+    </style>
+    <marker id="arr-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e96"/>
+    </marker>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#66ccee"/>
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bg-mirror)"/>
+
+  <!-- ========================================================================== -->
+  <!-- TITLE -->
+  <!-- ========================================================================== -->
+  <g id="title">
+    <text x="40" y="55" class="h1">⟲ MASTER-OUTWARD.svg — the MIRROR chain · all egress · effects on consumers</text>
+    <text x="40" y="82" class="h3">paired with MASTER-INWARD.svg via mirror:id · updates one side reflect to the other · crystal = XOR of both chains</text>
+    <text x="40" y="102" class="note">read with: gently/docs/NOTES-FOR-INFERENCE.md (rust chain) + MySpace++/studio/docs/NOTES-FOR-INFERANCE.md (DAGs)</text>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 0: DOWNSTREAM CONSUMERS (top of the mirror chain) -->
+  <!-- ========================================================================== -->
+  <g id="L0-consumers" transform="translate(40, 130)">
+    <rect width="2520" height="280" rx="10" fill="url(#cell-consumer)" stroke="#a48" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 0 — downstream consumers (what eats our bytes)</text>
+
+    <g transform="translate(40, 60)" mirror:id="hf-export">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">model graph subscribers</text>
+      <text x="10" y="44" class="mono">our HF-as-Index endpoints</text>
+      <text x="10" y="62" class="mono">/api/index/models · /api/index/tensors</text>
+      <text x="10" y="80" class="mono">~500 models · ~38k Kimi tensors</text>
+      <text x="10" y="98" class="mono">structure_hash queries → free dedup</text>
+      <text x="10" y="116" class="mono">other projects can mirror our index</text>
+      <text x="10" y="134" class="mono">no weights served (URL-only)</text>
+      <text x="10" y="156" class="mono">via: gently-hf-dispatch endpoints</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=huggingface (forward)</text>
+      <text x="10" y="190" class="note">we are HF's lazy mirror, NOT its host</text>
+    </g>
+
+    <g transform="translate(350, 60)" mirror:id="svg-response">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">browser surface (visitors)</text>
+      <text x="10" y="44" class="mono">one stacked HTMX SVG view</text>
+      <text x="10" y="62" class="mono">landing / tools / admin / tesseract</text>
+      <text x="10" y="80" class="mono">visitor scope filters which &lt;g&gt; shows</text>
+      <text x="10" y="98" class="mono">hx-get returns &lt;g&gt; fragment</text>
+      <text x="10" y="116" class="mono">hx-swap=outerHTML replaces in place</text>
+      <text x="10" y="134" class="mono">browser cooks chromium juice locally</text>
+      <text x="10" y="156" class="mono">via: myspace-server /api/svg/:id</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=user-visit (forward)</text>
+      <text x="10" y="190" class="note">no SPA · no ads · no logins</text>
+    </g>
+
+    <g transform="translate(660, 60)" mirror:id="agent-actions">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">agent action outputs</text>
+      <text x="10" y="44" class="mono">each prompt → file edits / commits</text>
+      <text x="10" y="62" class="mono">cc.db sessions row written</text>
+      <text x="10" y="80" class="mono">tool calls audited (cc.db tool_calls)</text>
+      <text x="10" y="98" class="mono">crystals appended to bb-loop tape</text>
+      <text x="10" y="116" class="mono">user sees diff in 5-10 terminals</text>
+      <text x="10" y="134" class="mono">no two sessions step on each other</text>
+      <text x="10" y="156" class="mono">via: hooks/ + bb-loop appends</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=agent-prompts (forward)</text>
+      <text x="10" y="190" class="note">audit trail = which agent_uuid did this</text>
+    </g>
+
+    <g transform="translate(970, 60)" mirror:id="published-assets">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">published asset endpoints</text>
+      <text x="10" y="44" class="mono">studio/media/Media/3d/ served</text>
+      <text x="10" y="62" class="mono">N001 + Mega Pack via /api/asset/:sha</text>
+      <text x="10" y="80" class="mono">3-engine triplet (Blender/UE/Meta)</text>
+      <text x="10" y="98" class="mono">3 versions per asset, normalized</text>
+      <text x="10" y="116" class="mono">pieces_index keyed by sha</text>
+      <text x="10" y="134" class="mono">friends + brokers + apps consume</text>
+      <text x="10" y="156" class="mono">via: studio/runtime.py file serve</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=local-files (forward)</text>
+      <text x="10" y="190" class="note">no asset gen needed (~$1.50 frontier)</text>
+    </g>
+
+    <g transform="translate(1280, 60)" mirror:id="sealed-crystals">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">BTC-anchored crystals (proof)</text>
+      <text x="10" y="44" class="mono">commit-time external time proof</text>
+      <text x="10" y="62" class="mono">SealedChain.btc_block_at_commit</text>
+      <text x="10" y="80" class="mono">forensic-grade chain identity</text>
+      <text x="10" y="98" class="mono">verifiable by any 3rd party</text>
+      <text x="10" y="116" class="mono">used at: genesis install + per-commit</text>
+      <text x="10" y="134" class="mono">runtime stays offline-capable</text>
+      <text x="10" y="156" class="mono">via: gently-btc anchor()</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=btc-chain (forward)</text>
+      <text x="10" y="190" class="note">free additional security via decentralization</text>
+    </g>
+
+    <g transform="translate(1590, 60)" mirror:id="reachable-nodes">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">friend-reachable surfaces</text>
+      <text x="10" y="44" class="mono">scope-filtered SVG &lt;g&gt; visibility</text>
+      <text x="10" y="62" class="mono">READ keys see read surfaces only</text>
+      <text x="10" y="80" class="mono">WRITE keys see admin actions</text>
+      <text x="10" y="98" class="mono">AGENT keys can mutate chain</text>
+      <text x="10" y="116" class="mono">no login wall, no consent dialog</text>
+      <text x="10" y="134" class="mono">visit + valid key = instant access</text>
+      <text x="10" y="156" class="mono">via: gently-auth-gate middleware</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=friend-invites (forward)</text>
+      <text x="10" y="190" class="note">chain reachability IS access control</text>
+    </g>
+
+    <g transform="translate(1900, 60)" mirror:id="binding-affinity">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">scheduler binding maps (served)</text>
+      <text x="10" y="44" class="mono">per-model routing JSON endpoint</text>
+      <text x="10" y="62" class="mono">/api/scheduler/calibration/:model</text>
+      <text x="10" y="80" class="mono">downstream picks layer subset</text>
+      <text x="10" y="98" class="mono">Suboxone-tier binding affinity</text>
+      <text x="10" y="116" class="mono">cannot be displaced by compute alone</text>
+      <text x="10" y="134" class="mono">12 → 8 → 5 → 3 active layers/pass</text>
+      <text x="10" y="156" class="mono">via: gently-scheduler endpoints</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=probe-calibration (forward)</text>
+      <text x="10" y="190" class="note">consumer skips non-binding layers free</text>
+    </g>
+
+    <g transform="translate(2210, 60)" mirror:id="crystal-cascade">
+      <rect width="290" height="200" rx="6" fill="#1a0a20" stroke="#a48"/>
+      <text x="10" y="22" class="h3">session crystal feeds</text>
+      <text x="10" y="44" class="mono">per-session .bb tape published</text>
+      <text x="10" y="62" class="mono">tape = full audit + replay</text>
+      <text x="10" y="80" class="mono">crystals compose upward</text>
+      <text x="10" y="98" class="mono">consumer can verify off-line</text>
+      <text x="10" y="116" class="mono">band/designer crystals = recipe IDs</text>
+      <text x="10" y="134" class="mono">deterministic across reruns (Run #5)</text>
+      <text x="10" y="156" class="mono">via: bb-loop tape feed</text>
+      <text x="10" y="174" class="mirror">⇄ mirror:id=claude-self (forward)</text>
+      <text x="10" y="190" class="note">cascade = signature of whole session</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 1: AGENTIC EGRESS FLOWS -->
+  <!-- ========================================================================== -->
+  <g id="L1-egress" transform="translate(40, 440)">
+    <rect width="2520" height="260" rx="10" fill="url(#cell-egress)" stroke="#a58" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 1 — agentic egress flows (how chain ops become served surfaces)</text>
+
+    <g transform="translate(40, 60)" mirror:id="hf-export-flow">
+      <rect width="380" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">model graph export flow</text>
+      <text x="10" y="44" class="mono">trigger: new model indexed</text>
+      <text x="10" y="62" class="mono">agent: gently-hf-dispatch</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. JSONL → operable_units rows</text>
+      <text x="20" y="114" class="mono">2. structure_hash index keys built</text>
+      <text x="20" y="130" class="mono">3. API endpoints expose dedup queries</text>
+      <text x="20" y="146" class="mono">4. /api/index/models notify-watchers</text>
+      <text x="20" y="162" class="mono">5. consumers refresh cache</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=hf-scrape-flow (forward)</text>
+    </g>
+
+    <g transform="translate(440, 60)" mirror:id="opcode-stream">
+      <rect width="380" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">opcode stream flow</text>
+      <text x="10" y="44" class="mono">trigger: chain.extend done</text>
+      <text x="10" y="62" class="mono">agent: gently-runtime emits</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. SealedChain → svg fragment</text>
+      <text x="20" y="114" class="mono">2. mirror-pair daemon syncs sister svg</text>
+      <text x="20" y="130" class="mono">3. /api/chain/run returns crystal</text>
+      <text x="20" y="146" class="mono">4. client renders new state</text>
+      <text x="20" y="162" class="mono">5. cookie updates with crystal</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=codie-predict-flow (forward)</text>
+    </g>
+
+    <g transform="translate(840, 60)" mirror:id="svg-status-export">
+      <rect width="380" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">tesseract status export (sister)</text>
+      <text x="10" y="44" class="mono">trigger: walker.identify completes</text>
+      <text x="10" y="62" class="mono">agent: walker.py + tesseract.svg writer</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. circle fill set #22c55e (green)</text>
+      <text x="20" y="114" class="mono">2. manifest updated atomically</text>
+      <text x="20" y="130" class="mono">3. cc -tesseract-status reflects</text>
+      <text x="20" y="146" class="mono">4. Lucid /refresh fires (planned)</text>
+      <text x="20" y="162" class="mono">5. friends viewing see live update</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=walker-identify-flow (forward)</text>
+    </g>
+
+    <g transform="translate(1240, 60)" mirror:id="indexed-pieces">
+      <rect width="380" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">indexed pieces serve (sister)</text>
+      <text x="10" y="44" class="mono">trigger: pieces_index.upsert</text>
+      <text x="10" y="62" class="mono">agent: passes/pieces_index.py</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. /api/pieces/search exposes hits</text>
+      <text x="20" y="114" class="mono">2. /api/asset/:sha serves file</text>
+      <text x="20" y="130" class="mono">3. cc -passes-stats counts</text>
+      <text x="20" y="146" class="mono">4. SVG layered output downloadable</text>
+      <text x="20" y="162" class="mono">5. friends consume via signed URL</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=import-pipeline-flow (forward)</text>
+    </g>
+
+    <g transform="translate(1640, 60)" mirror:id="scheduler-routing">
+      <rect width="380" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">scheduler routing serve</text>
+      <text x="10" y="44" class="mono">trigger: probe.calibration filed</text>
+      <text x="10" y="62" class="mono">agent: gently-scheduler exposes</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. /api/scheduler/active_layers returns</text>
+      <text x="20" y="114" class="mono">2. consumer queries per chain step</text>
+      <text x="20" y="130" class="mono">3. non-binding layers skipped (free)</text>
+      <text x="20" y="146" class="mono">4. binding curve converges 12→3</text>
+      <text x="20" y="162" class="mono">5. cost-class derived (LIGHT/MED/HEAVY)</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=probe-calibrate-flow (forward)</text>
+    </g>
+
+    <g transform="translate(2040, 60)" mirror:id="chain-output">
+      <rect width="480" height="180" rx="6" fill="#280a1c" stroke="#a58"/>
+      <text x="10" y="22" class="h3">cc -chain output flow</text>
+      <text x="10" y="44" class="mono">trigger: chain parser finishes</text>
+      <text x="10" y="62" class="mono">agent: cc + cc-chain executor</text>
+      <text x="10" y="80" class="mono">steps:</text>
+      <text x="20" y="98" class="mono">1. each step's output bytes accumulated</text>
+      <text x="20" y="114" class="mono">2. chain crystal sealed</text>
+      <text x="20" y="130" class="mono">3. local.db chain_runs row written</text>
+      <text x="20" y="146" class="mono">4. stdout to user terminal</text>
+      <text x="20" y="162" class="mono">5. atlas_chains entry for cross-session lookup</text>
+      <text x="10" y="178" class="mirror">⇄ mirror:id=cc-chain-flow (forward)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 2: SERVED ARTIFACTS (what we publish from composition) -->
+  <!-- ========================================================================== -->
+  <g id="L2-served" transform="translate(40, 730)">
+    <rect width="2520" height="280" rx="10" fill="url(#cell-served)" stroke="#aa6" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 2 — served artifacts (what consumers see as the rendered system)</text>
+
+    <g transform="translate(40, 60)" mirror:id="task-routes-published">
+      <rect width="390" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">task routes (.bb endpoints)</text>
+      <text x="10" y="44" class="mono">/api/bb/run?task=&lt;X&gt;</text>
+      <text x="10" y="62" class="mono">L2 task-X.bb selected</text>
+      <text x="10" y="80" class="mono">→ L1 hypernet → L0 tiny</text>
+      <text x="10" y="98" class="mono">crystal returned in response</text>
+      <text x="10" y="116" class="mono">consumer can replay with same seed</text>
+      <text x="10" y="134" class="mono">24 HF tasks live, 23 next</text>
+      <text x="10" y="152" class="mono">via: gently-runtime + bb-runtime-adapter</text>
+      <text x="10" y="170" class="mono">cost: deterministic, cacheable</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=bb-fragments (forward)</text>
+    </g>
+
+    <g transform="translate(450, 60)" mirror:id="meta-moe-served">
+      <rect width="390" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">meta-MoE served (Run #14)</text>
+      <text x="10" y="44" class="mono">/api/meta-moe?task=&lt;HF-task&gt;</text>
+      <text x="10" y="62" class="mono">routes to one of ~22 frontier models</text>
+      <text x="10" y="80" class="mono">Kimi-K2.6 as constitutional anchor</text>
+      <text x="10" y="98" class="mono">genesis stamp proves stack integrity</text>
+      <text x="10" y="116" class="mono">consumer picks task, not model</text>
+      <text x="10" y="134" class="mono">we choose best model for the task</text>
+      <text x="10" y="152" class="mono">crystal cascade = signature of choice</text>
+      <text x="10" y="170" class="mono">via: meta-moe.bb top-level orchestrator</text>
+      <text x="10" y="188" class="mirror">⇄ mirror:id=meta-moe-nesting (forward)</text>
+    </g>
+
+    <g transform="translate(860, 60)" mirror:id="active-layer-fingerprint">
+      <rect width="390" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">active-layer fingerprint</text>
+      <text x="10" y="44" class="mono">per-response: active_layers list</text>
+      <text x="10" y="62" class="mono">activation_hex stamped on every op</text>
+      <text x="10" y="80" class="mono">consumer proves binding affinity</text>
+      <text x="10" y="98" class="mono">multi-modal in 32 bytes (RGB/audio/...)</text>
+      <text x="10" y="116" class="mono">one fingerprint, infinite lenses</text>
+      <text x="10" y="134" class="mono">pruning saves consumer compute too</text>
+      <text x="10" y="152" class="mono">via: gently-scheduler response envelope</text>
+      <text x="10" y="170" class="mono">printable as hex string</text>
+      <text x="10" y="188" class="mirror">⇄ mirror:id=scheduler-pruning (forward)</text>
+    </g>
+
+    <g transform="translate(1270, 60)" mirror:id="dedup-decisions">
+      <rect width="390" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">dedup decisions (use what is built)</text>
+      <text x="10" y="44" class="mono">/api/dedup/lookup?identifier|structure</text>
+      <text x="10" y="62" class="mono">prevents duplicate work upfront</text>
+      <text x="10" y="80" class="mono">8,165 items queryable</text>
+      <text x="10" y="98" class="mono">cross-impl: same identifier same crate</text>
+      <text x="10" y="116" class="mono">rule-out beats speculate (Run #3)</text>
+      <text x="10" y="134" class="mono">95% coverage vs hand-curated baseline</text>
+      <text x="10" y="152" class="mono">via: gently-dedup CLI + endpoint</text>
+      <text x="10" y="170" class="mono">consumer sees: dont-rebuild-this</text>
+      <text x="10" y="188" class="mirror">⇄ mirror:id=dedup-gate (forward)</text>
+    </g>
+
+    <g transform="translate(1680, 60)" mirror:id="published-recipes">
+      <rect width="390" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">published recipes</text>
+      <text x="10" y="44" class="mono">band recipe (10 steps)</text>
+      <text x="10" y="62" class="mono">designer recipe (12 steps)</text>
+      <text x="10" y="80" class="mono">JSONL chain + cascade crystal</text>
+      <text x="10" y="98" class="mono">consumer can replay step-by-step</text>
+      <text x="10" y="116" class="mono">or jump to final asset</text>
+      <text x="10" y="134" class="mono">byte-identical reruns guaranteed</text>
+      <text x="10" y="152" class="mono">via: gently-composer + pipeline-runner</text>
+      <text x="10" y="170" class="mono">/api/recipes/band · /api/recipes/designer</text>
+      <text x="10" y="188" class="mirror">⇄ mirror:id=recipe-composer (forward)</text>
+    </g>
+
+    <g transform="translate(2090, 60)" mirror:id="sealed-publish">
+      <rect width="430" height="200" rx="6" fill="#2a1c08" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">sealed crystal endpoint</text>
+      <text x="10" y="44" class="mono">SealedChain { fwd, mir, crystal, btc? }</text>
+      <text x="10" y="62" class="mono">/api/crystal/:hash → full SealedChain</text>
+      <text x="10" y="80" class="mono">consumer verifies offline</text>
+      <text x="10" y="98" class="mono">tampering detection: crystal mismatch</text>
+      <text x="10" y="116" class="mono">optionally includes BTC block height</text>
+      <text x="10" y="134" class="mono">forensic-grade proof of compute</text>
+      <text x="10" y="152" class="mono">3rd-party verifiable</text>
+      <text x="10" y="170" class="mono">via: gently-crystal serve</text>
+      <text x="10" y="188" class="mirror">⇄ mirror:id=crystal-seal (forward)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 3: READ ENDPOINTS (what we expose for consumer queries) -->
+  <!-- ========================================================================== -->
+  <g id="L3-endpoints" transform="translate(40, 1040)">
+    <rect width="2520" height="280" rx="10" fill="url(#cell-endpoint)" stroke="#a58" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 3 — read endpoints (what consumers query for state)</text>
+
+    <g transform="translate(40, 60)" mirror:id="cc-global-publish">
+      <rect width="370" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">cc.db global read endpoints</text>
+      <text x="10" y="44" class="mono">cc -context · cc -sessions</text>
+      <text x="10" y="62" class="mono">cc -agents · cc -todos · cc -current</text>
+      <text x="10" y="80" class="mono">cc -workflows · cc -dag-status</text>
+      <text x="10" y="98" class="mono">cc -cards · cc -card-show</text>
+      <text x="10" y="116" class="mono">audit: every row has agent_uuid+ts</text>
+      <text x="10" y="134" class="mono">consumer: user sees state in 5-10 terms</text>
+      <text x="10" y="152" class="mono">no two sessions step on each other</text>
+      <text x="10" y="170" class="mono">via: ~130 cmd_X functions in cc</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=cc-db-global (forward)</text>
+    </g>
+
+    <g transform="translate(430, 60)" mirror:id="local-project-export">
+      <rect width="370" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">local.db project export</text>
+      <text x="10" y="44" class="mono">cc -chain (reads local.db)</text>
+      <text x="10" y="62" class="mono">cc -entrypoints (per-project)</text>
+      <text x="10" y="80" class="mono">isolated per checkout</text>
+      <text x="10" y="98" class="mono">consumer: per-project tools</text>
+      <text x="10" y="116" class="mono">deterministic across reruns</text>
+      <text x="10" y="134" class="mono">friends with READ key see their proj</text>
+      <text x="10" y="152" class="mono">no cross-project leak</text>
+      <text x="10" y="170" class="mono">via: core/lib/db.py local helpers</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=local-db (forward)</text>
+    </g>
+
+    <g transform="translate(820, 60)" mirror:id="gently-db-export">
+      <rect width="370" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">gently db read endpoints</text>
+      <text x="10" y="44" class="mono">/api/ops · /api/crystals · /api/sessions</text>
+      <text x="10" y="62" class="mono">/api/operable_units (8,165+ items)</text>
+      <text x="10" y="80" class="mono">/api/workflow_jobs · /api/agent_flows</text>
+      <text x="10" y="98" class="mono">consumer: external clients can query</text>
+      <text x="10" y="116" class="mono">scope-filtered by salted-key + IP</text>
+      <text x="10" y="134" class="mono">read-only by default</text>
+      <text x="10" y="152" class="mono">WRITE scope can append (rare)</text>
+      <text x="10" y="170" class="mono">via: db/schema/*.sql + rust adapter</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=gently-db (forward)</text>
+    </g>
+
+    <g transform="translate(1210, 60)" mirror:id="index-published">
+      <rect width="370" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">consolidation index publish</text>
+      <text x="10" y="44" class="mono">/api/index/kimi/:tensor_name</text>
+      <text x="10" y="62" class="mono">/api/index/structure/:hash → all matches</text>
+      <text x="10" y="80" class="mono">/api/index/identifier/:hash → unique item</text>
+      <text x="10" y="98" class="mono">cross-model dedup queries · 208,550 Kimi entries</text>
+      <text x="10" y="116" class="mono">consumer: model graph spelunkers</text>
+      <text x="10" y="134" class="mono">no weights served (URL-only)</text>
+      <text x="10" y="152" class="mono">HTTP Range to actual HF on demand</text>
+      <text x="10" y="170" class="mono">via: gently-hf-dispatch + dedup</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=kimi-index (forward)</text>
+    </g>
+
+    <g transform="translate(1600, 60)" mirror:id="routing-maps-served">
+      <rect width="370" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">routing maps served</text>
+      <text x="10" y="44" class="mono">/api/probe/:model/calibration</text>
+      <text x="10" y="62" class="mono">/api/probe/binding-curve/:chain_hash</text>
+      <text x="10" y="80" class="mono">consumer: external schedulers integrate</text>
+      <text x="10" y="98" class="mono">downstream picks binding subset</text>
+      <text x="10" y="116" class="mono">3 models calibrated (Run #17)</text>
+      <text x="10" y="134" class="mono">more on demand</text>
+      <text x="10" y="152" class="mono">amortized free (one-time per model)</text>
+      <text x="10" y="170" class="mono">via: gently-probe serve</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=probe-bb (forward)</text>
+    </g>
+
+    <g transform="translate(1990, 60)" mirror:id="session-continuity">
+      <rect width="530" height="200" rx="6" fill="#1c0814" stroke="#a58"/>
+      <text x="10" y="22" class="h3">memory continuity surface (Claude)</text>
+      <text x="10" y="44" class="mono">~/.claude/projects/-home-tom/memory/ READ</text>
+      <text x="10" y="62" class="mono">future Claude session loads MEMORY.md index</text>
+      <text x="10" y="80" class="mono">~40 topic files: user/feedback/project/reference</text>
+      <text x="10" y="98" class="mono">consumer: Claude self (next session)</text>
+      <text x="10" y="116" class="mono">cross-session continuity guaranteed</text>
+      <text x="10" y="134" class="mono">drift becomes visible (entries marked stale)</text>
+      <text x="10" y="152" class="mono">no other agents read this dir</text>
+      <text x="10" y="170" class="mono">via: auto-memory Read on session start</text>
+      <text x="10" y="186" class="mirror">⇄ mirror:id=memory-files (forward)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 4: THE 6 CONSTITUTIONAL PRINCIPLES (mirror side — what consumers can verify) -->
+  <!-- ========================================================================== -->
+  <g id="L4-verify" transform="translate(40, 1350)">
+    <rect width="2520" height="220" rx="10" fill="#2a1a1a" stroke="#666" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 4 — 6 constitutional principles (what consumers can verify offline)</text>
+
+    <g transform="translate(40, 60)" mirror:id="bb-rock-export">
+      <rect width="400" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">① bb-rock provenance proof</text>
+      <text x="10" y="44" class="mono">crystal[0..32] = blake3(gently-bb source)</text>
+      <text x="10" y="62" class="mono">consumer verifies bb hash → matches release</text>
+      <text x="10" y="80" class="mono">if mismatch: refuse to trust crystal</text>
+      <text x="10" y="98" class="mono">7 frozen symbols guarantee determinism</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=gently-bb-rock (forward)</text>
+      <text x="10" y="132" class="note">tic-tac box hash IS published</text>
+    </g>
+
+    <g transform="translate(460, 60)" mirror:id="genesis-stamp-export">
+      <rect width="400" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">② genesis stamp export</text>
+      <text x="10" y="44" class="mono">SealedChain.forward[0..32] = genesis_hash</text>
+      <text x="10" y="62" class="mono">consumer matches against published binary hash</text>
+      <text x="10" y="80" class="mono">re-run defense: stamp differs across versions</text>
+      <text x="10" y="98" class="mono">audit trail spans runtime versions</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=genesis-anchor (forward)</text>
+      <text x="10" y="132" class="note">stamp + BTC anchor = forensic identity</text>
+    </g>
+
+    <g transform="translate(880, 60)" mirror:id="mirror-export-policy">
+      <rect width="400" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">③ mirror-pass verifiable export</text>
+      <text x="10" y="44" class="mono">SealedChain ships forward + mirror</text>
+      <text x="10" y="62" class="mono">consumer recomputes crystal locally</text>
+      <text x="10" y="80" class="mono">tamper detection without trusting server</text>
+      <text x="10" y="98" class="mono">missing mirror = invalid SealedChain</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=mirror-pass (forward)</text>
+      <text x="10" y="132" class="note">memory hacks defeated structurally</text>
+    </g>
+
+    <g transform="translate(1300, 60)" mirror:id="open-window-publish">
+      <rect width="400" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">④ open-window commit publish</text>
+      <text x="10" y="44" class="mono">sessions publish as ONE chain extension</text>
+      <text x="10" y="62" class="mono">consumer sees committed deltas, not active stream</text>
+      <text x="10" y="80" class="mono">streaming privacy + k-anonymity preserved</text>
+      <text x="10" y="98" class="mono">audit on commit, not per-tick</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=open-window (forward)</text>
+      <text x="10" y="132" class="note">14 SVG waiting primitives ARE this</text>
+    </g>
+
+    <g transform="translate(1720, 60)" mirror:id="btc-stamp-export">
+      <rect width="400" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">⑤ BTC stamp export (opt-in)</text>
+      <text x="10" y="44" class="mono">SealedChain.btc_block_at_commit = Some(h)</text>
+      <text x="10" y="62" class="mono">consumer verifies block existed at that time</text>
+      <text x="10" y="80" class="mono">via blockstream.info or own bitcoind</text>
+      <text x="10" y="98" class="mono">free 3rd-party time proof</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=btc-anchor (forward)</text>
+      <text x="10" y="132" class="note">runtime never blocks on BTC RPC</text>
+    </g>
+
+    <g transform="translate(2140, 60)" mirror:id="axiom-published">
+      <rect width="380" height="140" rx="6" fill="#1c1515" stroke="#888"/>
+      <text x="10" y="22" class="h3">⑥ Y-combinator served axiom</text>
+      <text x="10" y="44" class="mono">/api/runtime/axiom returns 8 LOC</text>
+      <text x="10" y="62" class="mono">consumer reimplements to verify</text>
+      <text x="10" y="80" class="mono">cross-impl crystal must match (Run #5)</text>
+      <text x="10" y="98" class="mono">no vendor lock-in possible</text>
+      <text x="10" y="116" class="mirror">⇄ mirror:id=y-combinator (forward)</text>
+      <text x="10" y="132" class="note">runtime axiom IS the moat</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 5: MIRROR BRIDGE LEGEND (reflected) -->
+  <!-- ========================================================================== -->
+  <g id="L5-bridge" transform="translate(40, 1600)">
+    <rect width="2520" height="320" rx="10" fill="#100808" stroke="#66ccee" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 5 — mirror bridge to MASTER-INWARD.svg (every node above has a forward counterpart)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="2440" height="240" rx="8" fill="#1c1015" stroke="#66ccee"/>
+      <text x="20" y="30" class="h3">how the reflection works (this side = mirror chain; sister SVG = forward chain)</text>
+      <text x="20" y="60" class="mono">1. every node here declares mirror:id matching exactly one mspc:src-id / flow-id / construct-id / store-id / principle-id in MASTER-INWARD.svg</text>
+      <text x="20" y="78" class="mono">2. when the forward side updates (a new flow lands, a new file is ingested, a new principle change), the daemon</text>
+      <text x="20" y="96" class="mono">   propagates the change to the matching node here by mutating data-* attrs + the metadata crystal hash</text>
+      <text x="20" y="114" class="mono">3. the daemon NEVER reshapes the layout — only the bound data fields change</text>
+      <text x="20" y="132" class="mono">4. both SVGs share a single chain-of-truth: SealedChain { forward = INWARD, mirror = OUTWARD, crystal = XOR(fwd, mir) }</text>
+      <text x="20" y="150" class="mono">5. updating either side without the other breaks the crystal — the gently-mirror-pair daemon refuses to extend until repaired</text>
+      <text x="20" y="168" class="mono">6. consumer-facing surfaces here (Layer 0-3) are LIVE — what visitors / friends / agents actually see and query</text>
+      <text x="20" y="186" class="mono">7. provenance proofs here (Layer 4) let consumers VERIFY the chain offline against the published constitutional invariants</text>
+      <text x="20" y="204" class="mono">8. effects this side carries (downstream consumers) are first-class: every surface declares both consumer and source</text>
+      <text x="20" y="222" class="note">spec: /data/Projects/MySpace++/REFLECTION.md · pair: MASTER-INWARD.svg</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- FOOTER -->
+  <!-- ========================================================================== -->
+  <g id="footer" transform="translate(40, 1950)">
+    <text x="0" y="20" class="note">MASTER-OUTWARD.svg v1.0.0 · the mirror chain · paired with MASTER-INWARD.svg · crystal axiom: INWARD ⊕ OUTWARD = SealedChain.crystal</text>
+    <text x="0" y="40" class="note">read first: /data/Projects/gently/docs/NOTES-FOR-INFERENCE.md · /data/Projects/MySpace++/studio/docs/NOTES-FOR-INFERANCE.md</text>
+    <text x="0" y="60" class="note">reflection contract: /data/Projects/MySpace++/REFLECTION.md · sister Tesseract: /data/Projects/MySpace++/studio/docs/Tesseract.svg</text>
+  </g>
+
+</svg>

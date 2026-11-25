@@ -1,0 +1,67 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "workflow_generator",
+  "state": "active",
+  "version": "v0",
+  "role": "GENERATOR · WORKFLOW_CARD_TO_5_SURFACES",
+  "tier": "L0",
+  "module_path": "core/lib/workflow_generator.py",
+  "summary": "Reads a workflow_card_v0 JSON, emits up to 7 semantically-equivalent surfaces (Streamlit proto, Godot scene/.gd/.cpp, Blender headless, SpriteForge manifest, ComfyUI workflow JSON). All emitted files carry the same card_crystal in their header — cryptographic proof of semantic equivalence.",
+  "engine_pattern": "Pure Python (no Jinja). Each surface is a generator function: card_dict → file content string. card_crystal = blake3(canonical_card_json). Same card → same crystal → same bytes (modulo optional nano text-gen).",
+  "surfaces_emitted": [
+    { "name": "streamlit",    "kind": "py",   "default_out": "studio/web/streamlit/<name>.py" },
+    { "name": "godot_scene",  "kind": "tscn", "default_out": "studio/godot/project/scenes/<name>.tscn" },
+    { "name": "godot_gd",     "kind": "gd",   "default_out": "studio/godot/project/src/<name>_controller.gd" },
+    { "name": "godot_cpp",    "kind": "cpp",  "default_out": "studio/godot/project/cpp/src/<name>_native.cpp" },
+    { "name": "blender",      "kind": "py",   "default_out": "studio/blender/scripts/<name>_bake.py" },
+    { "name": "spriteforge",  "kind": "json", "default_out": "studio/spriteforge/manifests/<name>_sheet.json" },
+    { "name": "comfyui",      "kind": "json", "default_out": "/data/Projects/ComfyUI/user/workflows/<name>.json" }
+  ],
+  "exports": ["WorkflowGenerator", "NanoDescriber", "load_card", "compute_card_crystal",
+              "gen_streamlit", "gen_godot_tscn", "gen_godot_gd", "gen_godot_cpp",
+              "gen_blender", "gen_spriteforge", "gen_comfyui"],
+  "substrate": "workflow_cards (read) + emitted surface files (write)",
+  "env_vars": {
+    "CC_NANO_MODEL":    "Ollama model for description text-gen (default qwen2.5:0.5b — 397MB, fast)",
+    "CC_COMFY_INSTALL": "ComfyUI install root (default /data/Projects/ComfyUI)"
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_workflow_generate (when wired)",
+      "CLI: python3 workflow_generator.py generate <card> --target <surface>"
+    ],
+    "outbound_calls": [
+      "task_queue.TaskQueue (nano text-gen via Ollama pool — optional, --no-nano disables)",
+      "blake3 (or blake2b fallback) for card_crystal",
+      "filesystem writes to 7 surface paths"
+    ],
+    "substrate_reads":  "studio/assets/_workflows/<card>.json",
+    "substrate_writes": "see surfaces_emitted above"
+  },
+  "determinism": {
+    "with_nano":    "card-driven content is deterministic; nano-generated descriptions vary (qwen 0.5b best-effort)",
+    "without_nano": "byte-for-byte deterministic — same card_crystal always produces same files"
+  },
+  "guarantees": [
+    "All emitted surfaces share the SAME card_crystal in their header — verifiable equivalence",
+    "Streamlit + Blender + SpriteForge + ComfyUI outputs parse as valid Python/JSON",
+    "Godot .tscn / .gd / .cpp follow Godot 4.x syntax",
+    "Re-running on an unchanged card produces identical bytes (no nano) or near-identical (nano)",
+    "Failed nano text-gen falls back to card.summary — never blocks generation"
+  ],
+  "smoke_test_results_2026_05_28": {
+    "flagship_card": "vm_mspc_001.workflows.avatar.photo_to_avatar_rigged.v0.json",
+    "card_crystal": "04c7865e2553a0eed117aa75dd95ec7e45eec7ef8ee024d7a61612aa3891e673…",
+    "surfaces_emitted": 7,
+    "total_bytes": 17848,
+    "all_parse_ok": true,
+    "all_share_crystal": true
+  },
+  "usage_example": "python3 core/lib/workflow_generator.py generate studio/assets/_workflows/<card>.json --target all\\n# or one surface:\\npython3 core/lib/workflow_generator.py generate <card> --target comfyui",
+  "chain_runs": ["moe_chain_router_v0"]
+}

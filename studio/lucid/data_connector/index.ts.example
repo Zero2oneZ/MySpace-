@@ -1,0 +1,69 @@
+/**
+ * index.ts.example — scaffolding only. Rename to index.ts after running
+ * `lucid-package init data-connector --name myspace-tesseract`.
+ *
+ * This file shows the SHAPE the connector should take. None of the
+ * imports below resolve until you `npm install lucid-extension-sdk`.
+ */
+
+// import {
+//   DataConnector, DataConnectorClient, DataConnectorAsynchronousAction,
+//   defineAsynchronousAction, defineAction,
+// } from "lucid-extension-sdk";
+
+// Stand-in types so this file documents the shape without compiling.
+type Action = (payload: any) => Promise<any>;
+interface Connector {
+  defineAsynchronousAction(name: string, fn: Action): void;
+  defineAction(name: string, fn: Action): void;
+}
+
+declare const connector: Connector;
+
+// ── /import — pull every node + edge from the Tesseract inventory ───────────
+connector.defineAsynchronousAction("import", async (payload) => {
+  // 1. Verify request signature (sdk handles this automatically).
+  // 2. Fetch inventory by shelling out to:
+  //      python3 /opt/studio/tesseract/inventory.py
+  //    OR by reading the JSON the cc -tesseract-build step writes.
+  // 3. Return a Lucid CollectionResponse:
+  //      { collections: { nodes: { schema, items: [...] }, edges: { ... } } }
+  throw new Error("TODO: implement /import");
+});
+
+// ── /refresh — incremental sync ────────────────────────────────────────────
+connector.defineAsynchronousAction("refresh", async (payload) => {
+  // Diff request payload (last sync timestamp) against current state,
+  // return only changed records keyed by primaryKey.
+  throw new Error("TODO: implement /refresh");
+});
+
+// ── /walk/identify — satisfy the walker contract for a node ────────────────
+connector.defineAction("walk-identify", async (payload) => {
+  // payload: { node_uid, neighbors[], subjects{}, agent_id }
+  // Shell out to: python3 /opt/studio/tesseract/walker.py identify ...
+  throw new Error("TODO: implement /walk/identify");
+});
+
+// ── /chain/run — invoke cc -chain from inside Lucid ────────────────────────
+connector.defineAsynchronousAction("chain-run", async (payload) => {
+  // payload: { chain_text, env }
+  // Run `cc -chain "..."` async, stream progress back to Lucid.
+  throw new Error("TODO: implement /chain/run");
+});
+
+// ── /pass/run — invoke a single pass on an asset ───────────────────────────
+connector.defineAction("pass-run", async (payload) => {
+  // payload: { asset_path, pass_id }
+  // Shell out to: python3 /opt/studio/media/.tools/import_pipeline.py
+  throw new Error("TODO: implement /pass/run");
+});
+
+// ── /pieces/search — query the pre-computed piece index ────────────────────
+connector.defineAction("search-pieces", async (payload) => {
+  // payload: { query, kind?, limit? }
+  // Shell out to: python3 /opt/studio/passes/pieces_index.py search ...
+  throw new Error("TODO: implement /pieces/search");
+});
+
+export { connector };

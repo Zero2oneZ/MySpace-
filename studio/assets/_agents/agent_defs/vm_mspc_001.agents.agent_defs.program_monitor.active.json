@@ -1,0 +1,81 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "program_monitor",
+  "state": "active",
+  "version": "v0",
+  "role": "ORACLE_INGEST · MULTI_PROGRAM_WS_SUPERVISOR",
+  "tier": "L0",
+  "module_path": "core/lib/program_monitor.py",
+
+  "summary": "Generalizes the single-program pump_ws_feed engine into a supervisor that spawns ONE asyncio subscriber task per registry entry where watch=true. Solana side uses logsSubscribe (mentions=[program_id]) over a raw RFC-6455 WebSocket (no external dep); Sui side uses suix_subscribeEvent {Package: <id>}. Per-program throughput is capped (default 50 events/s/program) so a chatty program can't blow out disk. Each emitted event is run through dimension_pack.emit() and append-written to ~/.cc/program_events/<chain>/<short>/<YYYY-MM-DD>.jsonl.",
+
+  "engine_pattern": "asyncio supervisor over N stream subscribers. WS framing matches studio/solana/pump_ws_feed.py (mask client→server, parse 2/16/64-byte payload-len, ping on 60s recv timeout). Reconnect with exponential backoff (1s→30s). InferenceLogger crystal_id is captured at subscription open and reused as the anchor for every event emitted on that subscription's lifetime (so a full session is one chain segment).",
+
+  "live_smoke_2026_05_28": {
+    "rpc": "wss://api.mainnet-beta.solana.com",
+    "program": "Pump.fun bonding curve (6EF8rrec..)",
+    "duration_s": 12,
+    "events_ingested": 401,
+    "action_distribution": {"other": "majority", "buy/sell": "high", "create": "occasional"},
+    "rate_limited": false,
+    "disconnections": 0,
+    "dimension_pack_attached": true,
+    "sink_path": "~/.cc/program_events/solana/6EF8rrec/2026-05-29.jsonl"
+  },
+
+  "five_canonical_frames_per_event": {
+    "vector": "fallback SHA-256 of canonical event JSON (no sentence axis for raw chain events)",
+    "circle": "* (raw events are leaves; recursion emerges in correlator)",
+    "hex": "InferenceRecord.crystal_id captured at subscription open",
+    "rgb": "deterministic HSV(sub_dag=PLATFORMS hue 210°, cost_class=free sat 0.90, tier=external_chain_event val 0.55)",
+    "fps": "frame_pack populated for all 5 canonical FPS (24/30/60/90/120)"
+  },
+
+  "exports": ["SubscriberStats", "solana_subscriber", "sui_subscriber", "supervise",
+              "status", "EVENT_ROOT", "SOLANA_WSS", "SUI_WSS",
+              "DEFAULT_PER_PROGRAM_EPS_CAP"],
+
+  "cli": [
+    "watchset                                  # show planned subscriptions",
+    "start [--chain X] [--cat X] [--solana-wss URL] [--sui-wss URL] [--eps-cap N] [--duration N] [--max-programs N] [--verbose]",
+    "status                                    # event counts on disk"
+  ],
+
+  "cc_dispatchers": [
+    "cc programs-watchset",
+    "cc programs-monitor-start [--chain X] [--cat X] [--duration N] [--max-programs N] [--verbose]",
+    "cc programs-monitor-status"
+  ],
+
+  "safety": [
+    "READ-ONLY — no transactions sent, no accounts modified",
+    "Per-program EPS cap (default 50/s) so a token program can't blow disk",
+    "watch=false default for system token programs (catalog seed)",
+    "Reconnect backoff 1s→30s prevents tight reconnect loops on RPC outage",
+    "All events sink to user-home disk; no external upload"
+  ],
+
+  "routing_connections": {
+    "inbound_callers": [
+      "cc programs-monitor-* dispatcher",
+      "core/lib/program_correlator.py reads ~/.cc/program_events/**/*.jsonl"
+    ],
+    "outbound_calls": [
+      "wss://api.mainnet-beta.solana.com (Solana logsSubscribe)",
+      "wss://fullnode.mainnet.sui.io:443 (Sui suix_subscribeEvent)",
+      "core/lib/program_registry.watchset() to decide subscription set",
+      "core/lib/inference_logger.InferenceLogger.log() once per subscription open",
+      "core/lib/dimension_pack.emit() once per event"
+    ],
+    "substrate_reads": "studio/assets/_program_registry/catalog.jsonl",
+    "substrate_writes": "~/.cc/program_events/<chain>/<short>/<YYYY-MM-DD>.jsonl"
+  },
+
+  "chain_runs": ["external_oracle_chain"],
+  "phase": "Substrate · oracle ingest"
+}

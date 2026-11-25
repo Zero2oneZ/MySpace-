@@ -4,8 +4,9 @@
 Grammar (recursive):
     CHAIN  ::= '{' EXPR '}'
     EXPR   ::= TERM (OP TERM)*
-    TERM   ::= STEP | GROUP | CCGROUP
-    STEP   ::= '{' '"' TEXT '"' '}'        # leaf — single prompt
+    TERM   ::= STEP | BASHSTEP | GROUP | CCGROUP
+    STEP   ::= '{' '"' TEXT '"' '}'        # leaf — single model prompt
+    BASH   ::= '{' 'bash' '"' TEXT '"' '}' # leaf — run a bash command, stdout = output
     GROUP  ::= '{' EXPR '}'                # nested expr; inherits context
     CCGROUP::= 'cc' GROUP                  # nested expr; ISOLATED — no inherited context
     OP     ::= '|' | '+' | '-'
@@ -20,9 +21,18 @@ The `cc` keyword preceding a group ISOLATES that subexpression's input
 context. The subgroup still emits an output that participates in the
 enclosing expression normally.
 
+Every leaf (model prompt AND bash) is content-addressed through the unified
+cell store: its output becomes a `cell` (cid = blake3(content)), and the
+(recipe = upstream content + op + params) is checked against the transposition
+table (`recipes`) BEFORE execution. A hit short-circuits with zero model
+calls / zero bash runs — no repeated work, no wasted tokens. Bash cells
+dry-run (echo the command) unless --trust-bash is passed.
+
 Examples (informal):
     {"hello"}                          → single step
     {{"A"} | {"B"}}                    → pipe A→B
+    {bash "git log -1"}                → run bash, stdout is the cell output
+    {{"what changed?"} | {bash "git diff"}}  → model then bash, piped
     {{"A"} + {"B"} + {"C"}}            → three steps in parallel
     {{"A"} | {"B"} + {"C"} | {"D"}}   → A; then B and C in parallel both
                                           using A as context; then D with
@@ -49,12 +59,21 @@ from pathlib import Path
 from threading import Lock
 from typing import List, Optional, Union
 
+# Sibling cell_store.py is the unified content-addressed cell substrate.
+# Ensure the lib dir is importable whether chain.py runs as a script or is
+# imported by loop.py / cc.sh.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import cell_store  # type: ignore
+except Exception:  # cell_store is optional — chain still runs without the cache
+    cell_store = None  # type: ignore
+
 
 # ---- tokenizer ----------------------------------------------------------
 
 @dataclass
 class Token:
-    kind: str        # 'LBRACE' | 'RBRACE' | 'STRING' | 'OP' | 'CC'
+    kind: str        # 'LBRACE' | 'RBRACE' | 'STRING' | 'OP' | 'CC' | 'BASH'
     value: str
     pos: int
 
@@ -117,6 +136,14 @@ def tokenize(spec: str) -> List[Token]:
                 i += 2
                 continue
 
+        # bash keyword — {bash "cmd"} leaf; must be followed by whitespace
+        if spec.startswith('bash', i):
+            after = spec[i + 4] if i + 4 < n else ''
+            if after.isspace() or after == '':
+                tokens.append(Token('BASH', 'bash', i))
+                i += 4
+                continue
+
         raise ChainParseError(f"unexpected character {c!r} at position {i}")
 
     return tokens
@@ -127,6 +154,12 @@ def tokenize(spec: str) -> List[Token]:
 @dataclass
 class Step:
     text: str
+
+
+@dataclass
+class BashStep:
+    """A leaf that runs a bash command; its stdout becomes the cell output."""
+    cmd: str
 
 
 @dataclass
@@ -176,9 +209,10 @@ class Parser:
         # Top-level: if it starts with { and the matching close is at the end,
         # treat the whole thing as a group's contents.
         if self.peek().kind == 'LBRACE':
-            # Look ahead: is this { followed immediately by a STRING (= leaf step)?
-            # If so, top level is implicit — don't strip outer braces.
-            if self.peek(1) is not None and self.peek(1).kind == 'STRING':
+            # Look ahead: is this { followed immediately by a STRING (leaf step)
+            # or BASH (leaf bash step)? If so, top level is implicit — don't
+            # strip outer braces.
+            if self.peek(1) is not None and self.peek(1).kind in ('STRING', 'BASH'):
                 expr = self.parse_expr()
             else:
                 # Otherwise treat outermost { } as the chain wrapper
@@ -220,12 +254,18 @@ class Parser:
             return self.parse_step_or_group()
         raise ChainParseError(f"expected step or group at pos {t.pos}, got {t.kind}")
 
-    # Disambiguate STEP vs GROUP by lookahead.
+    # Disambiguate STEP vs BASHSTEP vs GROUP by lookahead.
     # STEP  := '{' STRING '}'
+    # BASH  := '{' 'bash' STRING '}'
     # GROUP := '{' EXPR '}'    (where EXPR starts with LBRACE or CC)
-    def parse_step_or_group(self) -> Union[Step, Group]:
+    def parse_step_or_group(self) -> Union[Step, BashStep, Group]:
         self.consume('LBRACE')
         t = self.peek()
+        if t is not None and t.kind == 'BASH':
+            self.consume('BASH')
+            cmd_tok = self.consume('STRING')
+            self.consume('RBRACE')
+            return BashStep(cmd_tok.value)
         if t is not None and t.kind == 'STRING':
             text_tok = self.consume('STRING')
             self.consume('RBRACE')
@@ -284,18 +324,86 @@ class StepRecord:
     output: str
     ms_elapsed: int
     from_cache: bool
+    cell_cid: str = ""      # canonical output cell in the global cells table
+    recipe_cid: str = ""    # the transposition-table key that produced this step
 
 
 # Records buffered until the chain ends, then flushed to DB in order.
 _records: List[StepRecord] = []
 _records_lock = Lock()
 
+# Bash cells dry-run (echo the command, don't execute) unless --trust-bash.
+TRUST_BASH = False
+
+
+def _cell_meta() -> dict:
+    """Tag cells with scope inherited from cc's exported env vars."""
+    return {
+        "intent": os.environ.get("CC_CHAIN_INTENT", ""),
+        "source": "chain",
+        "project": os.environ.get("CC_SCOPE_LOCAL_PROJECT")
+                   or os.environ.get("CC_SCOPE_GLOBAL_PROJECT", ""),
+        "scope_cwd": os.environ.get("CC_SCOPE_CWD", ""),
+        "agent_uuid": os.environ.get("CC_AGENT_UUID", ""),
+    }
+
+
+def _record(op: str, isolated: bool, context: str, prompt: str, output: str,
+            ms: int, from_cache: bool, cell_cid: str = "",
+            recipe_cid: str = "") -> None:
+    """Append a StepRecord (thread-safe)."""
+    with _step_lock:
+        global _step_counter
+        idx = _step_counter
+        _step_counter += 1
+    rec = StepRecord(
+        step_idx=idx, op=op, isolated=isolated,
+        context_in=context, prompt=prompt, output=output,
+        ms_elapsed=ms, from_cache=from_cache,
+        cell_cid=cell_cid, recipe_cid=recipe_cid,
+    )
+    with _records_lock:
+        _records.append(rec)
+
+
+def _store_io_cells(kind: str, output: str, prompt_text: str,
+                    recipe_cid: str, op: str, model: str,
+                    ms: int, meta: dict) -> str:
+    """On a cache MISS: store the output cell + prompt cell + recipe + edge.
+    Returns the output cell cid."""
+    out_cid = cell_store.add_cell(
+        "response" if kind == "model" else "bashout", output,
+        intent=meta["intent"], source=meta["source"], project=meta["project"],
+        scope_cwd=meta["scope_cwd"], agent_uuid=meta["agent_uuid"])
+    p_cid = cell_store.add_cell(
+        "prompt", prompt_text,
+        intent=meta["intent"], source=meta["source"], project=meta["project"],
+        scope_cwd=meta["scope_cwd"], agent_uuid=meta["agent_uuid"])
+    cell_store.edge_add(p_cid, out_cid, "produced")
+    cell_store.recipe_store(recipe_cid, out_cid, kind, op,
+                            intent=meta["intent"], model=model, dt_ms=ms)
+    return out_cid
+
 
 def call_model(prompt: str, context: str,
                op: str = "start", isolated: bool = False) -> str:
-    """Shell out to cc tiny. Record timing + cache detection."""
+    """Shell out to cc tiny — but only on a recipe cache MISS. On a hit the
+    model is never called (zero cloud calls). Output is stored as a cell."""
     full = (context.rstrip() + "\n\n" + prompt) if context else prompt
-    # Snapshot cache to detect hit/miss
+    model = os.environ.get("CC_TINY_MODEL", "")
+    meta = _cell_meta()
+
+    # ── transposition-table lookup: identical recipe → identical output ──
+    if cell_store is not None:
+        rc = cell_store.recipe_hash(full, op, "model", model)
+        out_cid = cell_store.recipe_lookup(rc)
+        if out_cid is not None:
+            cell_store.recipe_hit(rc)
+            output = cell_store.cell_content(out_cid) or ""
+            _record(op, isolated, context, prompt, output, 0, True, out_cid, rc)
+            return output
+
+    # ── miss: actually call the model ──
     before = _cache_snapshot()
     t0 = time.monotonic()
     try:
@@ -311,21 +419,59 @@ def call_model(prompt: str, context: str,
     except FileNotFoundError:
         output = f"[CHAIN: '{CC_BIN}' not on PATH]"
     ms = int((time.monotonic() - t0) * 1000)
-    after = _cache_snapshot()
-    # cache miss = at least one new cache file appeared during this call
-    from_cache = len(after - before) == 0
 
-    with _step_lock:
-        global _step_counter
-        idx = _step_counter
-        _step_counter += 1
-    rec = StepRecord(
-        step_idx=idx, op=op, isolated=isolated,
-        context_in=context, prompt=prompt, output=output,
-        ms_elapsed=ms, from_cache=from_cache,
-    )
-    with _records_lock:
-        _records.append(rec)
+    out_cid, rc = "", ""
+    if cell_store is not None:
+        rc = cell_store.recipe_hash(full, op, "model", model)
+        out_cid = _store_io_cells("model", output, full, rc, op, model, ms, meta)
+        from_cache = False
+    else:
+        # No cell_store — fall back to the file-cache snapshot heuristic.
+        after = _cache_snapshot()
+        from_cache = len(after - before) == 0
+
+    _record(op, isolated, context, prompt, output, ms, from_cache, out_cid, rc)
+    return output
+
+
+def call_bash(cmd: str, context: str,
+              op: str = "start", isolated: bool = False) -> str:
+    """Run a bash command; stdout becomes the cell output. Context (the piped
+    upstream output) is fed to the command's STDIN so `{"A"} | {bash "grep x"}`
+    works naturally. Recipe-cached like call_model. Dry-runs unless TRUST_BASH."""
+    meta = _cell_meta()
+    # context is part of the recipe — same cmd on different input differs.
+    rc = cell_store.recipe_hash(context, op, "bash", cmd) if cell_store else ""
+
+    if cell_store is not None:
+        out_cid = cell_store.recipe_lookup(rc)
+        if out_cid is not None:
+            cell_store.recipe_hit(rc)
+            output = cell_store.cell_content(out_cid) or ""
+            _record(op, isolated, context, cmd, output, 0, True, out_cid, rc)
+            return output
+
+    if not TRUST_BASH:
+        output = f"[dry-run] {cmd}"
+        _record(op, isolated, context, cmd, output, 0, False, "", rc)
+        return output
+
+    t0 = time.monotonic()
+    try:
+        r = subprocess.run(
+            ["bash", "-c", cmd],
+            input=context, capture_output=True, text=True,
+            timeout=CHAIN_TIMEOUT,
+        )
+        output = r.stdout.rstrip()
+    except subprocess.TimeoutExpired:
+        output = "[CHAIN: timeout]"
+    ms = int((time.monotonic() - t0) * 1000)
+
+    out_cid = ""
+    if cell_store is not None:
+        out_cid = _store_io_cells("bash", output, cmd, rc, op, "bash", ms, meta)
+    _record(op, isolated, context, cmd, output, ms, False, out_cid, rc)
     return output
 
 
@@ -395,6 +541,8 @@ def persist_step(run_id: int, rec: StepRecord) -> None:
         ctx, rec.prompt, out,
         str(rec.ms_elapsed),
         "1" if rec.from_cache else "0",
+        rec.cell_cid or "",
+        rec.recipe_cid or "",
     ])
 
 
@@ -405,6 +553,8 @@ def persist_end(run_id: int, status: str) -> None:
 def eval_node(node, context: str, op: str = "start", isolated: bool = False) -> str:
     if isinstance(node, Step):
         return call_model(node.text, context, op=op, isolated=isolated)
+    if isinstance(node, BashStep):
+        return call_bash(node.cmd, context, op=op, isolated=isolated)
     if isinstance(node, Group):
         # If isolated (cc-group), strip incoming context
         inner_ctx = "" if node.isolated else context
@@ -475,6 +625,8 @@ def eval_expr(expr: Expr, incoming_context: str,
 def ast_to_dict(node):
     if isinstance(node, Step):
         return {"type": "Step", "text": node.text}
+    if isinstance(node, BashStep):
+        return {"type": "BashStep", "cmd": node.cmd}
     if isinstance(node, Group):
         return {"type": "Group", "isolated": node.isolated,
                 "expr": ast_to_dict(node.expr)}
@@ -512,6 +664,10 @@ def render_plan(expr: Expr, depth: int = 0, label: str = "expr") -> List[str]:
             if isinstance(t, Step):
                 snip = t.text[:50] + ('…' if len(t.text) > 50 else '')
                 out.append(f"{pad}    term {j}: STEP {snip!r}")
+            elif isinstance(t, BashStep):
+                snip = t.cmd[:50] + ('…' if len(t.cmd) > 50 else '')
+                trust = "" if TRUST_BASH else " [dry-run]"
+                out.append(f"{pad}    term {j}: BASH {snip!r}{trust}")
             elif isinstance(t, Group):
                 tag = "cc-group (isolated)" if t.isolated else "group"
                 out.append(f"{pad}    term {j}: {tag}")
@@ -526,7 +682,12 @@ def main():
     ap.add_argument("spec", nargs='+', help="chain spec")
     ap.add_argument("--parse", action="store_true", help="print AST as JSON and exit")
     ap.add_argument("--dry", action="store_true", help="print execution plan and exit")
+    ap.add_argument("--trust-bash", action="store_true",
+                    help="actually execute bash cells (default: dry-run)")
     args = ap.parse_args()
+
+    global TRUST_BASH
+    TRUST_BASH = args.trust_bash
 
     spec = " ".join(args.spec)
 

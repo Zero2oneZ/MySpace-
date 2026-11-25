@@ -1,0 +1,159 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "smooth.twist.on_9c51e081",
+  "category": "assets",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: smooth twist on a goo blob",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_depth_estimation",
+      "agent": "Depth Estimation",
+      "kernel_ref": "hf:Depth Estimation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "DEPTH_MAP",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    },
+    {
+      "id": "p01_image_to_3d",
+      "agent": "Image-to-3D",
+      "kernel_ref": "hf:Image-to-3D",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    },
+    {
+      "id": "p02_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ]
+    },
+    {
+      "id": "p03_blob_to_unreal",
+      "agent": "blob_to_unreal",
+      "kernel_ref": "card:blob_to_unreal",
+      "engine": "card",
+      "in": [
+        "IMAGE",
+        "STR",
+        "FLOAT",
+        "INT",
+        "STR",
+        "STR",
+        "INT"
+      ],
+      "out": "IMAGE",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:photo_to_avatar_rigged",
+        "card:workflow_composer",
+        "card:workspace_stack",
+        "card:realestate_walkthrough_purchase"
+      ]
+    },
+    {
+      "id": "p04_twist",
+      "agent": "Twist",
+      "kernel_ref": "modifier:Twist",
+      "engine": "deterministic",
+      "in": [
+        "GEO"
+      ],
+      "out": "GEO",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "modifier:Noise",
+        "modifier:Spike",
+        "modifier:Bend",
+        "modifier:MeshSmooth",
+        "modifier:HueShift"
+      ]
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_depth_estimation",
+      "source": "pass:p00_depth_estimation",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_image_to_3d",
+      "source": "pass:p01_image_to_3d",
+      "blend": "additive"
+    },
+    {
+      "name": "p02_blender",
+      "source": "pass:p02_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "p03_blob_to_unreal",
+      "source": "pass:p03_blob_to_unreal",
+      "blend": "additive"
+    },
+    {
+      "name": "p04_twist",
+      "source": "pass:p04_twist",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:blob_to_unreal",
+    "connector:blender",
+    "hf:Depth Estimation",
+    "hf:Image-to-3D",
+    "modifier:Twist"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "3d"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:31:36Z"
+  }
+}

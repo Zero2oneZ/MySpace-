@@ -1,0 +1,88 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "x_v2_oauth1_writes",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · X_API_OAUTH1_USER_CONTEXT_WRITE_PATH",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/x_v2_oauth1_writes.py",
+
+  "summary": "X (Twitter) v2 WRITE-PATH connector — STDLIB-ONLY OAuth 1.0a HMAC-SHA1 signing per RFC 5849 §3.4. Companion to bearer-read `twitter.py`: that module handles GET (bearer); this module handles POST/DELETE (user-context OAuth1). Zero deps — no tweepy. Auto-config via XV2OAuth1WriteConnector.from_env() reads NEW family first (X_API_KEY, X_API_SECRET_KEY, X_ACCESS_TOKEN, X_SECRET_TOKEN) with OLD family fallback (X_CONSUMER_KEY, X_CONSUMER_SECRET_KEY, X_ACCESS_TOKEN, X_ACCESS_SECRET_TOKEN), matching twitter.py::_load_env_for_profile family-preference logic.",
+
+  "engine_pattern": "ThirdPartyConnector subclass. ~50 LOC inline RFC-5849 signer: pct-encode → canonical-param string → HMAC-SHA1 with key='pct(consumer_secret)&pct(access_secret)' → base64 → Authorization: OAuth header. v2 endpoints take application/json bodies which per RFC §3.4.1.3.1 are NOT included in the signature base (only x-www-form-urlencoded bodies are). Status semantics mirror twitter.py: 200=connected, 401=BadCreds, 402=CreditsDepleted (auth works, plan exhausted), 403=ScopeMissing.",
+
+  "expected_tools": [
+    "verify_oauth1_creds()",
+    "post_tweet(text, reply_to=None, media_ids=None)",
+    "delete_tweet(tweet_id)",
+    "like_tweet(tweet_id, user_id)",
+    "retweet(tweet_id, user_id)",
+    "send_dm(recipient_id, text)"
+  ],
+
+  "env_vars": {
+    "X_API_KEY":              "OAuth 1.0a consumer key (NEW family, preferred)",
+    "X_API_SECRET_KEY":       "OAuth 1.0a consumer secret (NEW family, preferred)",
+    "X_ACCESS_TOKEN":         "OAuth 1.0a user access token",
+    "X_SECRET_TOKEN":         "OAuth 1.0a user access secret (NEW family, preferred)",
+    "X_CONSUMER_KEY":         "OAuth 1.0a consumer key (OLD family, fallback)",
+    "X_CONSUMER_SECRET_KEY":  "OAuth 1.0a consumer secret (OLD family, fallback)",
+    "X_ACCESS_SECRET_TOKEN":  "OAuth 1.0a user access secret (OLD family, fallback)"
+  },
+
+  "exports": [
+    "XV2OAuth1WriteConnector",
+    "_load_env_for_profile",
+    "_sign",
+    "_auth_header",
+    "_signature_base_string",
+    "_pct"
+  ],
+
+  "substrate": "studio/third_party/x_v2_writes/ (per-config persistence) + ~/.cc/third_party_logs/x_v2_writes_sends.jsonl + crystal chain (tier='social_event', model='x_v2_oauth1', scope='x_<tool>')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/third_party/generative_mcp.py (write path, when wired — currently routes through twitter.py + tweepy)",
+      "core/cc.sh::cmd_x_writes_verify (D.9 — future)",
+      "harvest_loop.sh (Phase 2 #58 — when writes are needed)"
+    ],
+    "outbound_calls": [
+      "GET    https://api.twitter.com/2/users/me  (verify_oauth1_creds probe)",
+      "POST   https://api.twitter.com/2/tweets",
+      "DELETE https://api.twitter.com/2/tweets/<id>",
+      "POST   https://api.twitter.com/2/users/<user_id>/likes",
+      "POST   https://api.twitter.com/2/users/<user_id>/retweets",
+      "POST   https://api.twitter.com/2/dm_conversations/with/<id>/messages"
+    ],
+    "substrate_reads": "X_* env vars via studio/auth/keys.load_env()",
+    "substrate_writes": "send_log entries + crystal chain when verify/post/dm succeeds"
+  },
+
+  "guarantees": [
+    "Zero deps — stdlib only (urllib, hmac, hashlib, base64, secrets, time)",
+    "RFC 5849 §3.4 compliant — pct-encoding uses unreserved set ALPHA/DIGIT/-/./_/~",
+    "Status semantics distinct — 200/401/402/403 separable so wiring bugs are isolable from billing/scope",
+    "Crystal-anchor-ready — every write emits tier='social_event', model='x_v2_oauth1', scope=f'x_<tool>'",
+    "Companion-clean — does NOT shadow twitter.py reads; SERVICE='x_v2_writes' is distinct",
+    "Family-preference — NEW env vars win, OLD env vars fall back; Tom can migrate incrementally"
+  ],
+
+  "blocking_dependency": "Tom's free-tier account 2041731826381668352 may return 402 CreditsDepleted even with valid OAuth1 because X gates writes on tier too. Connector wiring is independently verifiable (verify_oauth1_creds distinguishes 401 from 402). Resolution: refill credits at developer.x.com OR upgrade plan.",
+
+  "companion_to": {
+    "module": "core/lib/third_party/twitter.py",
+    "agent_def": "vm_mspc_001.agents.agent_defs.twitter_mcp.active.json",
+    "split_rationale": "Bearer auth (App-only, twitter.py) covers reads. OAuth 1.0a (user-context, this module) covers writes. X v2 requires user-context for tweet/DM/like/retweet — bearer alone is insufficient. The split lets read path stay zero-dep (just bearer + urllib) and lets the write path stay zero-dep too (stdlib HMAC-SHA1) — eliminating the tweepy dependency twitter.py previously needed for writes."
+  },
+
+  "usage_example": "from core.lib.third_party.x_v2_oauth1_writes import XV2OAuth1WriteConnector\\nc = XV2OAuth1WriteConnector.from_env()\\nstatus = c.connect()  # 'x_v2_writes_connected' | '..._no_credits' | '..._bad_creds' | '..._scope_missing'\\nif c._verify_cache and c._verify_cache.get('status') == 200:\\n    r = c.send('post_tweet', 'hello world')\\n    print(r.metadata.get('tweet_id'))\\nelse:\\n    print('see c._verify_cache for diagnosis')",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "D.3 of lively-enchanting-parrot plan (write-path split — replaces tweepy dep in twitter.py)"
+}

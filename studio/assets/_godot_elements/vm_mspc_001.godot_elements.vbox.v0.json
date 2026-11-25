@@ -1,0 +1,27 @@
+{
+  "_schema": "godot_element_v0",
+  "vm_id": "vm_mspc_001",
+  "domain": "godot_elements",
+  "name": "vbox",
+  "state": "active",
+  "version": "v0",
+  "godot_class": "VBoxContainer",
+  "godot_inherits": "BoxContainer < Container < Control < CanvasItem < Node",
+  "summary": "Vertical layout container that stacks children top-to-bottom with uniform separation. Use for sidebars, stacked form fields, vertical menus, status panels in chain_render_wall HUD overlays. Children auto-size via Container size flags (fill, expand). Pair with HBoxContainer for grid-like layouts. The alignment property (BEGIN/CENTER/END) controls how children pack when total size is less than the container.",
+  "exports": [
+    { "name": "separation", "type": "int", "default": "4", "hint": "theme_override_constants/separation" },
+    { "name": "alignment", "type": "int", "default": "0", "hint": "BoxContainer.ALIGNMENT_BEGIN" }
+  ],
+  "signals": [
+    { "name": "sort_children", "params": [] }
+  ],
+  "layer_stack_hooks": [
+    { "layer": "base", "godot_property": "modulate" },
+    { "layer": "tint", "godot_property": "self_modulate" }
+  ],
+  "default_child_of": "Control",
+  "can_have_children": true,
+  "dim_pack_tint_property": "modulate",
+  "example_tscn_snippet": "[node name=\"MyVBox\" type=\"VBoxContainer\" parent=\".\"]\noffset_right = 240.0\noffset_bottom = 320.0\nalignment = 0\ntheme_override_constants/separation = 8\n",
+  "phase": "Atomic UI element"
+}

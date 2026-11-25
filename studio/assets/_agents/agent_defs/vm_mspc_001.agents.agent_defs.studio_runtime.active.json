@@ -1,0 +1,63 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "studio_runtime",
+  "state": "active",
+  "version": "v0",
+  "role": "GATEWAY · UNIFIED_PIPELINE_ORCHESTRATOR",
+  "tier": "L0",
+  "module_path": "core/lib/studio_runtime.py",
+  "summary": "The runtime spine. Reads a workflow_card, topo-orders its passes via declared in/out dependencies, dispatches each pass to the right substrate (deterministic / mcp / diffusers / comfyui / blender / remotion), anchors every step with a pass_crystal, emits all declared surfaces via workflow_generator, and logs the full TraceRecord to the crystal chain with tier='runtime'. Strings every substrate together into one callable spine.",
+  "engine_pattern": "card_dict → topo_order_passes (Kahn) → for each pass → engine-specific dispatcher → PassTrace → workflow_generator.generate_all → surface artifacts → inference_logger.log",
+  "pass_engine_dispatchers": {
+    "deterministic": "pure-Python substrate calls (pinterest_harvest, svg_embed, light_source, spatial_anchor, frame_clock, transition_field, dataset_select)",
+    "mcp":           "deferred to mcp_bridge (op_mcp_bridge placeholder) — stamps trace, waits for #31",
+    "diffusers":     "deferred to task_queue GPU pool — when model_path exists on disk",
+    "comfyui":       "deferred to ComfyUI HTTP API",
+    "blender":       "deferred to blender --background --python OR blender_mcp connector",
+    "remotion":      "deferred to npx remotion render"
+  },
+  "smoke_test_results_2026_05_28": {
+    "card":                "realestate_walkthrough_full.v0",
+    "passes_orchestrated": 9,
+    "active_passes_ok":    6,
+    "in_flight_skipped":   3,
+    "failed":              0,
+    "surfaces_emitted":    7,
+    "total_latency_ms":    2518,
+    "active_substrates_run": ["svg_vector_embed", "frame_clock", "pinterest_connector",
+                                "dataset_select_fbx", "spatial_anchor", "light_source"]
+  },
+  "exports": ["StudioRuntime", "TraceRecord", "PassTrace"],
+  "substrate": "trace records logged to ~/.cc/inference_master_chain.jsonl with tier='runtime'",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_studio_run (cc studio-run <card_name> [--dry-run])",
+      "CLI: python3 studio_runtime.py run <card> [--dry-run] [--json]"
+    ],
+    "outbound_calls": [
+      "ops_dag (resolves pass order via declared in/out)",
+      "workflow_generator (emits the 7 declared surfaces from the card)",
+      "task_queue (when GPU/Ollama dispatch is wired)",
+      "third_party.pinterest / third_party.blender_mcp (live connectors)",
+      "svg_vector_embed / light_source / frame_clock / spatial_anchor / transition_field (deterministic substrates)",
+      "inference_logger.log (every TraceRecord becomes a crystal-chain entry)"
+    ],
+    "substrate_reads": "studio/assets/_workflows/*.json (card definitions)",
+    "substrate_writes": "all 8 surface paths declared in the card + crystal chain"
+  },
+  "the_spine_principle": "Every workflow_card declares passes + surfaces. studio_runtime maps each pass to its dispatcher, each surface to workflow_generator. Cards become callable pipelines; the runtime IS the engine. When the friend runs `cc studio-run realestate_walkthrough_full`, every substrate participates and the trace_crystal records the whole event.",
+  "guarantees": [
+    "Deterministic — same card + same chain state → same trace, byte-exact (modulo external API timestamps)",
+    "Cycle-tolerant — Kahn's algorithm appends cycle remainders deterministically",
+    "Substrate-agnostic — adding a new engine kind = new dispatcher method, no schema change",
+    "Crystal-anchored — every PassTrace + TraceRecord crystal-hashes for replay/audit",
+    "Graceful — IN-FLIGHT and STUB passes skip cleanly without breaking the trace"
+  ],
+  "usage_example": "cd /data/Projects/MySpace++ && python3 core/lib/studio_runtime.py run realestate_walkthrough_full\\n# or via cc:\\ncc studio-run realestate_walkthrough_full --dry-run\\ncc studio-run realestate_walkthrough_full",
+  "chain_runs": ["moe_chain_router_v0"]
+}

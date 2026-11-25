@@ -1,0 +1,39 @@
+{
+  "crystal": "1be3c908ef962df5dd03c17280b210334eedc16867bda18918d959a58b7ce43719d0b3b38e1a1bc2ea370dcc182f7e838729f2ef7725e2222c6858f6a3d6dcb4",
+  "description": "Pattern 'pass\u2192pass\u2192pass' appears 22 times across ORCHESTRATION",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_pass_to_pass_to_pass_011",
+  "kind": "motif",
+  "name": "motif: pass\u2192pass\u2192pass",
+  "nodes": [
+    "op_pass_photo_to_avatar_rigged_bake_pbr",
+    "op_pass_photo_to_avatar_rigged_depth",
+    "op_pass_photo_to_avatar_rigged_faceswap_lock",
+    "op_pass_photo_to_avatar_rigged_lift_3d",
+    "op_pass_photo_to_avatar_rigged_normals",
+    "op_pass_pinterest_vector_motherload_embed_svg_paths",
+    "op_pass_pinterest_vector_motherload_fetch_svg_content",
+    "op_pass_pinterest_vector_motherload_filter_vector_sources",
+    "op_pass_pinterest_vector_motherload_harvest_pins",
+    "op_pass_pinterest_vector_motherload_link_to_crystal_chain",
+    "op_pass_pump_surf_pipeline_extract_features",
+    "op_pass_pump_surf_pipeline_gmm_classify",
+    "op_pass_pump_surf_pipeline_ingest_stream",
+    "op_pass_pump_surf_pipeline_surf_decision_loop",
+    "op_pass_pump_surf_pipeline_xgb_gate",
+    "op_pass_realestate_walkthrough_full_blender_assemble",
+    "op_pass_realestate_walkthrough_full_comfy_render_avatar",
+    "op_pass_realestate_walkthrough_full_embed_local_svgs",
+    "op_pass_realestate_walkthrough_full_extract_lights_from_shapes",
+    "op_pass_realestate_walkthrough_full_frame_clock_anchor",
+    "op_pass_realestate_walkthrough_full_hf_describe_room",
+    "op_pass_realestate_walkthrough_full_remotion_compose",
+    "op_pass_realestate_walkthrough_full_select_mixamo_idle",
+    "op_pass_realestate_walkthrough_full_spatial_anchor_room"
+  ],
+  "size": 22,
+  "sub_dags_touched": [
+    "ORCHESTRATION"
+  ]
+}

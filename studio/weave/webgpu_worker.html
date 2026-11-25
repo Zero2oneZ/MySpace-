@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MySpace++ WEAVE — Compute Worker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      background: #0f172a; color: #e2e8f0;
+      padding: 24px; max-width: 900px; margin: 0 auto;
+    }
+    h1 { color: #fbbf24; margin: 0 0 8px 0; font-size: 22px; }
+    .sub { color: #94a3b8; margin-bottom: 24px; font-size: 13px; }
+    .card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; padding: 16px 20px; margin-bottom: 14px;
+    }
+    .card h2 { color: #7dd3fc; font-size: 15px; margin: 0 0 10px 0; }
+    .ok    { color: #22c55e; }
+    .warn  { color: #facc15; }
+    .err   { color: #f87171; }
+    .muted { color: #64748b; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .pill { background: #334155; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; color: #cbd5e1; }
+    button { background: #fbbf24; color: #0f172a; border: 0;
+             padding: 10px 18px; border-radius: 6px; cursor: pointer;
+             font-weight: bold; }
+    button:hover { background: #f59e0b; }
+    button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 11px;
+          background: #0f172a; padding: 8px; border-radius: 4px;
+          color: #cbd5e1; max-height: 160px; overflow-y: auto; }
+    #log { font-size: 12px; }
+    .log-line { margin: 2px 0; }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<h1>WEAVE — Compute Worker</h1>
+<div class="sub">
+  Open this tab → become a compute node for the MySpace++ network.
+  Your browser's WebGPU adapter is probed and registered with the relay.
+  Jobs route here automatically per the master PLANS.
+</div>
+
+<div class="card">
+  <h2>1 · WebGPU probe</h2>
+  <div id="gpu-status" class="muted">probing...</div>
+  <pre id="gpu-info"></pre>
+</div>
+
+<div class="card">
+  <h2>2 · Connection</h2>
+  <div id="ws-status" class="muted">not connected</div>
+  <div class="row" style="margin-top: 8px;">
+    <label class="small">Display name: <input id="name" value="anon-tab" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:4px 8px;border-radius:4px;"></label>
+    <label class="small">Owner: <input id="owner" placeholder="username" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;padding:4px 8px;border-radius:4px;"></label>
+    <button id="connect">Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3 · Activity</h2>
+  <div class="row">
+    <span class="pill" id="pill-status">offline</span>
+    <span class="pill" id="pill-load">load 0%</span>
+    <span class="pill" id="pill-jobs">0 jobs</span>
+  </div>
+  <div id="log" style="margin-top:10px;"></div>
+</div>
+
+<div class="card">
+  <h2>4 · About</h2>
+  <div class="small muted">
+    Source of truth: the master <code>TWINS-MASTER.svg</code>. Routing
+    decisions are made by <code>studio/weave/routing.py</code> against
+    the active <code>PLANS</code> on the server. This page is a thin
+    runtime — it does not store credentials or run untrusted code.
+    A signed job protocol + salted-token auth is on the roadmap (see
+    <code>studio/docs/WEAVE.md</code>).
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ws = null;
+let deviceId = null;
+let jobsRun = 0;
+let probe = { ok: false };
+
+function log(msg, cls = 'muted') {
+  const div = document.createElement('div');
+  div.className = 'log-line ' + cls;
+  div.textContent = new Date().toISOString().slice(11,19) + '  ' + msg;
+  $('log').prepend(div);
+}
+
+async function probeWebGPU() {
+  if (!navigator.gpu) {
+    $('gpu-status').className = 'err';
+    $('gpu-status').textContent = '✗ navigator.gpu unavailable — Chromium 113+ required';
+    return null;
+  }
+  try {
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+    if (!adapter) {
+      $('gpu-status').className = 'warn';
+      $('gpu-status').textContent = '⚠ no GPU adapter (CPU fallback only)';
+      return { is_fallback: true, vendor: 'CPU', architecture: navigator.platform };
+    }
+    const info = adapter.info || {};
+    const limits = {};
+    for (const k of Object.keys(adapter.limits || {})) limits[k] = adapter.limits[k];
+    const features = [...(adapter.features || [])];
+    const probe = {
+      vendor:       info.vendor || 'unknown',
+      architecture: info.architecture || 'unknown',
+      device_label: info.device || '',
+      is_fallback:  adapter.isFallbackAdapter,
+      limits, features,
+    };
+    $('gpu-status').className = 'ok';
+    $('gpu-status').textContent =
+      '✓ ' + probe.vendor + ' ' + probe.architecture + ' (' + probe.device_label + ')'
+       + (probe.is_fallback ? ' [fallback]' : '');
+    $('gpu-info').textContent = JSON.stringify(probe, null, 2);
+    return probe;
+  } catch (e) {
+    $('gpu-status').className = 'err';
+    $('gpu-status').textContent = '✗ ' + e.message;
+    return null;
+  }
+}
+
+async function connect() {
+  if (ws) return;
+  probe = await probeWebGPU();
+  const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://')
+                + location.host + '/worker/ws';
+  log('connecting to ' + wsUrl);
+  ws = new WebSocket(wsUrl);
+  ws.onopen = () => {
+    $('ws-status').className = 'ok'; $('ws-status').textContent = '✓ connected';
+    $('connect').disabled = true; $('disconnect').disabled = false;
+    ws.send(JSON.stringify({
+      type: 'register',
+      body: {
+        name: $('name').value || 'anon-tab',
+        owner: $('owner').value || null,
+        capabilities: { browser: navigator.userAgent, on_battery: false },
+        user_agent: navigator.userAgent,
+        adapters: probe && !probe.is_fallback ? [probe] : (probe ? [probe] : []),
+      },
+    }));
+  };
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'hello') {
+      deviceId = msg.device_id;
+      log('registered as device ' + deviceId, 'ok');
+      $('pill-status').textContent = 'online';
+      $('pill-status').className = 'pill ok';
+      startHeartbeat();
+    } else if (msg.type === 'job') {
+      runJob(msg.job_id, msg.body);
+    } else if (msg.type === 'error') {
+      log('server error: ' + msg.error, 'err');
+    }
+  };
+  ws.onclose = () => {
+    $('ws-status').className = 'muted'; $('ws-status').textContent = 'disconnected';
+    $('connect').disabled = false; $('disconnect').disabled = true;
+    $('pill-status').textContent = 'offline'; $('pill-status').className = 'pill muted';
+    ws = null;
+    stopHeartbeat();
+  };
+}
+
+function disconnect() {
+  if (ws) ws.close();
+}
+
+let heartbeatTimer = null;
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({
+        type: 'heartbeat',
+        body: { status: 'online', load_pct: 0,
+                free_mem_mb: performance.memory ? Math.round(performance.memory.jsHeapSizeLimit / 1e6) : null }
+      }));
+    }
+  }, 15_000);
+}
+function stopHeartbeat() {
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
+
+async function runJob(jobId, body) {
+  log('job ' + jobId + ' starting: ' + (body.pass_id || '?'), 'warn');
+  $('pill-status').textContent = 'busy'; $('pill-status').className = 'pill warn';
+  // Scaffolding: real inference would call transformers.js / WebGPU shader here.
+  // For now, sleep proportional to size + return a stub.
+  await new Promise(r => setTimeout(r, 200 + Math.random() * 400));
+  ws.send(JSON.stringify({
+    type: 'result',
+    body: {
+      pass_id:   body.pass_id,
+      file_kind: body.file_kind,
+      job_id:    jobId,
+      ok:        true,
+      result:    { stub: true, ran_at: new Date().toISOString() },
+    },
+  }));
+  jobsRun += 1;
+  $('pill-jobs').textContent = jobsRun + ' jobs';
+  $('pill-status').textContent = 'idle'; $('pill-status').className = 'pill ok';
+  log('job ' + jobId + ' done', 'ok');
+}
+
+$('connect').addEventListener('click', connect);
+$('disconnect').addEventListener('click', disconnect);
+probeWebGPU();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-05-28T22:30:05Z",
+  "urls_attempted": 8,
+  "urls_successful": 2,
+  "total_cursor_nodes": 35,
+  "wall_elapsed_s": 25.54,
+  "results": [
+    {
+      "url": "https://developers.facebook.com/docs/games/",
+      "status": 200,
+      "ok": true,
+      "error": "",
+      "n_nodes": 13,
+      "out": "studio/assets/_doc_corpus/facebook_games/46bf3b411f373a3f.jsonl",
+      "sha8": "d10bb955",
+      "quality": "facebook_games_v1"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games/build/instant-games/",
+      "status": 200,
+      "ok": true,
+      "error": "",
+      "n_nodes": 22,
+      "out": "studio/assets/_doc_corpus/facebook_games/a35bc4066d8294ba.jsonl",
+      "sha8": "bd61884d",
+      "quality": "facebook_games_v1"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games/build/login/",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games/build/cloud/",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games-services/",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games/services/social-graph",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games/services/app-events",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    },
+    {
+      "url": "https://developers.facebook.com/docs/games-services/sharing/",
+      "status": 404,
+      "ok": false,
+      "error": "HTTPError 404: Not Found",
+      "n_nodes": 0,
+      "out": "",
+      "sha8": ""
+    }
+  ],
+  "ingest_crystal": "2c58111c1cfb5e051e75356e6aae307415857d1de4f5f6f98fb9363f54d29a91b22aa16bfba7216eb18c938d12abcfdc6654fbb49c99b23aab97af2c6956916e"
+}

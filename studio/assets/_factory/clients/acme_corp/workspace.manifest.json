@@ -1,0 +1,38 @@
+{
+  "_schema": "client_workspace_manifest_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "factory",
+  "category": "clients",
+  "name": "acme_corp",
+  "state": "active",
+  "version": "v0",
+  "workspace_id": "ws_acme_corp",
+  "tenant_id": "tnt_acme_corp",
+  "description": "Acme Corporation's deployed workspace — produced by the factory from template tmpl_realestate_walkthrough",
+  "level": "L1",
+  "produced_by": {
+    "template_id": "tmpl_realestate_walkthrough",
+    "build_id": "bld_99",
+    "deployment_id": "dpl_42"
+  },
+  "structure": {
+    "assets": {
+      "models": "_factory/clients/acme_corp/assets/models/",
+      "animations": "_factory/clients/acme_corp/assets/animations/",
+      "textures": "_factory/clients/acme_corp/assets/textures/",
+      "audio": "_factory/clients/acme_corp/assets/audio/"
+    },
+    "projects": {
+      "walkthrough_v1": "_factory/clients/acme_corp/projects/walkthrough_v1/"
+    },
+    "users": "_factory/clients/acme_corp/users/",
+    "permissions": "_factory/clients/acme_corp/permissions/",
+    "billing": "_factory/clients/acme_corp/billing/"
+  },
+  "inherits_from": ["_global/", "_godot/templates/blank_project/"],
+  "isolation": "tenant_scoped",
+  "created_at": "2026-05-27T23:00:00Z",
+  "crystal": "<sha256 of this file content>"
+}

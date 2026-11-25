@@ -99,3 +99,93 @@ Images/
 *.pem
 *.key
 secrets/
+
+# === Studio Assets (unified root) ===
+# Large binary assets — keep in _local_assets or download via script
+studio/assets/_global/models/**
+studio/assets/_global/animations/**
+studio/assets/_global/textures/**
+studio/assets/_global/audio/**
+studio/assets/_global/fonts/**
+
+# Inference weights and cache (GBs of generated content)
+studio/assets/_inference/weights/**
+studio/assets/_inference/cache/**
+
+# Godot engine binaries (large, downloaded)
+studio/assets/_godot/engine/**
+
+# Build artifacts
+studio/assets/projects/*/exports/**
+
+# But keep the scaffold directories and registry
+!studio/assets/**/.gitkeep
+!studio/assets/_meta/registry/*.json
+!studio/assets/_meta/build_scripts/*.sh
+!studio/assets/_meta/build_scripts/*.py
+!studio/assets/_meta/templates/*.json
+!studio/assets/_meta/templates/*.txt
+!studio/assets/_global/data/*.json
+
+# === Infrastructure runtime (generated state, not config) ===
+# Compute job artifacts, GPU telemetry, queue snapshots
+studio/assets/_compute/jobs/completed/**
+studio/assets/_compute/jobs/failed/**
+studio/assets/_compute/queues/*.snapshot.json
+studio/assets/_compute/gpu_profiles/*.telemetry.json
+
+# Network traffic logs, ephemeral peer state
+studio/assets/_network/traffic_logs/**
+studio/assets/_network/peers/*.ephemeral.json
+
+# Agent runtime state, MCP connection logs
+studio/assets/_agents/mcp_servers/*.log
+studio/assets/_agents/orchestrator/*.state.json
+
+# Web build outputs, stream recordings
+studio/assets/_web/static/build/**
+studio/assets/_web/streams/*.recording.mp4
+
+# Comms message queues, token rotation
+studio/assets/_comms/messages/*.queue.json
+studio/assets/_comms/auth/*.rotated.json
+
+# Tenant runtime state (ephemeral)
+studio/assets/_tenants/hierarchies/*.ephemeral.json
+
+# User sessions (ephemeral, large)
+studio/assets/_users/sessions/*.json
+
+# Billing invoices (PDFs, generated)
+studio/assets/_billing/invoices/*.pdf
+studio/assets/_billing/invoices/*.html
+
+# Factory build logs, client workspace large assets
+studio/assets/_factory/builds/**/*.log
+studio/assets/_factory/clients/**/assets/models/**
+studio/assets/_factory/clients/**/assets/animations/**
+studio/assets/_factory/clients/**/assets/textures/**
+studio/assets/_factory/clients/**/assets/audio/**
+studio/assets/_factory/clients/**/exports/**
+
+# But keep config files and active state
+!studio/assets/_compute/**/*.json
+!studio/assets/_network/**/*.json
+!studio/assets/_agents/**/*.json
+!studio/assets/_web/**/*.json
+!studio/assets/_comms/**/*.json
+!studio/assets/_tenants/**/*.json
+!studio/assets/_users/**/*.json
+!studio/assets/_billing/**/*.json
+!studio/assets/_factory/**/*.json
+
+# Secrets — quarantined 2026-06-23 (see FACEBOOK-2FA-RecoveryCodes.txt.MOVED_TO_QUARANTINE.md)
+FACEBOOK-2FA-RecoveryCodes.txt
+*-RecoveryCodes.txt
+*RecoveryCodes*
+*credentials*.txt
+*api*key*.txt
+*private*key*.pem
+*.kdbx
+*passwords*.txt
+*2FA*.txt

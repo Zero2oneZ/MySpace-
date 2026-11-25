@@ -1,0 +1,49 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "prompt_enhancer",
+  "state": "active",
+  "version": "v1",
+  "role": "ENHANCER · DETERMINISTIC_REWRITE",
+  "tier": "L0",
+  "module_path": "core/lib/prompt_enhancer.py",
+  "summary": "Deterministic spell-fix + structural prompt enhancement. No LLM calls. Levenshtein against a known-keyword index for spell fixes; rule-based injection of SCOPE / INTENT / CONSTRAINTS / OUTPUT markers; the OUTPUT marker also instructs controlled models to emit a <forward>...</forward> tail.",
+  "engine_pattern": "stateless. enhance(text, scope_hint) → {original, enhanced, replacements, added_markers, scope_hint}.",
+  "pipeline": [
+    "1. Normalize whitespace + line endings (\\r\\n → \\n; trailing whitespace stripped)",
+    "2. SpellFixer.fix — direct typo dictionary + Levenshtein vs DEFAULT_KEYWORDS (threshold 0.75)",
+    "3. StructuralEnhancer.enhance — inject SCOPE, INTENT, CONSTRAINTS, OUTPUT markers if missing",
+    "4. Compact consecutive blank lines (n>=3 → 2)"
+  ],
+  "output_marker_v1": "OUTPUT: structured response ending with DONE. Before DONE, emit a <forward>...</forward> block containing 3-5 bullets naming the next likely steps (file paths, actions, decisions) so the next inference node can consume them as context.",
+  "data_files": {
+    "keyword_index": "~/.cc/chat_keyword_index.json (overrides DEFAULT_KEYWORDS if present)",
+    "common_typos": "~/.cc/chat_common_typos.json (overrides DEFAULT_TYPOS if present)"
+  },
+  "exports": ["SpellFixer", "StructuralEnhancer", "PromptEnhancer", "DEFAULT_KEYWORDS", "DEFAULT_TYPOS"],
+  "substrate": "none (pure transformation)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::cmd_enhance (standalone mode)",
+      "core/lib/chat.py::cmd_full (step 1 of full pipeline)",
+      "core/lib/chat.py::cmd_godot (step 1 of Godot bridge)",
+      "CLI: python3 prompt_enhancer.py <prompt> [--scope ...] [--json] [--spell-only] [--struct-only]"
+    ],
+    "outbound_calls": ["difflib.SequenceMatcher for Levenshtein-ratio similarity"],
+    "substrate_reads": "~/.cc/chat_keyword_index.json + ~/.cc/chat_common_typos.json (optional overrides)",
+    "substrate_writes": "none"
+  },
+  "guarantees": [
+    "Deterministic — no randomness; same text + same dictionaries → same output",
+    "Lossless — original text preserved alongside enhanced in the return dict",
+    "Idempotent — re-enhancing an already-enhanced prompt is a no-op (markers detected, not duplicated)",
+    "Forward-chain-aware — OUTPUT marker now nudges controlled models to emit <forward> tail; forward_projector.extract_inline consumes that tail downstream"
+  ],
+  "v1_extension_2026_05_28": "OUTPUT marker extended to instruct emission of <forward>...</forward> bullets for the forward_projector inline path.",
+  "usage_example": "from prompt_enhancer import PromptEnhancer\\nresult = PromptEnhancer().enhance('infrance the modle on the gpu', scope_hint='/home/tom/Projects/MySpace++')\\nprint(result['replacements'])  # [('infrance','inference'), ('modle','model')]\\nprint(result['added_markers'])  # ['SCOPE','INTENT','CONSTRAINTS','OUTPUT']",
+  "chain_runs": ["moe_chain_router_v0"]
+}

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# blender-mcp — stdio MCP server wrapper (one JSON-RPC req on stdin → result on
+# last stdout line). Runtime resolution, in order:
+#   1. $MSPC_BLENDER_BIN   2. `blender` on PATH   3. bundled binary via nix-ld
+# (3) feeds the bundled Blender the 64-bit X/GL libs through NIX_LD_LIBRARY_PATH
+# (resolve_ld.py, cached) — works on NixOS without steam-run or a nix install.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT="$HERE/mcp_server.py"
+BUNDLED="$HERE/../blender-5.1.2-linux-x64/blender"
+if [ -n "${MSPC_BLENDER_BIN:-}" ]; then
+  exec "$MSPC_BLENDER_BIN" --background --python "$SCRIPT" 2>/dev/null
+elif command -v blender >/dev/null 2>&1; then
+  exec blender --background --python "$SCRIPT" 2>/dev/null
+else
+  LD="$(python3 "$HERE/resolve_ld.py")"
+  exec env NIX_LD_LIBRARY_PATH="$LD" "$BUNDLED" --background --python "$SCRIPT" 2>/dev/null
+fi

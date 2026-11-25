@@ -1,0 +1,145 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "stylized.2d.topdown_6bb5d96b",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: stylized 2d top-down rpg with potion crafting npc dialog and sprite sheets",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "tool": "scene.list_objects",
+      "params": {}
+    },
+    {
+      "id": "p01_godot",
+      "agent": "godot",
+      "kernel_ref": "connector:godot",
+      "engine": "godot",
+      "in": [
+        "3D"
+      ],
+      "out": "SCENE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "params": {}
+    },
+    {
+      "id": "p02_image_classification",
+      "agent": "Image Classification",
+      "kernel_ref": "hf:Image Classification",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "LABEL",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Object Detection",
+        "hf:Zero-Shot Image Classification"
+      ],
+      "params": {
+        "model": "google/vit-base-patch16-224",
+        "prompt": "stylized 2d top-down rpg with potion crafting npc dialog and sprite sheets",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p03_comfyui",
+      "agent": "comfyui",
+      "kernel_ref": "connector:comfyui",
+      "engine": "comfyui",
+      "in": [
+        "ANY"
+      ],
+      "out": "IMAGE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "comfy_workflow": "flux_dev_t2i",
+      "comfy_inputs": {
+        "prompt": "stylized 2d top-down rpg with potion crafting npc dialog and sprite sheets",
+        "seed": 1807079787,
+        "steps": 4,
+        "width": 1024,
+        "height": 1024
+      }
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "albedo",
+      "source": "pass:p00_blender",
+      "blend": "base"
+    },
+    {
+      "name": "normal",
+      "source": "pass:p01_godot",
+      "blend": "additive"
+    },
+    {
+      "name": "roughness",
+      "source": "pass:p02_image_classification",
+      "blend": "additive"
+    },
+    {
+      "name": "metallic",
+      "source": "pass:p03_comfyui",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "connector:blender",
+    "connector:comfyui",
+    "connector:godot",
+    "hf:Image Classification"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "game",
+      "character",
+      "image"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T02:41:40Z"
+  }
+}

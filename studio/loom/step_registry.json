@@ -1,0 +1,1813 @@
+{
+  "_schema": "step_registry_v1",
+  "generated_from": "core/lib/kernel_registry.registry()",
+  "total_kernels": 127,
+  "categories": {
+    "TRANSFORM": {
+      "plane": "modifier",
+      "count": 6,
+      "desc": "geometry / shape / state mutation",
+      "steps": [
+        {
+          "id": "Bend",
+          "glyph": "\u2312",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "amount": "float"
+          }
+        },
+        {
+          "id": "HueShift",
+          "glyph": "\u25d0",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "hue": "float"
+          }
+        },
+        {
+          "id": "MeshSmooth",
+          "glyph": "\u25e0",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "factor": "float"
+          }
+        },
+        {
+          "id": "Noise",
+          "glyph": "\u223f",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "amp": "float",
+            "freq": "float"
+          }
+        },
+        {
+          "id": "Spike",
+          "glyph": "\u2726",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "amount": "float"
+          }
+        },
+        {
+          "id": "Twist",
+          "glyph": "\u27f2",
+          "in_type": [
+            "GEO"
+          ],
+          "out_type": [
+            "GEO"
+          ],
+          "params": {
+            "angle": "float"
+          }
+        }
+      ]
+    },
+    "COMPOSE": {
+      "plane": "scene",
+      "count": 5,
+      "desc": "scene composition \u00b7 arrange, light, camera, render",
+      "steps": [
+        {
+          "id": "Arrange",
+          "glyph": "\u2317",
+          "in_type": [
+            "SCENE"
+          ],
+          "out_type": [
+            "SCENE"
+          ],
+          "params": {
+            "transform": "str"
+          }
+        },
+        {
+          "id": "Camera",
+          "glyph": "\u25ce",
+          "in_type": [
+            "SCENE"
+          ],
+          "out_type": [
+            "SCENE"
+          ],
+          "params": {
+            "lens": "float"
+          }
+        },
+        {
+          "id": "Light",
+          "glyph": "\u2600",
+          "in_type": [
+            "SCENE"
+          ],
+          "out_type": [
+            "SCENE"
+          ],
+          "params": {
+            "kind": "str"
+          }
+        },
+        {
+          "id": "Object",
+          "glyph": "\u25a0",
+          "in_type": [
+            "SCENE"
+          ],
+          "out_type": [
+            "SCENE"
+          ],
+          "params": {
+            "engine_ref": "str"
+          }
+        },
+        {
+          "id": "Render",
+          "glyph": "\u2b21",
+          "in_type": [
+            "SCENE"
+          ],
+          "out_type": [
+            "IMAGE",
+            "VIDEO"
+          ],
+          "params": {
+            "passes": "str"
+          }
+        }
+      ]
+    },
+    "PROTOCOL": {
+      "plane": "governor",
+      "count": 6,
+      "desc": "channel encoding / framing / verification (the .bb chain protocol)",
+      "steps": [
+        {
+          "id": "Channel",
+          "glyph": "\u2251",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "peer": "str",
+            "duplex": "bool"
+          }
+        },
+        {
+          "id": "Contain",
+          "glyph": "\u2316",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "gate": "str"
+          }
+        },
+        {
+          "id": "Encode",
+          "glyph": "\u27f9",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "dict": "str",
+            "ratio": "float"
+          }
+        },
+        {
+          "id": "Frame",
+          "glyph": "\u25a2",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "schema": "str"
+          }
+        },
+        {
+          "id": "Route",
+          "glyph": "\u21c6",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "depth": "int"
+          }
+        },
+        {
+          "id": "Verify",
+          "glyph": "\u2295",
+          "in_type": [
+            "CHAN"
+          ],
+          "out_type": [
+            "CHAN"
+          ],
+          "params": {
+            "root": "str",
+            "strict": "bool"
+          }
+        }
+      ]
+    },
+    "EMIT": {
+      "plane": "connector",
+      "count": 5,
+      "desc": "external system dispatch \u00b7 render to disk / network",
+      "steps": [
+        {
+          "id": "blender",
+          "glyph": "\u232c",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "3D"
+          ],
+          "params": {
+            "op": "str"
+          }
+        },
+        {
+          "id": "comfyui",
+          "glyph": "\u229e",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "IMAGE",
+            "VIDEO"
+          ],
+          "params": {}
+        },
+        {
+          "id": "generative",
+          "glyph": "\u26d3",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {}
+        },
+        {
+          "id": "godot",
+          "glyph": "\u25e7",
+          "in_type": [
+            "3D"
+          ],
+          "out_type": [
+            "SCENE"
+          ],
+          "params": {}
+        },
+        {
+          "id": "topstep",
+          "glyph": "$",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "LABEL"
+          ],
+          "params": {
+            "confirm": "bool"
+          }
+        }
+      ]
+    },
+    "ATTACH": {
+      "plane": "attachment",
+      "count": 6,
+      "desc": "persistent metadata \u00b7 sub-objects that extend tool_options",
+      "steps": [
+        {
+          "id": "asset",
+          "glyph": "\ud83c\udf81",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "body": "str",
+            "uri": "str"
+          }
+        },
+        {
+          "id": "doc",
+          "glyph": "\ud83d\udcc4",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "body": "str"
+          }
+        },
+        {
+          "id": "file",
+          "glyph": "\ud83d\udcc1",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "path": "str"
+          }
+        },
+        {
+          "id": "link",
+          "glyph": "\ud83c\udf10",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "url": "str"
+          }
+        },
+        {
+          "id": "note",
+          "glyph": "\u270e",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "body": "str"
+          }
+        },
+        {
+          "id": "ref",
+          "glyph": "\ud83d\udd17",
+          "in_type": [
+            "ANY"
+          ],
+          "out_type": [
+            "ANY"
+          ],
+          "params": {
+            "label": "str",
+            "body": "str",
+            "uri": "str"
+          }
+        }
+      ]
+    },
+    "INFER": {
+      "plane": "hf",
+      "count": 53,
+      "desc": "AI inference \u00b7 HuggingFace task taxonomy from planning/hf_task_evolution.jsonl",
+      "sub_categories": {
+        "multimodal_fuse": {
+          "glyph": "\u273a",
+          "count": 11,
+          "steps": [
+            {
+              "id": "Audio-Image-to-Video",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "AUDIO"
+              ],
+              "out_type": [
+                "VIDEO"
+              ],
+              "exemplars": [
+                "Wav2Lip",
+                "MuseTalk",
+                "SadTalker",
+                "EMO",
+                "Hallo",
+                "Hedra"
+              ]
+            },
+            {
+              "id": "Document Question Answering",
+              "glyph": "\u273a",
+              "in_type": [
+                "DOC",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "Donut",
+                "LayoutLMv3",
+                "Pix2Struct",
+                "modern multimodal LLMs"
+              ]
+            },
+            {
+              "id": "Graph Machine Learning",
+              "glyph": "\u273a",
+              "in_type": [
+                "GRAPH"
+              ],
+              "out_type": [
+                "GRAPH",
+                "LABEL"
+              ],
+              "exemplars": [
+                "GCN",
+                "GAT",
+                "GraphSAGE",
+                "Graphormer"
+              ]
+            },
+            {
+              "id": "Image-Text-to-Image",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "IMAGE"
+              ],
+              "exemplars": [
+                "InstructPix2Pix",
+                "GPT-Image-1",
+                "FLUX-edit",
+                "Qwen-Image"
+              ]
+            },
+            {
+              "id": "Image-Text-to-Text",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "LLaVA",
+                "GPT-4V",
+                "Qwen-VL",
+                "Pixtral",
+                "InternVL"
+              ]
+            },
+            {
+              "id": "Image-Text-to-Video",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "VIDEO"
+              ],
+              "exemplars": [
+                "AnimateAnyone",
+                "Kling",
+                "Wan-Animate",
+                "Hailuo"
+              ]
+            },
+            {
+              "id": "Robotics",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "ACTION"
+              ],
+              "exemplars": [
+                "RT-2",
+                "Octo",
+                "OpenVLA",
+                "Pi Zero",
+                "Helix"
+              ]
+            },
+            {
+              "id": "Table Question Answering",
+              "glyph": "\u273a",
+              "in_type": [
+                "TABULAR",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "TAPAS",
+                "TaBERT",
+                "modern code-interpreting LLMs"
+              ]
+            },
+            {
+              "id": "Video-Text-to-Text",
+              "glyph": "\u273a",
+              "in_type": [
+                "VIDEO",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "Gemini 1.5",
+                "Qwen-VL-Video",
+                "LLaVA-Video",
+                "Apollo"
+              ]
+            },
+            {
+              "id": "Visual Document Retrieval",
+              "glyph": "\u273a",
+              "in_type": [
+                "DOC",
+                "TEXT"
+              ],
+              "out_type": [
+                "DOC"
+              ],
+              "exemplars": [
+                "ColPali",
+                "ColQwen",
+                "DSE"
+              ]
+            },
+            {
+              "id": "Visual Question Answering",
+              "glyph": "\u273a",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "BLIP-2",
+                "LLaVA precursors",
+                "Flamingo"
+              ]
+            }
+          ]
+        },
+        "generate_modality": {
+          "glyph": "\u2756",
+          "count": 8,
+          "steps": [
+            {
+              "id": "Image-to-3D",
+              "glyph": "\u2756",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "3D"
+              ],
+              "exemplars": [
+                "Zero123",
+                "TripoSR",
+                "InstantMesh",
+                "Hunyuan3D"
+              ]
+            },
+            {
+              "id": "Image-to-Image",
+              "glyph": "\u2756",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "IMAGE"
+              ],
+              "exemplars": [
+                "img2img",
+                "ControlNet",
+                "InstructPix2Pix"
+              ]
+            },
+            {
+              "id": "Image-to-Video",
+              "glyph": "\u2756",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "VIDEO"
+              ],
+              "exemplars": [
+                "AnimateDiff",
+                "Stable Video Diffusion",
+                "Hunyuan-Video",
+                "Wan-Video"
+              ]
+            },
+            {
+              "id": "Text-to-3D",
+              "glyph": "\u2756",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "3D"
+              ],
+              "exemplars": [
+                "DreamFusion",
+                "Magic3D",
+                "Wonder3D",
+                "TRELLIS"
+              ]
+            },
+            {
+              "id": "Text-to-Audio",
+              "glyph": "\u2756",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "AUDIO"
+              ],
+              "exemplars": [
+                "AudioGen",
+                "MusicGen",
+                "AudioLDM",
+                "Stable Audio"
+              ]
+            },
+            {
+              "id": "Text-to-Image",
+              "glyph": "\u2756",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "IMAGE"
+              ],
+              "exemplars": [
+                "DALL-E",
+                "Stable Diffusion",
+                "Midjourney",
+                "FLUX",
+                "Imagen"
+              ]
+            },
+            {
+              "id": "Text-to-Speech",
+              "glyph": "\u2756",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "AUDIO"
+              ],
+              "exemplars": [
+                "Tacotron",
+                "WaveNet",
+                "FastSpeech",
+                "VITS",
+                "XTTS",
+                "StyleTTS2"
+              ]
+            },
+            {
+              "id": "Text-to-Video",
+              "glyph": "\u2756",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "VIDEO"
+              ],
+              "exemplars": [
+                "Make-A-Video",
+                "Imagen Video",
+                "ModelScope",
+                "Sora",
+                "Veo",
+                "CogVideoX"
+              ]
+            }
+          ]
+        },
+        "classify": {
+          "glyph": "\u229e",
+          "count": 7,
+          "steps": [
+            {
+              "id": "Audio Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "AUDIO"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "VGGish",
+                "YAMNet",
+                "AST",
+                "BEATs"
+              ]
+            },
+            {
+              "id": "Image Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "AlexNet",
+                "VGG",
+                "ResNet",
+                "ViT"
+              ]
+            },
+            {
+              "id": "Tabular Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "TABULAR"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "XGBoost",
+                "LightGBM",
+                "CatBoost",
+                "TabPFN"
+              ]
+            },
+            {
+              "id": "Text Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "BERT",
+                "DistilBERT",
+                "DeBERTa",
+                "ModernBERT"
+              ]
+            },
+            {
+              "id": "Video Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "VIDEO"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "I3D",
+                "SlowFast",
+                "TimeSformer",
+                "VideoMAE"
+              ]
+            },
+            {
+              "id": "Zero-Shot Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "TEXT",
+                "LABELS"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "BART-MNLI",
+                "NLI cross-encoders",
+                "Qwen-instruct"
+              ]
+            },
+            {
+              "id": "Zero-Shot Image Classification",
+              "glyph": "\u229e",
+              "in_type": [
+                "IMAGE",
+                "LABELS"
+              ],
+              "out_type": [
+                "LABEL"
+              ],
+              "exemplars": [
+                "CLIP",
+                "SigLIP",
+                "OpenCLIP"
+              ]
+            }
+          ]
+        },
+        "transform_text": {
+          "glyph": "\u2550",
+          "count": 6,
+          "steps": [
+            {
+              "id": "Fill-Mask",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "BERT",
+                "RoBERTa",
+                "DeBERTa",
+                "ModernBERT"
+              ]
+            },
+            {
+              "id": "Question Answering",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "BERT-SQuAD",
+                "Longformer",
+                "Mistral RAG stacks"
+              ]
+            },
+            {
+              "id": "Summarization",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "BART",
+                "T5",
+                "Pegasus",
+                "modern LLMs"
+              ]
+            },
+            {
+              "id": "Text Generation",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "GPT-2",
+                "GPT-3",
+                "LLaMA",
+                "Mistral",
+                "Qwen",
+                "Claude"
+              ]
+            },
+            {
+              "id": "Text Ranking",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "ColBERT",
+                "BGE-reranker",
+                "Cohere Rerank"
+              ]
+            },
+            {
+              "id": "Translation",
+              "glyph": "\u2550",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "Transformer",
+                "Marian",
+                "NLLB",
+                "M2M-100"
+              ]
+            }
+          ]
+        },
+        "detect_localize": {
+          "glyph": "\u25eb",
+          "count": 6,
+          "steps": [
+            {
+              "id": "Image Segmentation",
+              "glyph": "\u25eb",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "MASK"
+              ],
+              "exemplars": [
+                "FCN",
+                "U-Net",
+                "Mask R-CNN",
+                "Mask2Former"
+              ]
+            },
+            {
+              "id": "Mask Generation",
+              "glyph": "\u25eb",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "MASK"
+              ],
+              "exemplars": [
+                "SAM",
+                "SAM 2",
+                "Grounded-SAM"
+              ]
+            },
+            {
+              "id": "Object Detection",
+              "glyph": "\u25eb",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "BOXES",
+                "LABEL"
+              ],
+              "exemplars": [
+                "R-CNN",
+                "Fast R-CNN",
+                "YOLO",
+                "DETR"
+              ]
+            },
+            {
+              "id": "Token Classification",
+              "glyph": "\u25eb",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "LABEL_SEQ"
+              ],
+              "exemplars": [
+                "BERT-NER",
+                "spaCy",
+                "GLiNER"
+              ]
+            },
+            {
+              "id": "Voice Activity Detection",
+              "glyph": "\u25eb",
+              "in_type": [
+                "AUDIO"
+              ],
+              "out_type": [
+                "LABEL_SEQ"
+              ],
+              "exemplars": [
+                "WebRTC VAD",
+                "Silero VAD",
+                "pyannote VAD"
+              ]
+            },
+            {
+              "id": "Zero-Shot Object Detection",
+              "glyph": "\u25eb",
+              "in_type": [
+                "IMAGE",
+                "TEXT"
+              ],
+              "out_type": [
+                "BOXES"
+              ],
+              "exemplars": [
+                "OWL-ViT",
+                "Grounding DINO",
+                "YOLO-World"
+              ]
+            }
+          ]
+        },
+        "misc": {
+          "glyph": "\u25cc",
+          "count": 6,
+          "steps": [
+            {
+              "id": "Image-to-Text",
+              "glyph": "\u25cc",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "CLIP",
+                "BLIP",
+                "BLIP-2",
+                "CoCa"
+              ]
+            },
+            {
+              "id": "Reinforcement Learning",
+              "glyph": "\u25cc",
+              "in_type": [
+                "STATE"
+              ],
+              "out_type": [
+                "ACTION"
+              ],
+              "exemplars": [
+                "DQN",
+                "PPO",
+                "SAC",
+                "AlphaGo"
+              ]
+            },
+            {
+              "id": "Sentence Similarity",
+              "glyph": "\u25cc",
+              "in_type": [
+                "EMBEDDING",
+                "EMBEDDING"
+              ],
+              "out_type": [
+                "SCALAR"
+              ],
+              "exemplars": [
+                "Sentence-BERT",
+                "SimCSE",
+                "E5",
+                "BGE"
+              ]
+            },
+            {
+              "id": "Time Series Forecasting",
+              "glyph": "\u25cc",
+              "in_type": [
+                "TIMESERIES"
+              ],
+              "out_type": [
+                "TIMESERIES"
+              ],
+              "exemplars": [
+                "DeepAR",
+                "N-BEATS",
+                "Temporal Fusion Transformer",
+                "Chronos",
+                "TimesFM"
+              ]
+            },
+            {
+              "id": "Unconditional Image Generation",
+              "glyph": "\u25cc",
+              "in_type": [
+                "ANY"
+              ],
+              "out_type": [
+                "IMAGE"
+              ],
+              "exemplars": [
+                "VAE",
+                "GAN",
+                "StyleGAN",
+                "DDPM"
+              ]
+            },
+            {
+              "id": "Video-to-Video",
+              "glyph": "\u25cc",
+              "in_type": [
+                "VIDEO"
+              ],
+              "out_type": [
+                "VIDEO"
+              ],
+              "exemplars": [
+                "Gen-2",
+                "AnimateAnyone",
+                "Wav2Lip",
+                "MuseTalk",
+                "SadTalker"
+              ]
+            }
+          ]
+        },
+        "process_speech": {
+          "glyph": "\u266c",
+          "count": 4,
+          "steps": [
+            {
+              "id": "Any-to-Any",
+              "glyph": "\u266c",
+              "in_type": [
+                "TEXT",
+                "IMAGE",
+                "AUDIO",
+                "VIDEO"
+              ],
+              "out_type": [
+                "TEXT",
+                "IMAGE",
+                "AUDIO",
+                "VIDEO"
+              ],
+              "exemplars": [
+                "GPT-4o",
+                "Gemini 2.0",
+                "Chameleon",
+                "Janus",
+                "Show-o",
+                "Qwen2.5-Omni"
+              ]
+            },
+            {
+              "id": "Audio-Text-to-Text",
+              "glyph": "\u266c",
+              "in_type": [
+                "AUDIO",
+                "TEXT"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "Qwen-Audio",
+                "Qwen2-Audio",
+                "GPT-4o",
+                "Gemini"
+              ]
+            },
+            {
+              "id": "Audio-to-Audio",
+              "glyph": "\u266c",
+              "in_type": [
+                "AUDIO"
+              ],
+              "out_type": [
+                "AUDIO"
+              ],
+              "exemplars": [
+                "Demucs",
+                "RVC",
+                "UVR",
+                "DiffWave-style enhancers"
+              ]
+            },
+            {
+              "id": "Automatic Speech Recognition",
+              "glyph": "\u266c",
+              "in_type": [
+                "AUDIO"
+              ],
+              "out_type": [
+                "TEXT"
+              ],
+              "exemplars": [
+                "DeepSpeech",
+                "wav2vec 2.0",
+                "Whisper",
+                "Distil-Whisper",
+                "Moonshine"
+              ]
+            }
+          ]
+        },
+        "extract_features": {
+          "glyph": "\u2299",
+          "count": 4,
+          "steps": [
+            {
+              "id": "Depth Estimation",
+              "glyph": "\u2299",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "DEPTH_MAP"
+              ],
+              "exemplars": [
+                "Monodepth",
+                "MiDaS",
+                "DPT",
+                "Depth Anything"
+              ]
+            },
+            {
+              "id": "Feature Extraction",
+              "glyph": "\u2299",
+              "in_type": [
+                "TEXT"
+              ],
+              "out_type": [
+                "EMBEDDING"
+              ],
+              "exemplars": [
+                "BERT-CLS",
+                "Sentence-BERT",
+                "E5",
+                "BGE",
+                "Stella"
+              ]
+            },
+            {
+              "id": "Image Feature Extraction",
+              "glyph": "\u2299",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "EMBEDDING"
+              ],
+              "exemplars": [
+                "VGG-fc7",
+                "ResNet pooling",
+                "DINOv2"
+              ]
+            },
+            {
+              "id": "Keypoint Detection",
+              "glyph": "\u2299",
+              "in_type": [
+                "IMAGE"
+              ],
+              "out_type": [
+                "KEYPOINTS"
+              ],
+              "exemplars": [
+                "DeepPose",
+                "OpenPose",
+                "HRNet",
+                "DWPose"
+              ]
+            }
+          ]
+        },
+        "tabular_analyze": {
+          "glyph": "\u25c9",
+          "count": 1,
+          "steps": [
+            {
+              "id": "Tabular Regression",
+              "glyph": "\u25c9",
+              "in_type": [
+                "TABULAR"
+              ],
+              "out_type": [
+                "SCALAR"
+              ],
+              "exemplars": [
+                "XGBoost",
+                "LightGBM",
+                "TabPFN"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "RECURSE": {
+      "plane": "card",
+      "count": 46,
+      "desc": "sub-workflow_card \u00b7 the recursive close \u00b7 every emitted card auto-registers",
+      "sub_categories": {
+        "compose": {
+          "glyph": "\u2b21",
+          "count": 9,
+          "steps": [
+            {
+              "id": "2d.pixel.platformer_2b1633b7",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.2d.pixel.platformer_2b1633b7.v0.json",
+              "pass_count": 7,
+              "state": "active"
+            },
+            {
+              "id": "godot_ssot_proxy",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.godot_ssot_proxy.v0.json",
+              "pass_count": 6,
+              "state": "active"
+            },
+            {
+              "id": "idle.walk.twist_481cb60a",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.idle.walk.twist_481cb60a.v0.json",
+              "pass_count": 7,
+              "state": "active"
+            },
+            {
+              "id": "real.estate.walkthrough_8f28d17e",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.real.estate.walkthrough_8f28d17e.v0.json",
+              "pass_count": 2,
+              "state": "active"
+            },
+            {
+              "id": "real.estate.walkthrough_adb44752",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.real.estate.walkthrough_adb44752.v0.json",
+              "pass_count": 2,
+              "state": "active"
+            },
+            {
+              "id": "spiky.goo.enemy_649d2350",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.spiky.goo.enemy_649d2350.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "stylized.2d.topdown_6bb5d96b",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.stylized.2d.topdown_6bb5d96b.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "workflow_composer",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.workflow_composer.v0.json",
+              "pass_count": 9,
+              "state": "active"
+            },
+            {
+              "id": "workspace_stack",
+              "glyph": "\u2b21",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.compose.workspace_stack.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "scope": {
+          "glyph": "\u25c7",
+          "count": 8,
+          "steps": [
+            {
+              "id": "character_creation",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.character_creation.v0.json",
+              "pass_count": 7,
+              "state": "active"
+            },
+            {
+              "id": "dark.sorcerer.with_74479815",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.dark.sorcerer.with_74479815.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "document.parser.with_c6f1245e",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.document.parser.with_c6f1245e.v0.json",
+              "pass_count": 8,
+              "state": "active"
+            },
+            {
+              "id": "document_processing",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.document_processing.v0.json",
+              "pass_count": 7,
+              "state": "active"
+            },
+            {
+              "id": "dwarven.smith.with_5957e9e8",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.dwarven.smith.with_5957e9e8.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "goblin.scout.with_bbf36dd9",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.goblin.scout.with_bbf36dd9.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "medieval.ranger.with_72ad85fb",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.medieval.ranger.with_72ad85fb.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "wood.elf.with_93c4f7cd",
+              "glyph": "\u25c7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.scope.wood.elf.with_93c4f7cd.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            }
+          ]
+        },
+        "assets": {
+          "glyph": "\u25ef",
+          "count": 5,
+          "steps": [
+            {
+              "id": "autonomous_3d_asset",
+              "glyph": "\u25ef",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.assets.autonomous_3d_asset.v0.json",
+              "pass_count": 9,
+              "state": "active"
+            },
+            {
+              "id": "shader_graph_compose",
+              "glyph": "\u25ef",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.assets.shader_graph_compose.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            },
+            {
+              "id": "smooth.twist.on_9c51e081",
+              "glyph": "\u25ef",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.assets.smooth.twist.on_9c51e081.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            },
+            {
+              "id": "spiky.twisted.goo_6571b6e5",
+              "glyph": "\u25ef",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.assets.spiky.twisted.goo_6571b6e5.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            },
+            {
+              "id": "texture_only_bake",
+              "glyph": "\u25ef",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.assets.texture_only_bake.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "avatar": {
+          "glyph": "\u25d0",
+          "count": 2,
+          "steps": [
+            {
+              "id": "blob_to_unreal",
+              "glyph": "\u25d0",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.avatar.blob_to_unreal.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            },
+            {
+              "id": "photo_to_avatar_rigged",
+              "glyph": "\u25d0",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.avatar.photo_to_avatar_rigged.v0.json",
+              "pass_count": 9,
+              "state": "active"
+            }
+          ]
+        },
+        "inference": {
+          "glyph": "\u221e",
+          "count": 2,
+          "steps": [
+            {
+              "id": "deepseek_chat",
+              "glyph": "\u221e",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.inference.deepseek_chat.v0.json",
+              "pass_count": 5,
+              "state": "planned"
+            },
+            {
+              "id": "unified_model_api",
+              "glyph": "\u221e",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.inference.unified_model_api.v0.json",
+              "pass_count": 8,
+              "state": "active"
+            }
+          ]
+        },
+        "render": {
+          "glyph": "\u2756",
+          "count": 2,
+          "steps": [
+            {
+              "id": "event_burst",
+              "glyph": "\u2756",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.render.event_burst.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            },
+            {
+              "id": "landing.page.with_eefe4f71",
+              "glyph": "\u2756",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.render.landing.page.with_eefe4f71.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "deploy": {
+          "glyph": "\u25b3",
+          "count": 2,
+          "steps": [
+            {
+              "id": "hf_endpoint_provision",
+              "glyph": "\u25b3",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.deploy.hf_endpoint_provision.v0.json",
+              "pass_count": 6,
+              "state": "planned"
+            },
+            {
+              "id": "replit_to_droplet",
+              "glyph": "\u25b3",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.deploy.replit_to_droplet.v0.json",
+              "pass_count": 6,
+              "state": "active"
+            }
+          ]
+        },
+        "harvest": {
+          "glyph": "\u2299",
+          "count": 2,
+          "steps": [
+            {
+              "id": "pinterest_vector_motherload",
+              "glyph": "\u2299",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.harvest.pinterest_vector_motherload.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            },
+            {
+              "id": "twitter_timeline",
+              "glyph": "\u2299",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.harvest.twitter_timeline.v0.json",
+              "pass_count": 7,
+              "state": "planned"
+            }
+          ]
+        },
+        "trade": {
+          "glyph": "$",
+          "count": 3,
+          "steps": [
+            {
+              "id": "topstep.dryrun.trade_c05b32a9",
+              "glyph": "$",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.trade.topstep.dryrun.trade_c05b32a9.v0.json",
+              "pass_count": 2,
+              "state": "active"
+            },
+            {
+              "id": "topstep_dry_run",
+              "glyph": "$",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.trade.topstep_dry_run.v0.json",
+              "pass_count": 5,
+              "state": "planned"
+            },
+            {
+              "id": "solana_pattern_trade",
+              "glyph": "\u2b22",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.trade.solana_pattern_trade.v0.json",
+              "pass_count": 7,
+              "state": "active"
+            }
+          ]
+        },
+        "test": {
+          "glyph": "\u2297",
+          "count": 1,
+          "steps": [
+            {
+              "id": "attach.smoke.test",
+              "glyph": "\u2297",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.test.attach_smoke.v0.json",
+              "pass_count": 3,
+              "state": "active"
+            }
+          ]
+        },
+        "embed": {
+          "glyph": "\u2295",
+          "count": 1,
+          "steps": [
+            {
+              "id": "continuous_clip_encoder",
+              "glyph": "\u2295",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.embed.continuous_clip_encoder.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "swap": {
+          "glyph": "\u21c6",
+          "count": 1,
+          "steps": [
+            {
+              "id": "cross_chain_swap",
+              "glyph": "\u21c6",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.swap.cross_chain_swap.v0.json",
+              "pass_count": 4,
+              "state": "active"
+            }
+          ]
+        },
+        "world": {
+          "glyph": "\u25c9",
+          "count": 1,
+          "steps": [
+            {
+              "id": "forest.clearing.dawn.world_a7316b8d",
+              "glyph": "\u25c9",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.world.forest.clearing.dawn.world_a7316b8d.v0.json",
+              "pass_count": 9,
+              "state": "active"
+            }
+          ]
+        },
+        "generative": {
+          "glyph": "\u26d3",
+          "count": 1,
+          "steps": [
+            {
+              "id": "generative_mcp_fanout",
+              "glyph": "\u26d3",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.generative.generative_mcp_fanout.v0.json",
+              "pass_count": 9,
+              "state": "planned"
+            }
+          ]
+        },
+        "surf": {
+          "glyph": "\u2248",
+          "count": 1,
+          "steps": [
+            {
+              "id": "pump_surf_pipeline",
+              "glyph": "\u2248",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.surf.pump_surf_pipeline.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "xr": {
+          "glyph": "\u25e7",
+          "count": 1,
+          "steps": [
+            {
+              "id": "quest_passthrough_session",
+              "glyph": "\u25e7",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.xr.quest_passthrough_session.v0.json",
+              "pass_count": 6,
+              "state": "planned"
+            }
+          ]
+        },
+        "realestate": {
+          "glyph": "\u2302",
+          "count": 1,
+          "steps": [
+            {
+              "id": "realestate_walkthrough_full",
+              "glyph": "\u2302",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.realestate.realestate_walkthrough_full.v0.json",
+              "pass_count": 10,
+              "state": "active"
+            }
+          ]
+        },
+        "dapp": {
+          "glyph": "$",
+          "count": 1,
+          "steps": [
+            {
+              "id": "realestate_walkthrough_purchase",
+              "glyph": "$",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.dapp.realestate_walkthrough_purchase.v0.json",
+              "pass_count": 6,
+              "state": "active"
+            }
+          ]
+        },
+        "mocap": {
+          "glyph": "\u2666",
+          "count": 1,
+          "steps": [
+            {
+              "id": "snap_to_unreal",
+              "glyph": "\u2666",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.mocap.snap_to_unreal.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "monitor": {
+          "glyph": "\u2609",
+          "count": 1,
+          "steps": [
+            {
+              "id": "solana_program_oracle",
+              "glyph": "\u2609",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.monitor.solana_program_oracle.v0.json",
+              "pass_count": 5,
+              "state": "active"
+            }
+          ]
+        },
+        "defi": {
+          "glyph": "$",
+          "count": 1,
+          "steps": [
+            {
+              "id": "sui_leverage_loop",
+              "glyph": "$",
+              "card_path": "studio/assets/_workflows/vm_mspc_001.workflows.defi.sui_leverage_loop.v0.json",
+              "pass_count": 7,
+              "state": "planned"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

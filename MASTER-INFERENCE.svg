@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:gently="https://gently.dev/svg-layers/v1"
+     xmlns:mspc="https://myspace.local/tesseract"
+     xmlns:rust="https://myspace.local/rust-chain"
+     width="2600" height="2000"
+     viewBox="0 0 2600 2000"
+     font-family="monospace" font-size="13"
+     gently:schema="master-inference.v1"
+     mspc:role="root-orchestrator">
+
+  <metadata>
+    <mspc:about>
+      MASTER-INFERENCE.svg — the rust chain IS the api.
+      Pair file: studio/docs/Tesseract.svg (sister Claude's 253-node MySpace++ manifest).
+      This file is HOW it runs (chain loop, layer targeting, visitor surface).
+      That file is WHAT exists (nodes, subsystems, project types).
+      Together they form one master inference orchestrator.
+      Consolidation proposal: /data/Projects/MySpace++/CONSOLIDATION.md
+    </mspc:about>
+    <mspc:version>v1.0.0</mspc:version>
+    <mspc:partner>studio/docs/Tesseract.svg</mspc:partner>
+    <mspc:doc>/data/Projects/MySpace++/CONSOLIDATION.md</mspc:doc>
+  </metadata>
+
+  <defs>
+    <linearGradient id="chain-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a2e3f"/>
+      <stop offset="100%" stop-color="#0a1620"/>
+    </linearGradient>
+    <linearGradient id="hot-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4d1f2e"/>
+      <stop offset="100%" stop-color="#2a0d18"/>
+    </linearGradient>
+    <linearGradient id="cool-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f3d4d"/>
+      <stop offset="100%" stop-color="#0c1f2a"/>
+    </linearGradient>
+    <linearGradient id="visitor-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3d2f4d"/>
+      <stop offset="100%" stop-color="#1c1228"/>
+    </linearGradient>
+    <style>
+      .h1 { fill: #ffe6b0; font-size: 24px; font-weight: bold; }
+      .h2 { fill: #ffffff; font-size: 17px; font-weight: bold; }
+      .h3 { fill: #dddddd; font-size: 13px; }
+      .mono { fill: #aaccee; font-size: 11px; }
+      .note { fill: #888; font-size: 11px; font-style: italic; }
+      .arrow-on  { stroke: #66ee99; stroke-width: 2; fill: none; marker-end: url(#arr-green); }
+      .arrow-off { stroke: #555;    stroke-width: 1; stroke-dasharray: 4 4; fill: none; marker-end: url(#arr-grey); }
+      .arrow-loop { stroke: #ee6699; stroke-width: 2.5; fill: none; marker-end: url(#arr-pink); }
+      .cell { stroke: #444; stroke-width: 2; }
+    </style>
+    <marker id="arr-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#66ee99"/>
+    </marker>
+    <marker id="arr-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/>
+    </marker>
+    <marker id="arr-pink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ee6699"/>
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#080c14"/>
+
+  <!-- ========================================================================== -->
+  <!-- TITLE -->
+  <!-- ========================================================================== -->
+  <g id="title">
+    <text x="40" y="55" class="h1">⌬ MASTER-INFERENCE.svg — the rust chain IS the api</text>
+    <text x="40" y="82" class="h3">one droplet · one chain database · one stacked HTMX SVG view · visitor-aware rendering · zero ads · zero logins · zero phishing</text>
+    <text x="40" y="102" class="note">pair file: studio/docs/Tesseract.svg (253 MySpace++ nodes · 8 DAGs · walker contract). this file: HOW the chain runs.</text>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 0: ARCHITECTURE IN ONE DIAGRAM (visit → chain → SVG response) -->
+  <!-- ========================================================================== -->
+  <g id="architecture" transform="translate(40, 130)">
+    <rect width="2520" height="240" rx="10" fill="url(#chain-bg)" class="cell"/>
+    <text x="20" y="30" class="h2">Layer 0 — the request lifecycle (browser visit IS the chain trigger)</text>
+
+    <g id="step:visit" transform="translate(40, 60)">
+      <rect width="300" height="150" rx="8" fill="#0e1d2a" stroke="#3aa"/>
+      <text x="12" y="22" class="h3">① visitor opens URL</text>
+      <text x="12" y="44" class="mono">browser GET /any/path</text>
+      <text x="12" y="62" class="mono">cookies / headers / IP / device</text>
+      <text x="12" y="80" class="mono">— this IS the chain input</text>
+      <text x="12" y="100" class="note">no login form · no ads</text>
+      <text x="12" y="116" class="note">no tracker beacon</text>
+      <text x="12" y="132" class="note">browser cookies → chain context</text>
+    </g>
+
+    <g id="step:chain-step" transform="translate(380, 60)">
+      <rect width="400" height="150" rx="8" fill="#0e1d2a" stroke="#3aa"/>
+      <text x="12" y="22" class="h3">② rust chain step</text>
+      <text x="12" y="44" class="mono">request → chain.extend(visit_event)</text>
+      <text x="12" y="62" class="mono">predict(chain) → which subsystem to wake</text>
+      <text x="12" y="80" class="mono">execute(opkind) → run that pass</text>
+      <text x="12" y="98" class="mono">terminate(crystal) → seal output bytes</text>
+      <text x="12" y="118" class="mono">runtime axiom: runtime(c) = runtime(c ⊕ predict(c))</text>
+      <text x="12" y="138" class="note">this loop IS the http handler</text>
+    </g>
+
+    <g id="step:layer-target" transform="translate(820, 60)">
+      <rect width="380" height="150" rx="8" fill="url(#hot-bg)" stroke="#a55"/>
+      <text x="12" y="22" class="h3">③ layer rotation (target/ignore)</text>
+      <text x="12" y="44" class="mono">scheduler picks LAYER index L</text>
+      <text x="12" y="62" class="mono">based on activation_hex(visitor)</text>
+      <text x="12" y="80" class="mono">run inference ONLY on layer L</text>
+      <text x="12" y="98" class="mono">skip layers irrelevant to this visit</text>
+      <text x="12" y="116" class="mono">next visit → next L (rotation)</text>
+      <text x="12" y="136" class="note">— this is the layer-multiplexed scheduler (run #16)</text>
+    </g>
+
+    <g id="step:svg-render" transform="translate(1240, 60)">
+      <rect width="380" height="150" rx="8" fill="url(#cool-bg)" stroke="#5a8"/>
+      <text x="12" y="22" class="h3">④ stack SVG response</text>
+      <text x="12" y="44" class="mono">chain emits SVG fragment</text>
+      <text x="12" y="62" class="mono">via gently-svg-layers</text>
+      <text x="12" y="80" class="mono">HTMX hx-swap merges into 1 view</text>
+      <text x="12" y="98" class="mono">no separate landing / dash / tools</text>
+      <text x="12" y="116" class="mono">all surfaces = same SVG, diff layers shown</text>
+      <text x="12" y="136" class="note">— gently:enabled flips per visitor scope</text>
+    </g>
+
+    <g id="step:chromium-juice" transform="translate(1660, 60)">
+      <rect width="380" height="150" rx="8" fill="url(#visitor-bg)" stroke="#85a"/>
+      <text x="12" y="22" class="h3">⑤ browser cooks chromium juice</text>
+      <text x="12" y="44" class="mono">SVG carries inline JS / CSS / WebGL</text>
+      <text x="12" y="62" class="mono">browser renders / computes locally</text>
+      <text x="12" y="80" class="mono">offloads work from droplet → visitor</text>
+      <text x="12" y="98" class="mono">cookies cached for next visit</text>
+      <text x="12" y="116" class="mono">visitor budget = how much they can see</text>
+      <text x="12" y="136" class="note">— browser IS now the runtime extension</text>
+    </g>
+
+    <g id="step:chain-write" transform="translate(2080, 60)">
+      <rect width="400" height="150" rx="8" fill="#0e1d2a" stroke="#3aa"/>
+      <text x="12" y="22" class="h3">⑥ chain database write</text>
+      <text x="12" y="44" class="mono">visit recorded · crystal stored</text>
+      <text x="12" y="62" class="mono">cache keyed by visitor + path + chain hash</text>
+      <text x="12" y="80" class="mono">next visit hits cache or extends chain</text>
+      <text x="12" y="98" class="mono">database IS the access-control surface</text>
+      <text x="12" y="116" class="mono">what you can REACH in chain = what you see</text>
+      <text x="12" y="138" class="note">— no per-page ACL; chain reachability IS ACL</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 1: THE RUST CHAIN LOOP (4 traits + layer targeting) -->
+  <!-- ========================================================================== -->
+  <g id="rust-loop" transform="translate(40, 400)">
+    <rect width="1240" height="280" rx="10" fill="url(#hot-bg)" class="cell"/>
+    <text x="20" y="30" class="h2">Layer 1 — the rust chain loop (rotating inference)</text>
+
+    <g id="trait:predict" transform="translate(40, 60)">
+      <rect width="260" height="100" rx="6" fill="#1a0f18" stroke="#a44"/>
+      <text x="10" y="22" class="h3">Predict</text>
+      <text x="10" y="44" class="mono">fn predict(c: &amp;Chain) -&gt; OpKind</text>
+      <text x="10" y="62" class="mono">codie-v4-predict OR rule-based</text>
+      <text x="10" y="78" class="mono">picks next op based on activation_hex</text>
+      <text x="10" y="92" class="note">→ rotates which layers fire</text>
+    </g>
+
+    <g id="trait:execute" transform="translate(320, 60)">
+      <rect width="260" height="100" rx="6" fill="#1a0f18" stroke="#a44"/>
+      <text x="10" y="22" class="h3">Execute</text>
+      <text x="10" y="44" class="mono">fn execute(op) -&gt; bytes</text>
+      <text x="10" y="62" class="mono">dispatches to subsystem</text>
+      <text x="10" y="78" class="mono">via local: or hf:// fragment</text>
+      <text x="10" y="92" class="note">→ runs ONE layer's work</text>
+    </g>
+
+    <g id="trait:terminate" transform="translate(600, 60)">
+      <rect width="260" height="100" rx="6" fill="#1a0f18" stroke="#a44"/>
+      <text x="10" y="22" class="h3">Terminate</text>
+      <text x="10" y="44" class="mono">fn terminate(c) -&gt; Crystal</text>
+      <text x="10" y="62" class="mono">seals output bytes into a hash</text>
+      <text x="10" y="78" class="mono">cache key for next visit</text>
+      <text x="10" y="92" class="note">→ deterministic re-runs</text>
+    </g>
+
+    <g id="trait:run" transform="translate(880, 60)">
+      <rect width="320" height="100" rx="6" fill="#2a1a28" stroke="#c66"/>
+      <text x="10" y="22" class="h3">run(chain) — the http handler</text>
+      <text x="10" y="44" class="mono">loop: chain = chain ⊕ predict(chain)</text>
+      <text x="10" y="62" class="mono">until fixed point OR visitor budget hit</text>
+      <text x="10" y="78" class="mono">emits SVG response</text>
+      <text x="10" y="92" class="note">→ this fn IS your API server</text>
+    </g>
+
+    <g id="layer-target" transform="translate(40, 180)">
+      <rect width="1160" height="80" rx="6" fill="#0e1d2a" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">layer rotation — which TinyTransformer layers fire per visit</text>
+      <text x="10" y="44" class="mono">activation_hex(visitor.context) → bit-mask over 12 layers</text>
+      <text x="10" y="62" class="mono">visitor A: layers [0,3,7,11] fire · visitor B: [1,4,8] · admin: [all]</text>
+      <text x="10" y="78" class="note">— layers ignored cost ZERO (Suboxone-style binding affinity)</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 2: ONE STACKED HTMX SVG VIEW -->
+  <!-- ========================================================================== -->
+  <g id="stacked-view" transform="translate(1320, 400)">
+    <rect width="1240" height="280" rx="10" fill="url(#cool-bg)" class="cell"/>
+    <text x="20" y="30" class="h2">Layer 2 — one stacked HTMX SVG view (ALL surfaces)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="280" height="100" rx="6" fill="#0c1f2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">landing</text>
+      <text x="10" y="44" class="mono">marketing / home / hero</text>
+      <text x="10" y="62" class="mono">SVG layer with gently:visibility=visitor</text>
+      <text x="10" y="80" class="mono">visible to: anyone</text>
+      <text x="10" y="96" class="note">no login wall · just show it</text>
+    </g>
+
+    <g transform="translate(340, 60)">
+      <rect width="280" height="100" rx="6" fill="#0c1f2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">tools</text>
+      <text x="10" y="44" class="mono">studio / wardrobe / pinterest</text>
+      <text x="10" y="62" class="mono">SVG layer with gently:visibility=user</text>
+      <text x="10" y="80" class="mono">visible to: chain-reachable users</text>
+      <text x="10" y="96" class="note">access = ability to reach in chain</text>
+    </g>
+
+    <g transform="translate(640, 60)">
+      <rect width="280" height="100" rx="6" fill="#0c1f2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">management</text>
+      <text x="10" y="44" class="mono">admin / metrics / settings</text>
+      <text x="10" y="62" class="mono">SVG layer with gently:visibility=admin</text>
+      <text x="10" y="80" class="mono">visible to: salted-key holders</text>
+      <text x="10" y="96" class="note">studio/auth/keys.sqlite gates</text>
+    </g>
+
+    <g transform="translate(940, 60)">
+      <rect width="260" height="100" rx="6" fill="#0c1f2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">tesseract</text>
+      <text x="10" y="44" class="mono">walker / DAG / project state</text>
+      <text x="10" y="62" class="mono">→ studio/docs/Tesseract.svg</text>
+      <text x="10" y="80" class="mono">visible to: agents + admin</text>
+      <text x="10" y="96" class="note">the project graph itself</text>
+    </g>
+
+    <g transform="translate(40, 180)">
+      <rect width="1160" height="80" rx="6" fill="#0c1f2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">HTMX swap pattern</text>
+      <text x="10" y="44" class="mono">all surfaces ship in ONE SVG; layers toggled via gently:enabled per visitor scope</text>
+      <text x="10" y="62" class="mono">user clicks → hx-get returns partial SVG → hx-swap=outerHTML replaces ONE &lt;g&gt;</text>
+      <text x="10" y="78" class="note">— no client routing, no SPA, no separate landing/tools/admin pages</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 3: CHAIN DATABASE = ACCESS CONTROL -->
+  <!-- ========================================================================== -->
+  <g id="chain-db" transform="translate(40, 710)">
+    <rect width="1240" height="240" rx="10" fill="url(#chain-bg)" class="cell"/>
+    <text x="20" y="30" class="h2">Layer 3 — chain database = access control (no logins, no phishing)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="360" height="160" rx="6" fill="#0e1d2a" stroke="#48a"/>
+      <text x="10" y="22" class="h3">what you can REACH in chain = what you see</text>
+      <text x="10" y="44" class="mono">no per-page ACL table</text>
+      <text x="10" y="62" class="mono">visitor's chain = list of nodes they've extended</text>
+      <text x="10" y="80" class="mono">node reachability comes from:</text>
+      <text x="20" y="98" class="mono">— cookies (returning visitors)</text>
+      <text x="20" y="114" class="mono">— magic links (sent via salted keys)</text>
+      <text x="20" y="130" class="mono">— friend-invite (chain extension by holder)</text>
+      <text x="20" y="146" class="mono">— scope (admin / user / visitor / agent)</text>
+    </g>
+
+    <g transform="translate(420, 60)">
+      <rect width="360" height="160" rx="6" fill="#0e1d2a" stroke="#48a"/>
+      <text x="10" y="22" class="h3">auth model — borrowed Lucid pattern</text>
+      <text x="10" y="44" class="mono">studio/auth/keys.sqlite</text>
+      <text x="10" y="62" class="mono">studio/auth/gate.py</text>
+      <text x="10" y="80" class="mono">salted key per (visitor, scope, node)</text>
+      <text x="10" y="98" class="mono">key → scope → reachable nodes</text>
+      <text x="10" y="116" class="mono">scope examples:</text>
+      <text x="20" y="132" class="mono">read · write · admin · agent</text>
+      <text x="10" y="150" class="note">no oauth roundtrip · keys are signed bytes</text>
+    </g>
+
+    <g transform="translate(800, 60)">
+      <rect width="400" height="160" rx="6" fill="#0e1d2a" stroke="#48a"/>
+      <text x="10" y="22" class="h3">no ads · no phishing · no tracking</text>
+      <text x="10" y="44" class="mono">no third-party JS on the page</text>
+      <text x="10" y="62" class="mono">no analytics beacon</text>
+      <text x="10" y="80" class="mono">no email collection forms</text>
+      <text x="10" y="98" class="mono">no &quot;reset password&quot; flow (no passwords)</text>
+      <text x="10" y="116" class="mono">no oauth grant pages</text>
+      <text x="10" y="134" class="mono">no terms-of-service consent gates</text>
+      <text x="10" y="150" class="note">— visit = chain extension; key = chain reach</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 4: VISITOR-AWARE RENDERING -->
+  <!-- ========================================================================== -->
+  <g id="visitor-aware" transform="translate(1320, 710)">
+    <rect width="1240" height="240" rx="10" fill="url(#visitor-bg)" class="cell"/>
+    <text x="20" y="30" class="h2">Layer 4 — visitor-aware rendering (what gets cooked depends on WHO)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="370" height="160" rx="6" fill="#1c1228" stroke="#85a"/>
+      <text x="10" y="22" class="h3">visitor classification</text>
+      <text x="10" y="44" class="mono">probe(headers + cookies + IP-AS):</text>
+      <text x="20" y="62" class="mono">— device_class (mobile / desktop / bot)</text>
+      <text x="20" y="80" class="mono">— locale + tz</text>
+      <text x="20" y="98" class="mono">— returning? (cookie crystal match)</text>
+      <text x="20" y="116" class="mono">— scope (anon / user / admin)</text>
+      <text x="20" y="134" class="mono">→ activation_hex(visitor_context)</text>
+      <text x="10" y="150" class="note">— same code path as gently-probe</text>
+    </g>
+
+    <g transform="translate(430, 60)">
+      <rect width="370" height="160" rx="6" fill="#1c1228" stroke="#85a"/>
+      <text x="10" y="22" class="h3">render budget per visitor</text>
+      <text x="10" y="44" class="mono">budget = QualityTarget × visitor.scope</text>
+      <text x="10" y="62" class="mono">anon: Draft (~1s)</text>
+      <text x="10" y="80" class="mono">user: Standard (~30s)</text>
+      <text x="10" y="98" class="mono">admin: Cinematic (~10min)</text>
+      <text x="10" y="116" class="mono">bot: Realtime (~100ms) cached only</text>
+      <text x="10" y="134" class="mono">gently-inference-budget picks pipeline</text>
+      <text x="10" y="152" class="note">— same router as render passes</text>
+    </g>
+
+    <g transform="translate(820, 60)">
+      <rect width="380" height="160" rx="6" fill="#1c1228" stroke="#85a"/>
+      <text x="10" y="22" class="h3">visitor-keyed cache</text>
+      <text x="10" y="44" class="mono">cache_key = blake3(visitor || path || chain_hash)</text>
+      <text x="10" y="62" class="mono">same (visitor, path) → cached SVG response</text>
+      <text x="10" y="80" class="mono">different visitor → different layers fire</text>
+      <text x="10" y="98" class="mono">cookies hold the cache key</text>
+      <text x="10" y="116" class="mono">returning visit = instant render</text>
+      <text x="10" y="134" class="mono">cold visit = chain runs</text>
+      <text x="10" y="152" class="note">— browser cooks juice for the new bits only</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 5: LUCID PATTERN BORROWED (not paid) -->
+  <!-- ========================================================================== -->
+  <g id="lucid-pattern" transform="translate(40, 980)">
+    <rect width="2520" height="220" rx="10" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 5 — Lucid pattern borrowed (design, not payment)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="400" height="140" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">custom shape pattern (kept)</text>
+      <text x="10" y="44" class="mono">SVG &lt;g&gt; with mspc:* data attrs</text>
+      <text x="10" y="62" class="mono">id + kind + status + node-id</text>
+      <text x="10" y="80" class="mono">live in master Tesseract.svg already</text>
+      <text x="10" y="98" class="mono">walker.py enforces 3-req contract</text>
+      <text x="10" y="116" class="mono">no Lucid runtime needed</text>
+      <text x="10" y="132" class="note">— same shape spec runs on our droplet</text>
+    </g>
+
+    <g transform="translate(460, 60)">
+      <rect width="400" height="140" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">formula pattern (kept)</text>
+      <text x="10" y="44" class="mono">conditional fill IF(status=&quot;impl&quot;, green, gray)</text>
+      <text x="10" y="62" class="mono">CONNECTED(THIS) for live edges</text>
+      <text x="10" y="80" class="mono">implemented in JS inline in SVG</text>
+      <text x="10" y="98" class="mono">OR computed server-side via gently-svg-layers</text>
+      <text x="10" y="116" class="mono">browser evaluates on render</text>
+      <text x="10" y="132" class="note">— Lucid's syntax, our runtime</text>
+    </g>
+
+    <g transform="translate(880, 60)">
+      <rect width="400" height="140" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">data connector pattern (kept)</text>
+      <text x="10" y="44" class="mono">rust chain endpoints =</text>
+      <text x="20" y="62" class="mono">/walk/identify · /chain/run · /pass/run</text>
+      <text x="20" y="80" class="mono">/pieces/search · /import · /refresh</text>
+      <text x="10" y="98" class="mono">request signing via salted keys</text>
+      <text x="10" y="116" class="mono">stateless · cacheable · idempotent</text>
+      <text x="10" y="132" class="note">— Lucid's data-connector contract, our chain</text>
+    </g>
+
+    <g transform="translate(1300, 60)">
+      <rect width="400" height="140" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">scope-restricted clients (kept)</text>
+      <text x="10" y="44" class="mono">scopes: READ · WRITE · ADMIN · AGENT</text>
+      <text x="10" y="62" class="mono">friend keys: READ only (open URL, see)</text>
+      <text x="10" y="80" class="mono">studio keys: WRITE</text>
+      <text x="10" y="98" class="mono">agent keys: AGENT (chain mutations)</text>
+      <text x="10" y="116" class="mono">key in url-bearer or cookie</text>
+      <text x="10" y="132" class="note">— Lucid OAuth scopes, our key store</text>
+    </g>
+
+    <g transform="translate(1720, 60)">
+      <rect width="400" height="140" rx="6" fill="#1f2c3d" stroke="#5a7"/>
+      <text x="10" y="22" class="h3">MCP-style server (kept)</text>
+      <text x="10" y="44" class="mono">Claude/agents read MASTER-INFERENCE.svg</text>
+      <text x="10" y="62" class="mono">via JSON-over-HTTP at /mcp/</text>
+      <text x="10" y="80" class="mono">tools: list_nodes · identify · run_chain</text>
+      <text x="10" y="98" class="mono">stdin/stdout for local agents</text>
+      <text x="10" y="116" class="mono">HTTP for remote agents</text>
+      <text x="10" y="132" class="note">— Lucid's MCP support, our chain</text>
+    </g>
+
+    <g transform="translate(2140, 60)">
+      <rect width="320" height="140" rx="6" fill="#3d2f1c" stroke="#aa6"/>
+      <text x="10" y="22" class="h3">NOT paying for Lucid</text>
+      <text x="10" y="44" class="mono">no document creation</text>
+      <text x="10" y="62" class="mono">no Lucid host runtime</text>
+      <text x="10" y="80" class="mono">no Pro tier ($9.95/u/mo)</text>
+      <text x="10" y="98" class="mono">design pattern borrowed only</text>
+      <text x="10" y="116" class="mono">our droplet · our SVG · our chain</text>
+      <text x="10" y="132" class="note">— full sovereignty</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 6: CONNECTION TO EXISTING TESSERACT -->
+  <!-- ========================================================================== -->
+  <g id="connection" transform="translate(40, 1230)">
+    <rect width="2520" height="280" rx="10" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 6 — bridge to sister Tesseract (WHAT exists ⇄ HOW it runs)</text>
+
+    <g id="bridge-this" transform="translate(40, 60)">
+      <rect width="900" height="200" rx="8" fill="url(#hot-bg)" stroke="#a55"/>
+      <text x="10" y="22" class="h2">THIS file (MASTER-INFERENCE.svg)</text>
+      <text x="10" y="42" class="h3">role: HOW it runs</text>
+      <text x="10" y="62" class="mono">— request lifecycle (visit → chain → SVG response)</text>
+      <text x="10" y="80" class="mono">— rust chain loop (Predict / Execute / Terminate)</text>
+      <text x="10" y="98" class="mono">— layer rotation (which 12 layers fire per visit)</text>
+      <text x="10" y="116" class="mono">— one stacked HTMX SVG view (landing / tools / admin / tesseract)</text>
+      <text x="10" y="134" class="mono">— chain database as access control</text>
+      <text x="10" y="152" class="mono">— visitor-aware rendering + budget</text>
+      <text x="10" y="170" class="mono">— Lucid design pattern (custom shapes + formulas + scopes + MCP)</text>
+      <text x="10" y="188" class="note">authoritative for: scheduling, dispatch, signing, rendering</text>
+    </g>
+
+    <g id="bridge-sister" transform="translate(960, 60)">
+      <rect width="900" height="200" rx="8" fill="url(#cool-bg)" stroke="#5a8"/>
+      <text x="10" y="22" class="h2">SISTER file (studio/docs/Tesseract.svg)</text>
+      <text x="10" y="42" class="h3">role: WHAT exists</text>
+      <text x="10" y="62" class="mono">— 253 nodes across 8 source DAGs</text>
+      <text x="10" y="80" class="mono">— opcode (53) · model (47) · recipe (49) · flow (12)</text>
+      <text x="10" y="98" class="mono">— pass (20) · template (53) · subsystem (10) · project_type (9)</text>
+      <text x="10" y="116" class="mono">— 729 edges (cross-DAG dependencies)</text>
+      <text x="10" y="134" class="mono">— walker.py contract (3 reqs: id + neighbors + subjects)</text>
+      <text x="10" y="152" class="mono">— per-node walk-state · walk-by · walk-at · walk-subjects</text>
+      <text x="10" y="170" class="mono">— project_type switchboard (3d / texture / makeup / etc.)</text>
+      <text x="10" y="188" class="note">authoritative for: inventory, contract, project state</text>
+    </g>
+
+    <g id="bridge-relation" transform="translate(1880, 60)">
+      <rect width="620" height="200" rx="8" fill="#0e1d2a" stroke="#48a"/>
+      <text x="10" y="22" class="h2">RELATIONSHIP</text>
+      <text x="10" y="44" class="h3">both load + cross-reference</text>
+      <text x="10" y="64" class="mono">visit → MASTER-INFERENCE.run(chain)</text>
+      <text x="10" y="82" class="mono">  → reads Tesseract.svg for WHAT</text>
+      <text x="10" y="100" class="mono">  → consults walker.py for state</text>
+      <text x="10" y="118" class="mono">  → routes via Layer 1 (rust loop)</text>
+      <text x="10" y="136" class="mono">  → emits via Layer 2 (stacked view)</text>
+      <text x="10" y="154" class="mono">  → records via Layer 3 (chain db)</text>
+      <text x="10" y="176" class="note">one chain → both SVGs as data</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- LAYER 7: NEXT STEPS / CONSOLIDATION ANCHORS -->
+  <!-- ========================================================================== -->
+  <g id="next" transform="translate(40, 1540)">
+    <rect width="2520" height="280" rx="10" fill="#191e2a" stroke="#444" stroke-width="2"/>
+    <text x="20" y="30" class="h2">Layer 7 — consolidation moves (see /data/Projects/MySpace++/CONSOLIDATION.md)</text>
+
+    <g transform="translate(40, 60)">
+      <rect width="480" height="200" rx="6" fill="#0e1d2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">M1 — unified walker contract</text>
+      <text x="10" y="44" class="mono">merge walker.py (Python) + gently-svg-layers (Rust)</text>
+      <text x="10" y="62" class="mono">one identify() that works on both SVGs</text>
+      <text x="10" y="80" class="mono">contract: id + neighbors + subjects + chain_hash</text>
+      <text x="10" y="98" class="mono">fourth req added: which chain seq populated this</text>
+      <text x="10" y="116" class="mono">effort: ~150 LOC</text>
+      <text x="10" y="134" class="mono">unlock: same agents work both SVGs</text>
+      <text x="10" y="152" class="note">→ first move</text>
+    </g>
+
+    <g transform="translate(540, 60)">
+      <rect width="480" height="200" rx="6" fill="#0e1d2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">M2 — rust chain as web handler</text>
+      <text x="10" y="44" class="mono">Tide/Axum wrapper over gently-runtime::run()</text>
+      <text x="10" y="62" class="mono">routes: /api/run · /api/identify · /api/svg</text>
+      <text x="10" y="80" class="mono">each route extends chain · emits SVG fragment</text>
+      <text x="10" y="98" class="mono">HTMX hx-get / hx-post pattern</text>
+      <text x="10" y="116" class="mono">effort: ~300 LOC</text>
+      <text x="10" y="134" class="mono">unlock: browser visit = chain step</text>
+      <text x="10" y="152" class="note">→ second move</text>
+    </g>
+
+    <g transform="translate(1040, 60)">
+      <rect width="480" height="200" rx="6" fill="#0e1d2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">M3 — visitor probe + budget routing</text>
+      <text x="10" y="44" class="mono">probe(visitor) → ActivationHex</text>
+      <text x="10" y="62" class="mono">budget = scope_to_quality(visitor.scope)</text>
+      <text x="10" y="80" class="mono">gently-inference-budget picks per-visit pipeline</text>
+      <text x="10" y="98" class="mono">cookie holds visitor crystal (cache key)</text>
+      <text x="10" y="116" class="mono">effort: ~200 LOC</text>
+      <text x="10" y="134" class="mono">unlock: same chain serves anon / user / admin differently</text>
+      <text x="10" y="152" class="note">→ third move</text>
+    </g>
+
+    <g transform="translate(1540, 60)">
+      <rect width="480" height="200" rx="6" fill="#0e1d2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">M4 — stacked SVG renderer</text>
+      <text x="10" y="44" class="mono">one HTMX root: index.html → MASTER.svg</text>
+      <text x="10" y="62" class="mono">click any layer → hx-get returns &lt;g&gt; fragment</text>
+      <text x="10" y="80" class="mono">browser swaps in place (no SPA)</text>
+      <text x="10" y="98" class="mono">visitor.scope filters which layers exposed</text>
+      <text x="10" y="116" class="mono">effort: ~250 LOC</text>
+      <text x="10" y="134" class="mono">unlock: landing / tools / admin / tesseract on one page</text>
+      <text x="10" y="152" class="note">→ fourth move</text>
+    </g>
+
+    <g transform="translate(2040, 60)">
+      <rect width="440" height="200" rx="6" fill="#0e1d2a" stroke="#5a8"/>
+      <text x="10" y="22" class="h3">M5 — auth gate integration</text>
+      <text x="10" y="44" class="mono">re-use studio/auth/keys.sqlite + gate.py</text>
+      <text x="10" y="62" class="mono">key → scope → reachable nodes</text>
+      <text x="10" y="80" class="mono">chain step records visit + scope</text>
+      <text x="10" y="98" class="mono">no login form needed</text>
+      <text x="10" y="116" class="mono">effort: ~100 LOC</text>
+      <text x="10" y="134" class="mono">unlock: end-to-end on droplet</text>
+      <text x="10" y="152" class="note">→ fifth move</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================== -->
+  <!-- FOOTER -->
+  <!-- ========================================================================== -->
+  <g id="footer" transform="translate(40, 1850)">
+    <text x="0" y="20" class="note">MASTER-INFERENCE.svg v1.0.0 · rust chain IS the api · one stacked HTMX SVG view · zero ads zero logins zero phishing</text>
+    <text x="0" y="40" class="note">pair: studio/docs/Tesseract.svg · gently runtime: /data/Projects/gently · consolidation: ./CONSOLIDATION.md</text>
+    <text x="0" y="60" class="note">copied for reference: ./GENTLY-TESSERACT.svg (gently/templates/tesseract/master.svg snapshot)</text>
+  </g>
+
+</svg>

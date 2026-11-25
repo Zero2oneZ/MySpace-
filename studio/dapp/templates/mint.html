@@ -1,0 +1,72 @@
+<h1>Mint NFT</h1>
+<p class="meta">Upload a photo. The <code>avatar_nft</code> workflow card renders + pins + mints on TensorChain (with Sui fallback).</p>
+
+<div class="panel">
+  <form id="mint-form"
+        hx-post="/dapp/api/mint"
+        hx-target="#mint-result"
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        onsubmit="return _toB64(event)">
+    <label for="photo">Photo (≤ 8 MB · PNG · JPEG · WebP · GIF · BMP)</label>
+    <input type="file" id="photo" name="photo" accept="image/*" required>
+
+    <label for="tier" style="margin-top:.85rem;display:block;">Tier</label>
+    <select id="tier" name="tier">
+      <option value="free">free — devnet mint, 0 royalty</option>
+      <option value="paid">paid — mainnet mint, 5% royalty</option>
+      <option value="enterprise">enterprise — custom royalty</option>
+    </select>
+
+    <input type="hidden" id="photo_b64" name="photo_b64">
+
+    <button type="submit" class="cta" style="margin-top:1rem;">
+      Mint
+      <span class="htmx-indicator">…</span>
+    </button>
+  </form>
+</div>
+
+<div id="mint-result"></div>
+
+<p class="stamp">Backend resolved at request-time (rpc → cargo → stub). SUI_FALLBACK=1 auto-routes to Sui TROLLN package if TensorChain returns method-not-found.</p>
+
+<script>
+// Read file → base64 → stuff into hidden field; convert form to JSON for HTMX.
+function _toB64(ev) {
+  ev.preventDefault();
+  var form = ev.target;
+  var fileInput = form.querySelector('input[type=file]');
+  var tier = form.querySelector('select[name=tier]').value;
+  if (!fileInput.files || !fileInput.files[0]) { return false; }
+  var f = fileInput.files[0];
+  if (f.size > 8 * 1024 * 1024) {
+    document.getElementById('mint-result').innerHTML =
+      '<div class="panel warn"><b>Too large</b> — ' + f.size + ' B exceeds 8 MB.</div>';
+    return false;
+  }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var b64 = String(rd.result).split(',', 2)[1] || '';
+    var token = (localStorage.getItem('mspc_token') || '').trim();
+    fetch('/dapp/api/mint', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'HX-Request': 'true',
+        'Authorization': token ? ('Bearer ' + token) : '',
+      },
+      body: JSON.stringify({ photo_b64: b64, tier: tier }),
+    }).then(function(r) { return r.text().then(function(t) { return { s: r.status, t: t }; }); })
+      .then(function(res) {
+        document.getElementById('mint-result').innerHTML = res.t;
+      })
+      .catch(function(err) {
+        document.getElementById('mint-result').innerHTML =
+          '<div class="panel warn"><b>Error</b> · ' + String(err) + '</div>';
+      });
+  };
+  rd.readAsDataURL(f);
+  return false;
+}
+</script>

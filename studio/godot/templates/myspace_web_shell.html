@@ -1,0 +1,177 @@
+<!doctype html>
+<!--
+  MySpace++ Studio — generic Web HTML shell
+  Godot 4.6.3-stable web export · WASM + threads (SharedArrayBuffer)
+
+  This shell targets the in-house dApp embed (NOT Facebook Instant Games).
+  No FBInstant SDK is loaded. Telemetry still POSTs to /dapp/api/fb_event so
+  that ALL surfaces share one event stream — events from this shell carry
+  event_name prefix "web." so the backend can split them.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' https: blob: data:;
+  script-src  'self' 'unsafe-eval' 'unsafe-inline' blob:;
+  connect-src 'self' https: wss: blob: data:;
+  img-src     'self' https: blob: data:;
+  style-src   'self' 'unsafe-inline' https:;
+  font-src    'self' https: data:;
+  worker-src  'self' blob:;
+  child-src   'self' blob:;
+" />
+<title>$GODOT_PROJECT_NAME</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#eee; }
+  #canvas { display:block; width:100vw; height:100vh; outline:none; touch-action:none; }
+  #canvas:focus { outline:none; }
+  #mspc-boot {
+    position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px;
+    background:#000; color:#9af; font-size:14px; z-index:9999;
+  }
+  #mspc-boot .bar { width:60%; max-width:380px; height:4px; background:#222; border-radius:2px; overflow:hidden; }
+  #mspc-boot .fill { height:100%; width:0%; background:linear-gradient(90deg,#5af,#a9f); transition:width 0.18s ease; }
+  #mspc-boot .lbl { opacity:0.6; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; }
+  .hidden { display:none !important; }
+</style>
+
+<script>
+//
+// SharedArrayBuffer / cross-origin-isolation
+// Godot 4 WASM threads require COOP+COEP. If the embedding page is not
+// cross-origin-isolated, register the COI service-worker shim if it exists
+// alongside the export. Hosts that already serve correct COOP/COEP headers
+// (e.g. /dapp/ behind Caddy) hit the no-op branch.
+//
+(function () {
+  if (typeof window.crossOriginIsolated === "boolean" && window.crossOriginIsolated) return;
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    fetch('coi-serviceworker.js', { method:'HEAD' })
+      .then(r => { if (r.ok) navigator.serviceWorker.register('coi-serviceworker.js').catch(()=>{}); })
+      .catch(()=>{});
+  } catch(e) {}
+})();
+
+//
+// Telemetry forwarder — same shape as the FBInstant shell so the backend
+// receives a unified event stream. Token comes from window.__mspc_freetier_token,
+// set by the host page (Studio dApp embed sets this on iframe init).
+//
+function mspcWebForward(event_name, payload) {
+  try {
+    var token = window.__mspc_freetier_token || "";
+    var body = {
+      event_name: "web." + event_name,
+      player_id:  (window.__mspc_player_id  || ""),
+      context_id: (window.__mspc_context_id || ""),
+      signed_data:"",
+      payload:    (payload || {})
+    };
+    fetch('/dapp/api/fb_event', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify(body),
+      keepalive: true,
+      credentials: 'omit'
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+// Minimal MspcWeb surface for GDScript via JavaScriptBridge.eval().
+window.MspcWeb = {
+  isReady: function () { return !!window.__mspc_web_ready; },
+  getPlayerID: function () { return window.__mspc_player_id || ""; },
+  logEvent: function (name, value, params) {
+    mspcWebForward("custom_event", { name: name, value: value, params: params || {} });
+    return true;
+  }
+};
+</script>
+</head>
+
+<body>
+  <div id="mspc-boot">
+    <div class="lbl">MySpace++ · loading</div>
+    <div class="bar"><div class="fill" id="mspc-boot-fill"></div></div>
+    <div class="lbl" id="mspc-boot-stage">connecting</div>
+  </div>
+
+  <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault();">
+    HTML5 canvas appears to be unsupported in the current browser.
+  </canvas>
+
+  <script src="$GODOT_URL"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var bootEl   = document.getElementById('mspc-boot');
+    var fillEl   = document.getElementById('mspc-boot-fill');
+    var stageEl  = document.getElementById('mspc-boot-stage');
+    var canvas   = document.getElementById('canvas');
+
+    function setStage(s)  { try { stageEl.textContent = s; } catch(e){} }
+    function setFill(p01) { try { fillEl.style.width = Math.max(0, Math.min(1, p01)) * 100 + '%'; } catch(e){} }
+    function reportProgress(p01) { setFill(Math.max(0, Math.min(1, p01))); }
+
+    function bootGodot() {
+      setStage('godot: downloading');
+      reportProgress(0.05);
+
+      var engine = new Engine($GODOT_CONFIG);
+
+      return engine.startGame({
+        'executable': '$GODOT_BASENAME',
+        'mainPack':   '$GODOT_BASENAME.pck',
+        'canvas':     canvas,
+        'canvasResizePolicy': 2,
+        'experimentalVK': false,
+        'focusCanvas': true,
+        'onProgress': function (current, total) {
+          if (total > 0) {
+            var p = 0.05 + 0.90 * (current / total);
+            reportProgress(p);
+          }
+        },
+        'onPrint': function (out, err) {
+          if (err) { try { console.error(out); } catch(e){} }
+          else     { try { console.log(out);   } catch(e){} }
+        }
+      });
+    }
+
+    function reveal() {
+      window.__mspc_web_ready = true;
+      mspcWebForward('game_started', {});
+      try { bootEl.classList.add('hidden'); } catch(e){}
+      try { canvas.focus(); } catch(e){}
+    }
+
+    function fatal(err) {
+      try {
+        bootEl.classList.remove('hidden');
+        stageEl.textContent = 'fatal: ' + String(err && err.message || err);
+      } catch(e){}
+      mspcWebForward('fatal', { error: String(err && err.message || err) });
+    }
+
+    setStage('booting');
+    reportProgress(0.02);
+    bootGodot()
+      .then(function () { reportProgress(1.0); reveal(); })
+      .catch(fatal);
+  })();
+  </script>
+</body>
+</html>

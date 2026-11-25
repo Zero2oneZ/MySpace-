@@ -1,0 +1,237 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "2d.pixel.platformer_2b1633b7",
+  "category": "compose",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: 2d pixel platformer with player jump idle enemies tilemap and pinterest sprite refs",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_godot",
+      "agent": "godot",
+      "kernel_ref": "connector:godot",
+      "engine": "godot",
+      "in": [
+        "3D"
+      ],
+      "out": "SCENE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "params": {}
+    },
+    {
+      "id": "p01_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "tool": "scene.list_objects",
+      "params": {}
+    },
+    {
+      "id": "p02_text_to_image",
+      "agent": "Text-to-Image",
+      "kernel_ref": "hf:Text-to-Image",
+      "engine": "hf",
+      "in": [
+        "TEXT"
+      ],
+      "out": "IMAGE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Unconditional Image Generation",
+        "hf:Image-Text-to-Image",
+        "hf:Any-to-Any"
+      ],
+      "params": {
+        "model": "black-forest-labs/FLUX.1-schnell",
+        "prompt": "2d pixel platformer with player jump idle enemies tilemap and pinterest sprite refs",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p03_image_classification",
+      "agent": "Image Classification",
+      "kernel_ref": "hf:Image Classification",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "LABEL",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Object Detection",
+        "hf:Zero-Shot Image Classification"
+      ],
+      "params": {
+        "model": "google/vit-base-patch16-224",
+        "prompt": "2d pixel platformer with player jump idle enemies tilemap and pinterest sprite refs",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p04_comfyui",
+      "agent": "comfyui",
+      "kernel_ref": "connector:comfyui",
+      "engine": "comfyui",
+      "in": [
+        "ANY"
+      ],
+      "out": "IMAGE",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "comfy_workflow": "flux_dev_t2i",
+      "comfy_inputs": {
+        "prompt": "2d pixel platformer with player jump idle enemies tilemap and pinterest sprite refs",
+        "seed": 722875319,
+        "steps": 4,
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    {
+      "id": "p05_image_segmentation",
+      "agent": "Image Segmentation",
+      "kernel_ref": "hf:Image Segmentation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "MASK",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Mask Generation"
+      ],
+      "params": {
+        "model": "facebook/sam-vit-base",
+        "prompt": "2d pixel platformer with player jump idle enemies tilemap and pinterest sprite refs",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p06_pinterest_vector_motherl",
+      "agent": "pinterest_vector_motherload",
+      "kernel_ref": "card:pinterest_vector_motherload",
+      "engine": "card",
+      "in": [
+        "LIST[STR]",
+        "INT",
+        "INT",
+        "BOOL"
+      ],
+      "out": "JSONL",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:blob_to_unreal",
+        "card:generative_mcp_fanout",
+        "card:unified_model_api",
+        "card:snap_to_unreal",
+        "card:solana_program_oracle",
+        "card:document_processing",
+        "card:pump_surf_pipeline",
+        "card:cross_chain_swap"
+      ]
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "albedo",
+      "source": "pass:p00_godot",
+      "blend": "base"
+    },
+    {
+      "name": "normal",
+      "source": "pass:p01_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "roughness",
+      "source": "pass:p02_text_to_image",
+      "blend": "additive"
+    },
+    {
+      "name": "metallic",
+      "source": "pass:p03_image_classification",
+      "blend": "additive"
+    },
+    {
+      "name": "emission",
+      "source": "pass:p04_comfyui",
+      "blend": "additive"
+    },
+    {
+      "name": "ao",
+      "source": "pass:p05_image_segmentation",
+      "blend": "additive"
+    },
+    {
+      "name": "depth",
+      "source": "pass:p06_pinterest_vector_motherl",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:pinterest_vector_motherload",
+    "connector:blender",
+    "connector:comfyui",
+    "connector:godot",
+    "hf:Image Classification",
+    "hf:Image Segmentation",
+    "hf:Text-to-Image"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "game",
+      "image",
+      "character"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T02:17:08Z"
+  }
+}

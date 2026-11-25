@@ -1,0 +1,52 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "user_graph",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · USER_CHAIN_OF_THOUGHT",
+  "tier": "L0",
+  "module_path": "core/lib/user_graph.py",
+  "summary": "XMLParser-shaped graph over the user's chain of thought. Each chat turn lands as a <turn> element with attributes (uuid, user, turn_idx, timestamp, chain_crystal, tier) and child nodes (words, prompt, produced_chain, forward_chain, ngrams). predict_next(words, k) finds past turns whose n-grams overlap the incoming words.",
+  "engine_pattern": "extends ParserCursor (XMLParser API). Writer appends turns + ngrams + edges to the JSONL document.",
+  "storage": {
+    "graph_jsonl": "~/.cc/user_graph.jsonl"
+  },
+  "node_kinds_written": [
+    "element name='root' depth=0 (seeded on first open)",
+    "element name='turn' depth=1 (one per chat turn; attributes carry identity + crystal backlink)",
+    "text name='words' depth=2 (the user's raw input)",
+    "text name='prompt' depth=2 (the enhanced prompt)",
+    "text name='produced_chain' depth=2 (the master workspace chain this turn produced)",
+    "text name='forward_chain' depth=2 (the projected forward chain for this turn)",
+    "element name='ngram' depth=2 (one per extracted n-gram, attributes: hash + size)",
+    "element_end name='turn' depth=1"
+  ],
+  "ngram_strategy": "word-level 2-grams + 3-grams via _WORD_RE. Lowercased. Each grams hash is blake3-truncated to 16 chars. Shared with moe_router (same hash → same key across substrates).",
+  "exports": ["UserGraph", "UserGraphIndex", "TurnRecord", "Prediction", "extract_ngrams"],
+  "substrate": "user_graph",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/chat.py::_user_graph_predict (cmd_full / cmd_godot pre-pipeline)",
+      "core/lib/chat.py::_user_graph_record (cmd_full / cmd_godot post-log)",
+      "CLI: python3 user_graph.py record | predict | walk | ngrams"
+    ],
+    "outbound_calls": ["parser_cursor::ParserCursor + ParserWriter"],
+    "substrate_reads": "~/.cc/user_graph.jsonl (UserGraphIndex.build_from walks once at construction)",
+    "substrate_writes": "~/.cc/user_graph.jsonl (record_turn appends ~N+5 lines per turn where N = ngram count)"
+  },
+  "predict_next_algorithm": "1) extract_ngrams(words) → list of (gram, hash). 2) for each hash, look up ngram_to_turns. 3) score each past turn by # of matching hashes. 4) sort by (-score, turn_uuid) for deterministic ranking. 5) return top-k Predictions with words, prompt, forward_chain, tier, timestamp, chain_crystal.",
+  "guarantees": [
+    "Append-only — every event is a new JSONL line; turns and edges never overwritten",
+    "Deterministic — same JSONL bytes → same UserGraphIndex → same predictions",
+    "Cross-substrate linked — every turn carries chain_crystal pointing to its inference_logger record",
+    "Walkable as XML — `python3 user_graph.py walk` dumps the entire structure with depths + offsets",
+    "Ngram hash matches moe_router's hash (same algorithm) — joinable across substrates"
+  ],
+  "usage_example": "from user_graph import UserGraph, UserGraphIndex\\ng = UserGraph(); g.open()\\nidx = UserGraphIndex.build_from(g)\\nfor p in idx.predict_next('build the forward projector', k=3):\\n    print(p.score, p.words, p.forward_chain[:80])",
+  "chain_runs": ["moe_chain_router_v0"]
+}

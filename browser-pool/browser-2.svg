@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:todo="https://myspace.local/todo/v1" width="340" height="240" viewBox="0 0 340 240" font-family="monospace" font-size="10" todo:role="browser-state" todo:browser-id="browser-2" todo:layer="scheduler" todo:state="ACTIVE">
+  <ns0:metadata>
+    <todo:about>browser-2 — INFERENCE SCHEDULER. Budget router active. Dispatches passes to worker browsers.</todo:about>
+    <todo:parent-svg>MASTER-TODO.svg</todo:parent-svg>
+    <todo:peer-svg>MASTER-INFERENCE.svg</todo:peer-svg>
+    <todo:state>ACTIVE</todo:state>
+    <todo:last-update>2026-05-28T00:55:30Z</todo:last-update>
+    <todo:next-browser>browser-3</todo:next-browser>
+    <todo:inference>budget-router</todo:inference>
+    <todo:active-nodes>20</todo:active-nodes>
+    <todo:pass-targets>all</todo:pass-targets>
+    <todo:coherence-check status="PASS" drift="0" />
+    <todo:coherence-check-status>PASS</todo:coherence-check-status>
+    <todo:coherence-check-drift>0</todo:coherence-check-drift>
+    <todo:active-task>T-001</todo:active-task>
+  </ns0:metadata>
+  <ns0:defs>
+    <ns0:linearGradient id="bg2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#0a0a15" />
+      <ns0:stop offset="100%" stop-color="#050510" />
+    </ns0:linearGradient>
+  </ns0:defs>
+  <ns0:rect width="340" height="240" rx="6" fill="url(#bg2)" stroke="#4488ff" stroke-width="2" />
+  <ns0:rect x="0" y="0" width="340" height="28" rx="6" fill="#0a1a3a" />
+  <ns0:text x="10" y="18" fill="#4488ff" font-size="12" font-weight="bold">browser-2 · INFERENCE SCHED</ns0:text>
+  <ns0:text x="290" y="18" fill="#eb3" font-size="10">ACTIVE</ns0:text>
+  <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: scheduler + budget</ns0:text>
+  <ns0:text x="10" y="66" fill="#aaa" font-size="10">Inference: budget router</ns0:text>
+  <ns0:text x="10" y="82" fill="#888" font-size="10">Peer: MASTER-INFERENCE.svg</ns0:text>
+  <ns0:text x="10" y="104" fill="#4488ff" font-size="10">Passes: 20 PassType variants</ns0:text>
+  <ns0:text x="10" y="120" fill="#4488ff" font-size="10">Quality tiers: 4</ns0:text>
+  <ns0:rect x="10" y="140" width="320" height="50" rx="3" fill="#0a0a1a" />
+  <ns0:text x="16" y="156" fill="#888" font-size="9">Accent sync:</ns0:text>
+  <ns0:text x="16" y="170" fill="#4488ff" font-size="9">• routes inference to browser-N by pass</ns0:text>
+  <ns0:text x="16" y="184" fill="#4488ff" font-size="9">• updates MASTER-TODO.svg task status</ns0:text>
+  <ns0:rect x="10" y="200" width="320" height="30" rx="3" fill="#0a0a0a" stroke="#4488ff" stroke-width="1" />
+  <ns0:text x="16" y="218" fill="#4488ff" font-size="9">Coherence: PASS · Drift: 0 · Next: browser-3</ns0:text>
+</ns0:svg>

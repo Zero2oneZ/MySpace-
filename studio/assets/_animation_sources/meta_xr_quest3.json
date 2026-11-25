@@ -1,0 +1,11 @@
+{
+  "added_at": 1780044152.1458204,
+  "anchor_uuids": [],
+  "capture_method": "meta_xr_body",
+  "chain": "meta_xr",
+  "notes": "Quest 3 / Quest Pro full-body XR_FB_body_tracking. 22 joints + ARKit face. Aligns to whatever XR_FB anchors the spatial_anchor agent has placed.",
+  "rig_target_glb": "studio/assets/_models/avatars/meta_body_default.glb",
+  "source_id": "meta_xr_quest3",
+  "verified_at": null,
+  "watch": true
+}

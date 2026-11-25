@@ -1,0 +1,90 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "noun_project",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · NOUN_PROJECT_FREE_TRAINING_DATA",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/noun_project.py",
+
+  "summary": "Noun Project v2 REST connector — OAuth1 two-legged (consumer key + secret, no user context). Every icon harvested is FREE labeled training data: a curated text term, a tag list, a license string, and creator credits travel together with the SVG. Stdlib-only — OAuth1 signing implemented inline with hmac + hashlib + base64 + urllib (no `requests_oauthlib` dep). Each successful tool call appends one InferenceRecord with tier='noun_project_import', model='noun_project', scope=f'noun_project_<tool>'. harvest_query downloads each SVG to studio/assets/_corpus/icons/<crystal_short>.svg with a matching sidecar JSON.",
+
+  "engine_pattern": "ThirdPartyConnector subclass mirroring stripe_mcp shape. SERVICE='noun_project'. urllib GET to api.thenounproject.com/v2/* with OAuth1 Authorization header. Tool dispatch via send(recipient=tool_name, message=json_args). connect() validates key+secret presence only — does NOT smoke-ping (free tier rate limit is tight).",
+
+  "expected_tools": [
+    "search",
+    "harvest_query",
+    "get_icon",
+    "list_terms_for_collection"
+  ],
+
+  "env_vars": {
+    "NOUNPROJECT_API_KEY":    "OAuth1 consumer key (from thenounproject.com/developers app)",
+    "NOUNPROJECT_SECRET_KEY": "OAuth1 consumer secret — must pair with NOUNPROJECT_API_KEY",
+    "NOUN_PROJECT_KEY":       "fallback alias for NOUNPROJECT_API_KEY",
+    "NOUN_PROJECT_SECRET":    "fallback alias for NOUNPROJECT_SECRET_KEY"
+  },
+
+  "convenience_wrappers": [
+    "search(query, limit=10)",
+    "harvest_query(query, limit=10) — search + download SVG + sidecar JSON for every hit",
+    "get_icon(noun_id)",
+    "list_terms_for_collection(collection_id, limit=50)"
+  ],
+
+  "corpus_layout": {
+    "root": "studio/assets/_corpus/icons/",
+    "svg": "<crystal_short>.svg — geometry_crystal[:16] of SVG bytes (svg_vector_embed if available else sha256)",
+    "sidecar": "<crystal_short>.json — { noun_id, noun_term, tags, use_cases, license, attribution, creator, crystal, svg_url_origin, saved_at, is_svg }",
+    "dedup_thesis": "Same icon re-harvested from different queries collapses to ONE record. Each new query gets appended to sidecar.use_cases. Same SVG from multiple creators collapses to ONE record (geometry_crystal dominates)."
+  },
+
+  "exports": ["NounProjectConnector", "EXPECTED_TOOLS", "NOUN_API_ROOT", "ICON_CORPUS_DIR"],
+
+  "substrate": "studio/assets/_corpus/icons/ (svg + json sidecar) + ~/.cc/third_party_logs/noun_project_sends.jsonl (send history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored import records, tier='noun_project_import')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_noun_search / cmd_noun_harvest (planned)",
+      "studio_runtime._dispatch_cloud (when pass.provider_family='noun_project')",
+      "workflow_card vm_mspc_001.workflows.harvest.noun_project_icon_motherload.v0.json (planned)",
+      "moe_chain_router (training-data harvester axis)"
+    ],
+    "outbound_calls": [
+      "https://api.thenounproject.com/v2/icon/search",
+      "https://api.thenounproject.com/v2/icon/<id>",
+      "https://api.thenounproject.com/v2/collection/<id>/icons",
+      "<icon_url> CDN GETs (no auth needed for public icon CDN URLs)",
+      "inference_logger.log (every success: tier='noun_project_import', model='noun_project')"
+    ],
+    "substrate_reads": "NOUNPROJECT_API_KEY + NOUNPROJECT_SECRET_KEY via auth.keys.load_env",
+    "substrate_writes": "studio/assets/_corpus/icons/<crystal>.svg + <crystal>.json sidecars + send_log + crystal_chain import records"
+  },
+
+  "oauth1_implementation_notes": {
+    "flavor": "two-legged HMAC-SHA1 (RFC 5849 §3.4.1)",
+    "signature_method": "HMAC-SHA1",
+    "signing_key": "percent_encode(consumer_secret) + '&' (empty token secret)",
+    "sig_base": "METHOD + '&' + percent_encode(base_url) + '&' + percent_encode(canonical_params)",
+    "auth_header_format": "OAuth oauth_consumer_key=\"...\", oauth_nonce=\"...\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"...\", oauth_version=\"1.0\", oauth_signature=\"...\"",
+    "code_lines": "~50 LOC stdlib"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every successful import has a deterministic InferenceRecord with tier='noun_project_import'",
+    "Stdlib-only — no `requests_oauthlib` package required; OAuth1 signing inline (hmac + base64)",
+    "Graceful absent-keys — if NOUNPROJECT_API_KEY or NOUNPROJECT_SECRET_KEY missing, connect() returns False and send() emits SendResult(success=False, error='noun_project keys not configured')",
+    "Dedup-safe — same SVG re-harvested from different queries collapses by geometry_crystal/sha256; use_cases list grows additively",
+    "Sidecar-faithful — every saved SVG has a matching JSON sidecar capturing the curated text label, tags, license, and creator (training data, fully attributed)"
+  ],
+
+  "usage_example": "from core.lib.third_party.noun_project import NounProjectConnector\\nc = NounProjectConnector()\\nc.connect()\\nr = c.send('harvest_query', '{\"query\":\"arrow\",\"limit\":5}')\\nprint(r.metadata['harvested'])  # list of saved svg paths\\nprint(r.crystal_id)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "Phase 2 #58 — Noun Project connector — lively-enchanting-parrot plan"
+}

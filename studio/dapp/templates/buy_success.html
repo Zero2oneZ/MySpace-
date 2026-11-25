@@ -1,0 +1,15 @@
+<div class="panel ok">
+  <h2 style="margin-top:0;">Purchase initiated · {rail}</h2>
+  <p style="margin:.2rem 0;">Product: <code>{product}</code> · Amount: <b>{amount_str}</b></p>
+  <p style="margin:.2rem 0;">Tx / PI: <code>{tx_id}</code></p>
+  <p style="margin:.2rem 0;">Crystal: <code>{crystal}</code></p>
+</div>
+
+<div class="panel tight">
+  <h3 style="margin-top:0;">What's next</h3>
+  <ul>
+    <li>Stripe rail: confirm the PaymentIntent with the client secret (<code>{client_secret}</code>) on the client.</li>
+    <li>Sui rail: the digest is final once the transaction is included on-chain.</li>
+    <li>Both rails: the crystal entry is in the master chain at <code>tier='monetization' model='dapp_buy'</code>.</li>
+  </ul>
+</div>

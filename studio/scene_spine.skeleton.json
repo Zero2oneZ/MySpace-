@@ -1,0 +1,506 @@
+{
+ "_doc": "GENERATED from gently-probe walk_cycle.rs BIND_POSE (25-joint humanoid, MetaXR frame). Second producer \u2014 proves producer\u2192spine generalizes (skeleton, not floorplan).",
+ "frame": "MetaXR",
+ "nodes": [
+  {
+   "id": "joint_0_hips",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_1_spine",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.1,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_2_spine1",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.2,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_3_spine2",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.3,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_4_neck",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.45,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_5_head",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.58,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_6_leftShoulder",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.18,
+    0.4,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_7_leftArm",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.45,
+    0.4,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_8_leftForeArm",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.65,
+    0.2,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_9_leftHand",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.8,
+    0.05,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_10_rightShoulder",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.18,
+    0.4,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_11_rightArm",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.45,
+    0.4,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_12_rightForeArm",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.65,
+    0.2,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_13_rightHand",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.8,
+    0.05,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_14_leftUpLeg",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.1,
+    0.0,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_15_leftLeg",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.12,
+    -0.45,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_16_leftFoot",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.13,
+    -0.85,
+    0.05
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_17_leftToeBase",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.13,
+    -0.9,
+    0.18
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_18_rightUpLeg",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.1,
+    0.0,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_19_rightLeg",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.12,
+    -0.45,
+    0.0
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_20_rightFoot",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.13,
+    -0.85,
+    0.05
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_21_rightToeBase",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.13,
+    -0.9,
+    0.18
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_22_leftEye",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    -0.02,
+    0.2,
+    0.05
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_23_rightEye",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.02,
+    0.2,
+    0.05
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  },
+  {
+   "id": "joint_24_jaw",
+   "glb": "/tmp/wrap_proof.glb",
+   "pos": [
+    0.0,
+    0.18,
+    0.05
+   ],
+   "rot_euler_deg": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    0.04,
+    0.04,
+    0.04
+   ],
+   "edit_mode": "link"
+  }
+ ]
+}

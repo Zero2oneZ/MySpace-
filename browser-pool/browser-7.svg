@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:todo="https://myspace.local/todo/v1" width="340" height="240" viewBox="0 0 340 240" font-family="monospace" font-size="10" todo:role="browser-state" todo:browser-id="browser-7" todo:layer="video-gen" todo:state="IDLE">
+  <ns0:metadata>
+    <todo:about>browser-7 — VIDEO GEN worker. Receives path waypoints from floorplan. Emits MP4 frames to browser-5.</todo:about>
+    <todo:parent-svg>MASTER-TODO.svg</todo:parent-svg>
+    <todo:state>IDLE</todo:state>
+    <todo:last-update>2026-05-28T00:55:30Z</todo:last-update>
+    <todo:next-browser>browser-5</todo:next-browser>
+    <todo:inference>video-generation</todo:inference>
+    <todo:active-nodes>2</todo:active-nodes>
+    <todo:pass-targets>VideoGen,Lipsync</todo:pass-targets>
+    <todo:coherence-check status="PASS" drift="0" />
+    <todo:coherence-check-status>PASS</todo:coherence-check-status>
+    <todo:coherence-check-drift>0</todo:coherence-check-drift>
+    <todo:active-task>T-001</todo:active-task>
+  </ns0:metadata>
+  <ns0:defs>
+    <ns0:linearGradient id="bg7" x1="0%" y1="0%" x2="0%" y2="100%">
+      <ns0:stop offset="0%" stop-color="#0a0a15" />
+      <ns0:stop offset="100%" stop-color="#050510" />
+    </ns0:linearGradient>
+  </ns0:defs>
+  <ns0:rect width="340" height="240" rx="6" fill="url(#bg7)" stroke="#eb3" stroke-width="2" />
+  <ns0:rect x="0" y="0" width="340" height="28" rx="6" fill="#2a2a0a" />
+  <ns0:text x="10" y="18" fill="#eb3" font-size="12" font-weight="bold">browser-7 · VIDEO GEN</ns0:text>
+  <ns0:text x="290" y="18" fill="#aaa" font-size="10">IDLE</ns0:text>
+  <ns0:text x="10" y="50" fill="#aaa" font-size="10">Layer: VideoGen · Lipsync</ns0:text>
+  <ns0:text x="10" y="66" fill="#aaa" font-size="10">Inference: video-generation</ns0:text>
+  <ns0:text x="10" y="82" fill="#888" font-size="10">Target: gently::walk_cycle</ns0:text>
+  <ns0:text x="10" y="104" fill="#eb3" font-size="10">Last job: none</ns0:text>
+  <ns0:text x="10" y="120" fill="#eb3" font-size="10">VRAM: 12GB available</ns0:text>
+  <ns0:rect x="10" y="140" width="320" height="50" rx="3" fill="#0a0a1a" />
+  <ns0:text x="16" y="156" fill="#888" font-size="9">Accent sync:</ns0:text>
+  <ns0:text x="16" y="170" fill="#eb3" font-size="9">• receives path waypoints from floorplan</ns0:text>
+  <ns0:text x="16" y="184" fill="#eb3" font-size="9">• emits MP4 frames to browser-5</ns0:text>
+  <ns0:rect x="10" y="200" width="320" height="30" rx="3" fill="#0a0a0a" stroke="#eb3" stroke-width="1" />
+  <ns0:text x="16" y="218" fill="#eb3" font-size="9">Coherence: PASS · Drift: 0 · Next: browser-5</ns0:text>
+</ns0:svg>

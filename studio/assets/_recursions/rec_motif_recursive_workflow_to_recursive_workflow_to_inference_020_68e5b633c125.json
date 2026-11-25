@@ -1,0 +1,22 @@
+{
+  "crystal": "68e5b633c125078d9e1132fc56377854d527aa2a454097c11442358a53fa7e63cd806bc3f392448e7a9fe1cbbe37e2567343631563b8f629377db466aa167eb4",
+  "description": "Pattern 'recursive_workflow\u2192recursive_workflow\u2192inference' appears 6 times across INFERENCE,RECURSIVE_WORKFLOWS",
+  "edge_kinds_traversed": [],
+  "has_self_loop": false,
+  "id": "rec_motif_recursive_workflow_to_recursive_workflow_to_inference_020",
+  "kind": "motif",
+  "name": "motif: recursive_workflow\u2192recursive_workflow\u2192inference",
+  "nodes": [
+    "op_provider_groq",
+    "rec_cycle_op_discord_mcp_04_001",
+    "rec_motif_recursive_workflow_to_app_to_platform_011",
+    "rec_motif_recursive_workflow_to_platform_to_app_009",
+    "rec_motif_recursive_workflow_to_platform_to_doc_012",
+    "rec_scc_op_provider_groq_04_000"
+  ],
+  "size": 6,
+  "sub_dags_touched": [
+    "INFERENCE",
+    "RECURSIVE_WORKFLOWS"
+  ]
+}

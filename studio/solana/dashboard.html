@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Pattern Intelligence Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
+            cyan: { 450: '#22d3ee' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #020617; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .glass { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(148, 163, 184, 0.1); }
+    .glow-cyan { box-shadow: 0 0 20px rgba(34, 211, 238, 0.15); }
+    .row-hover:hover { background: rgba(34, 211, 238, 0.05); }
+    .truncate-mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .score-bar { height: 6px; border-radius: 3px; background: #1e293b; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .tag { font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; letter-spacing: 0.02em; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">S</div>
+        <div>
+          <h1 class="text-lg font-semibold tracking-tight">Pattern Intelligence</h1>
+          <p class="text-xs text-slate-400">Solana Orchestration Mapper &#183; Live</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-300" id="status-text">Feed active</span>
+        </div>
+        <button onclick="loadData()" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition border border-slate-700">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-6">
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="glass rounded-xl p-4 glow-cyan">
+        <div class="text-xs text-slate-400 mb-1">Total Patterns</div>
+        <div class="text-2xl font-bold text-white" id="stat-patterns">--</div>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <div class="text-xs text-slate-400 mb-1">Self-Activating</div>
+        <div class="text-2xl font-bold text-amber-400" id="stat-self">--</div>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <div class="text-xs text-slate-400 mb-1">Recursive Cycles</div>
+        <div class="text-2xl font-bold text-rose-400" id="stat-recursive">--</div>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <div class="text-xs text-slate-400 mb-1">Deep Chains</div>
+        <div class="text-2xl font-bold text-cyan-400" id="stat-deep">--</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="glass rounded-xl p-5">
+        <div class="text-sm font-semibold text-slate-200 mb-4">Score Distribution</div>
+        <div class="h-48"><canvas id="chart-scores"></canvas></div>
+      </div>
+      <div class="glass rounded-xl p-5">
+        <div class="text-sm font-semibold text-slate-200 mb-4">Root Program Breakdown</div>
+        <div class="h-48"><canvas id="chart-roots"></canvas></div>
+      </div>
+      <div class="glass rounded-xl p-5">
+        <div class="text-sm font-semibold text-slate-200 mb-4">Tag Frequency</div>
+        <div class="h-48"><canvas id="chart-tags"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top Orchestrators + Predictions -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="glass rounded-xl p-5">
+        <div class="text-sm font-semibold text-slate-200 mb-4 flex items-center justify-between">
+          <span>Top Orchestrators</span>
+          <span class="text-xs text-slate-500">by tx count</span>
+        </div>
+        <div id="orchestrators-list" class="space-y-2"></div>
+      </div>
+
+      <div class="glass rounded-xl p-5">
+        <div class="text-sm font-semibold text-slate-200 mb-4 flex items-center justify-between">
+          <span>ML Predictions</span>
+          <span class="text-xs text-slate-500">above threshold</span>
+        </div>
+        <div class="mb-3 flex items-center gap-3">
+          <input type="range" min="0" max="100" value="60" id="threshold-slider" 
+                 class="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                 oninput="updateThreshold(this.value)">
+          <span class="text-xs font-mono text-cyan-400 w-12 text-right" id="threshold-val">0.60</span>
+        </div>
+        <div id="predictions-list" class="space-y-2 max-h-80 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- Patterns Table -->
+    <div class="glass rounded-xl p-5">
+      <div class="text-sm font-semibold text-slate-200 mb-4 flex items-center justify-between">
+        <span>All Patterns</span>
+        <div class="flex items-center gap-2">
+          <input type="text" id="pattern-filter" placeholder="Filter by root or tag..." 
+                 class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+                 oninput="filterPatterns(this.value)">
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-slate-400 border-b border-slate-800">
+              <th class="pb-2 font-medium">Root</th>
+              <th class="pb-2 font-medium">Depth</th>
+              <th class="pb-2 font-medium">Freq</th>
+              <th class="pb-2 font-medium">Score</th>
+              <th class="pb-2 font-medium">Tags</th>
+              <th class="pb-2 font-medium">Chain</th>
+            </tr>
+          </thead>
+          <tbody id="patterns-body">
+            <!-- populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let patterns = [];
+    let predictions = [];
+    let model = null;
+    let scoreChart, rootChart, tagChart;
+
+    function matVecMul(W, x) {
+      return W.map(row => row.reduce((sum, wi, i) => sum + wi * x[i], 0));
+    }
+    function vecAdd(a, b) { return a.map((ai, i) => ai + b[i]); }
+    function relu(v) { return v.map(x => Math.max(0, x)); }
+    function sigmoid(x) {
+      if (x < -20) return 0;
+      if (x > 20) return 1;
+      return 1 / (1 + Math.exp(-x));
+    }
+    function forward(m, x) {
+      const z1 = vecAdd(matVecMul(m.W1, x), m.b1);
+      const a1 = relu(z1);
+      const z2 = vecAdd(matVecMul(m.W2, a1), m.b2);
+      return sigmoid(z2[0]);
+    }
+
+    const PUMP_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+    const SYS_ID  = "11111111111111111111111111111111";
+
+    function extractFeatures(p) {
+      const chain = p.chain || [];
+      const depth = chain.length;
+      const freq = p.freq || 0;
+      const interval_ms = p.interval_ms || 0;
+      const is_rec = p.recursive ? 1 : 0;
+      const is_self = p.self_activating ? 1 : 0;
+      const tags = p.tags || [];
+      const unique_nodes = new Set(chain).size;
+      const node_diversity = depth ? unique_nodes / depth : 0;
+      const root = chain[0] || "";
+      const is_sys = root === SYS_ID ? 1 : 0;
+      const is_pump = root === PUMP_ID ? 1 : 0;
+      const is_token = root.startsWith("Token") ? 1 : 0;
+      const is_other = (!is_sys && !is_pump && !is_token) ? 1 : 0;
+      const counts = {};
+      chain.forEach(c => { counts[c] = (counts[c] || 0) + 1; });
+      const max_rep = Math.max(...Object.values(counts).concat([0]));
+      const rep_ratio = depth ? max_rep / depth : 0;
+      const n_tags = tags.length;
+      const has_deep = tags.includes("DEEP_CHAIN") ? 1 : 0;
+      const has_det = tags.includes("DETERMINISTIC_GRID") ? 1 : 0;
+      const has_hf = tags.includes("HIGH_FREQUENCY") ? 1 : 0;
+      return [
+        depth / 10.0, Math.log1p(freq), Math.log1p(interval_ms) / 10.0,
+        is_rec, is_self, node_diversity, rep_ratio,
+        is_sys, is_pump, is_token, is_other,
+        n_tags / 5.0, has_deep, has_det, has_hf
+      ];
+    }
+
+    async function loadModel() {
+      try {
+        const r = await fetch('feed/pattern_model.json');
+        model = await r.json();
+      } catch(e) { console.warn('No model loaded', e); }
+    }
+
+    async function loadData() {
+      try {
+        const [summaryR, modelR] = await Promise.all([
+          fetch('feed/orchestration_summary.json'),
+          fetch('feed/pattern_model.json').catch(() => null)
+        ]);
+        const summary = await summaryR.json();
+        patterns = summary.patterns || [];
+        if (modelR) model = await modelR.json();
+
+        document.getElementById('stat-patterns').textContent = summary.total_contracts || 0;
+        document.getElementById('stat-self').textContent = summary.self_activating_contracts || 0;
+        document.getElementById('stat-recursive').textContent = summary.recursive_cycles || 0;
+        document.getElementById('stat-deep').textContent = summary.deep_chains || 0;
+
+        renderOrchestrators(summary.top_orchestrators || []);
+        renderCharts();
+        renderPatterns();
+        runPredictions();
+      } catch(e) {
+        console.error('Load failed', e);
+        document.getElementById('status-text').textContent = 'Load failed';
+      }
+    }
+
+    function renderOrchestrators(top) {
+      const el = document.getElementById('orchestrators-list');
+      el.innerHTML = top.slice(0, 8).map(o => {
+        const pct = Math.min(100, (o.tx_count / (top[0]?.tx_count || 1)) * 100);
+        return `\n          <div class="flex items-center gap-3 text-sm">
+            <div class="w-24 truncate-mono text-xs text-slate-400">${o.program_id.slice(0,8)}...</div>
+            <div class="flex-1">
+              <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full" style="width:${pct}%"></div>
+              </div>
+            </div>
+            <div class="w-16 text-right text-xs text-slate-300">${o.tx_count} tx</div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderCharts() {
+      const scores = patterns.map(p => p.score).sort((a,b) => a-b);
+      const bins = [0,0.4,0.5,0.6,0.7,0.8,1.0];
+      const binLabels = ['0.0-0.4','0.4-0.5','0.5-0.6','0.6-0.7','0.7-0.8','0.8-1.0'];
+      const binCounts = bins.slice(0,-1).map((b,i) => scores.filter(s => s >= b && s < bins[i+1]).length);
+
+      if (scoreChart) scoreChart.destroy();
+      scoreChart = new Chart(document.getElementById('chart-scores'), {
+        type: 'bar',
+        data: { labels: binLabels, datasets: [{ data: binCounts, backgroundColor: '#22d3ee', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#1e293b' } } } }
+      });
+
+      const roots = {};
+      patterns.forEach(p => {
+        const r = p.root ? p.root.slice(0,8) : 'unknown';
+        roots[r] = (roots[r] || 0) + 1;
+      });
+      const rootEntries = Object.entries(roots).sort((a,b) => b[1]-a[1]).slice(0,6);
+      if (rootChart) rootChart.destroy();
+      rootChart = new Chart(document.getElementById('chart-roots'), {
+        type: 'doughnut',
+        data: { labels: rootEntries.map(e=>e[0]), datasets: [{ data: rootEntries.map(e=>e[1]), backgroundColor: ['#22d3ee','#3b82f6','#a855f7','#f43f5e','#f59e0b','#10b981'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 } } } }
+      });
+
+      const tagCounts = {};
+      patterns.forEach(p => (p.tags||[]).forEach(t=>{ tagCounts[t]=(tagCounts[t]||0)+1; }));
+      const tagEntries = Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      if (tagChart) tagChart.destroy();
+      tagChart = new Chart(document.getElementById('chart-tags'), {
+        type: 'bar',
+        data: { labels: tagEntries.map(e=>e[0].replace('_',' ')), datasets: [{ data: tagEntries.map(e=>e[1]), backgroundColor: '#a855f7', borderRadius: 4 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } } } }
+      });
+    }
+
+    function renderPatterns(filter='') {
+      const tbody = document.getElementById('patterns-body');
+      const filtered = patterns.filter(p => {
+        if (!filter) return true;
+        const f = filter.toLowerCase();
+        return (p.root||'').toLowerCase().includes(f) || (p.tags||[]).some(t=>t.toLowerCase().includes(f));
+      }).slice(0, 100);
+
+      tbody.innerHTML = filtered.map(p => {
+        const score = p.score || 0;
+        const scoreColor = score > 0.7 ? 'bg-rose-500' : score > 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
+        const tags = (p.tags || []).map(t => {
+          const colors = { 'RECURSIVE_TRANSFORMER': 'bg-rose-500/20 text-rose-300 border-rose-500/30', 'SELF_ACTIVATING': 'bg-amber-500/20 text-amber-300 border-amber-500/30', 'DEEP_CHAIN': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30', 'DETERMINISTIC_GRID': 'bg-purple-500/20 text-purple-300 border-purple-500/30', 'HIGH_FREQUENCY': 'bg-pink-500/20 text-pink-300 border-pink-500/30' };
+          return `<span class=\"tag border ${colors[t] || 'bg-slate-500/20 text-slate-300 border-slate-500/30'}\">${t.replace(/_/g,' ')}</span>`;
+        }).join(' ');
+        const chain = (p.chain || []).map(c => `<span class=\"text-xs text-slate-500\">${c.slice(0,6)}</span>`).join(' → ');
+        return `\n          <tr class=\"row-hover border-b border-slate-800/50 transition\">
+            <td class=\"py-2 truncate-mono text-xs text-slate-300\">${(p.root||'').slice(0,16)}...</td>
+            <td class=\"py-2 text-slate-400\">${p.depth||0}</td>
+            <td class=\"py-2 text-slate-400\">${p.freq||0}</td>
+            <td class=\"py-2\">
+              <div class=\"flex items-center gap-2\">
+                <div class=\"score-bar w-16\"><div class=\"score-fill ${scoreColor}\" style=\"width:${score*100}%\"></div></div>
+                <span class=\"text-xs font-mono ${score > 0.6 ? 'text-rose-400' : 'text-slate-400'}\">${score.toFixed(3)}</span>
+              </div>
+            </td>
+            <td class=\"py-2\">${tags}</td>
+            <td class=\"py-2 truncate-mono\">${chain}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    function runPredictions() {
+      if (!model) return;
+      predictions = patterns.map(p => ({ ...p, predicted: forward(model, extractFeatures(p)) }));
+      updateThreshold(document.getElementById('threshold-slider').value);
+    }
+
+    function updateThreshold(val) {
+      const t = val / 100;
+      document.getElementById('threshold-val').textContent = t.toFixed(2);
+      if (!predictions.length) return;
+      const filtered = predictions.filter(p => p.predicted >= t).sort((a,b) => b.predicted - a.predicted).slice(0, 20);
+      const el = document.getElementById('predictions-list');
+      el.innerHTML = filtered.map(p => {
+        const delta = p.predicted - (p.score || 0);
+        const deltaColor = delta > 0.05 ? 'text-rose-400' : delta < -0.05 ? 'text-emerald-400' : 'text-slate-500';
+        return `\n          <div class=\"flex items-center gap-3 py-2 border-b border-slate-800/50\">
+            <div class=\"w-24 truncate-mono text-xs text-slate-400\">${(p.root||'').slice(0,8)}...</div>
+            <div class=\"flex-1\">
+              <div class=\"h-1.5 bg-slate-800 rounded-full overflow-hidden\">
+                <div class=\"h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full\" style=\"width:${p.predicted*100}%\"></div>
+              </div>
+            </div>
+            <div class=\"w-20 text-right\">
+              <div class=\"text-xs font-mono text-white\">${p.predicted.toFixed(3)}</div>
+              <div class=\"text-[10px] ${deltaColor}\">${delta >= 0 ? '+' : ''}${delta.toFixed(3)}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function filterPatterns(v) { renderPatterns(v); }
+
+    loadModel().then(loadData);
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>

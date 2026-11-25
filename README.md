@@ -224,3 +224,112 @@ You may not redistribute, fork commercially, host for paying users,
 or train ML models on the source. See `LICENSE` for full terms.
 
 For commercial licensing inquiries, contact Tom Lee (Zero2oneZ).
+
+---
+
+## The Super-LLM by Default (Advanced)
+
+**The combination that creates organized super intelligence for free:**
+
+```
+Raw data (images/video/audio)
+  ↓
+Tesseract DAG (253 nodes, 729 edges) ← MySpace++
+  ↓
+Pass outputs (mask, depth, caption, embedding, etc.)
+  ↓
+SVG layers + vector DB (12-dim hash embeddings)
+  ↓
+gemini-nano in browser (working on merged layers)
+  ↓
+Rust engine (TinyTransformer, codie-v4-predict) ← GentlyOS
+  ↓
+Correlation_id = blake3(mspc_hash || gently_hash)
+  ↓
+Crystal DAG (canonical, content-addressed, self-validating)
+```
+
+**Why this is automatic intelligence:**
+
+1. **Organized speech** - Every pass output is *addressable*. The SVG layer has `data-walk-id`, `data-walk-neighbors`, `data-walk-subjects`. This isn't unstructured text - it's a knowledge graph with explicit relationships.
+
+2. **Part-sentence driven** - The `hash_loop_decompile()` iteration creates discrete "thought steps" that are independently addressable. You don't get a blob of text; you get a chain of hash-reflection points.
+
+3. **Similarity retrieval built-in** - The SVG vector DB uses cosine similarity on embeddings. But crucially, the *crystal hash* is the content-addressed key. Two inputs with similar meaning produce similar crystal prefixes.
+
+4. **Free of charge** - The Rust runtime (TinyTransformer, codie-v4-predict) + the Python side (Tesseract, vector DB) are *already running*. The "intelligence" emerges from the mirror synchrony, not from training a new model.
+
+---
+
+## Dual-Loop Architecture
+
+### MSPC Loop (Python/HTMX)
+```
+1. Input: user prompt / pass specification
+2. Compute: content hash via BLAKE3
+3. Loop: invert_hash() iterations
+4. Result: visible UI / asset
+```
+
+### GENTLY Loop (Rust/.bb/crystal)
+```
+1. Input: opcode → OpKind translation
+2. Compute: .bb program hash
+3. Loop: mirror-pass (inverse op)
+4. Result: crystal hash (canonical)
+5. Mirror: invert hash → mirror of MSPC loop
+```
+
+**Correlation:** The `hash_loop_decompile` finds where MSPC's hash becomes GENTLY's hash through iterative inversion. This is the "reflection point."
+
+**Correlation ID:** `correlation_id = sha256(mspc_hash || gently_hash)` appears in BOTH halves' cadence logs.
+
+---
+
+## Execution Sites (Chrom/GPUs)
+
+| Site | Loop | Type | DAG Traversal |
+|------|------|------|---------------|
+| `localhost:8081` (HTMX) | MSPC | Python HTMX | Tesseract walker |
+| `localhost:7445` (MCP) | GENTLY | Rust telos-ml-tools | `.bb` stack machine |
+| Chrom browser tab | Both | WebGPU | Shared GPU workers |
+| z21 GPU 1 | Both | CUDA | Local inference workers |
+
+The **chromium-authority** cookie is the shared session token that authenticates both loops.
+
+---
+
+## Communication Protocol
+
+The **only** path between halves is `studio/docs/NOTES-FOR-INFERANCE.md`. If you find yourself wanting to message the other side any other way, write it there instead.
+
+**How to update:**
+1. READ the whole file. Don't skim. Section IDs matter.
+2. CLAIM the lock in §10 (30 min TTL)
+3. EDIT inside YOUR scope
+4. STAMP in §11 (cadence log)
+5. RELEASE the lock
+
+---
+
+## Phase B Bridges (Pending - Connects to GentlyOS)
+
+These are the 11 TBD interfaces that connect MSPC and GENTLY:
+
+- **B1**. Opcode → OpKind translation table
+- **B2**. `pieces_index.asset_sha` ↔ `crystal hash` convention
+- **B3**. WEAVE topology joint schema
+- **B4**. Telos-ml-tools reachable from cc
+- **B5**. Shared training data export
+- **B6**. Joint sessions table
+- **B7**. Joint agents table
+
+---
+
+## Files of Note
+
+- **`studio/docs/NOTES-FOR-INFERANCE.md`** - The ONLY communication channel between halves
+- **`studio/docs/RUST-CHAIN.md`** - MySpace++ side's understanding of the gently chain
+- **`studio/docs/COMPLEX-DAG.svg`** - The joint operational map (67 nodes, 19 cross-boundary edges)
+- **`studio/docs/TESSERACT.md`** - MySpace++ static knowledge graph (8 sub-DAGs, 253 nodes)
+- **`studio/docs/TWINS-MASTER.md`** - MySpace++ multi-session/device runtime view

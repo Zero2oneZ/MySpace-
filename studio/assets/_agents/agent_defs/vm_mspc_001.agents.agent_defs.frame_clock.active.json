@@ -1,0 +1,52 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "frame_clock",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · FPS_QUANTIZED_TIME_DATA",
+  "tier": "L0",
+  "module_path": "core/lib/frame_clock.py",
+  "summary": "FPS is constant time data. FrameClock pins any continuous timestamp to integer frame indices at canonical FPSes (24/30/60/90/120). Gives the chain lossless integer joins, cross-substrate sync (Godot frame N = Remotion frame N = SpriteForge frame N = spatial_anchor scan N), and compact tamper-evident hex storage. The discrete-time twin of tri_modal_embedder.time_vector.",
+  "engine_pattern": "deterministic floor(timestamp * fps) at multiple FPSes. Pack as 8-byte big-endian uint64s → hex. Crystal = BLAKE3 over canonical (fps_set + frames + rounded timestamp).",
+  "canonical_fps": [24, 30, 60, 90, 120],
+  "exports": ["FrameClock", "CANONICAL_FPS", "timestamp_to_frame", "frame_to_timestamp",
+              "convert_frame", "find_frame_neighbors", "find_synced_records"],
+  "substrate": "in-memory FrameClock objects (caller persists)",
+  "routing_connections": {
+    "inbound_callers": [
+      "(planned) inference_logger.log — every record gets frames dict + frame_clock_hex",
+      "(planned) tri_modal_embedder.time_vector — extend with frames field",
+      "(planned) spatial_anchor — frame-align acoustic sweeps",
+      "(planned) workflow_card pass.produces_at_frame annotation"
+    ],
+    "outbound_calls": ["blake3 / blake2b for crystal", "stdlib math/time/json/hashlib"],
+    "substrate_reads": "none",
+    "substrate_writes": "none (caller persists hex / json forms)"
+  },
+  "smoke_test_results_2026_05_28": {
+    "frames_at_5fps_canonical":   "24:41204851212  30:51506064015  60:103012128030  90:154518192045  120:206024256060",
+    "verify_clean":                "all_ok=true",
+    "verify_tampered_frame":       "frames_consistent=false (instant detection)",
+    "round_trip_hex":              "identical ts and frames after to_hex → from_hex",
+    "cross_fps_conversion":        "30fps frame 1800 = 24fps 1440 = 60fps 3600 = 90fps 5400 = 120fps 7200 (= 60.00s)",
+    "frame_sync_retrieval":        "tolerance=1 frame at 60fps correctly clusters godot+remotion+spriteforge events"
+  },
+  "the_three_gains": [
+    "1. INTEGER JOINS — 'all events at frame N at FPS X' is O(1) per record (dict lookup, not float distance)",
+    "2. CROSS-SUBSTRATE SYNC — Godot _process(delta) frame N = Remotion comp frame N = SpriteForge sheet frame N = spatial_anchor scan N",
+    "3. TAMPER-EVIDENT — recompute frame indices from timestamp; mismatch = corrupted. Differential-amplifier at the time axis."
+  ],
+  "guarantees": [
+    "Deterministic — same timestamp → same frame tuple, byte-exact across runs",
+    "Lossless integer rescale — convert_frame(1800, 30, 60) = 3600, no float drift at exact multiples",
+    "Compact storage — 5 uint64s = 40 bytes = 80 hex chars per FrameClock",
+    "Pure stdlib — no numpy, no dateutil"
+  ],
+  "usage_example": "from frame_clock import FrameClock, find_synced_records\\nc = FrameClock.now()\\nprint(c.frames)  # {24: ..., 30: ..., 60: ..., 90: ..., 120: ...}\\n# Find all chain events frame-synced to this moment at 60fps within 1 frame:\\nsynced = find_synced_records(c, my_chain_corpus, tolerance_frames=1, fps=60)",
+  "chain_runs": ["moe_chain_router_v0"]
+}

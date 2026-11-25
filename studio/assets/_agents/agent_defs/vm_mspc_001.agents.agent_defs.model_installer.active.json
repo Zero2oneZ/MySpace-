@@ -1,0 +1,50 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "model_installer",
+  "state": "active",
+  "version": "v0",
+  "role": "INSTALLER · MODEL_LIFECYCLE",
+  "tier": "L0",
+  "module_path": "core/lib/model_installer.py",
+  "summary": "Unified HuggingFace + Ollama search, download, install, and register. One CLI, one canonical tree (studio/models/), one source-of-truth registry.json. Every install writes a VM-CONSOLIDATION config JSON + a registry entry.",
+  "engine_pattern": "subprocess-driven (huggingface-cli + ollama) with Python fallback (huggingface_hub + ollama libs). Each install is content-addressed via the registry's asset_id naming convention.",
+  "storage": {
+    "registry": "studio/models/registry.json",
+    "tree": "studio/models/{brand}/{category}/{subtype}/",
+    "in_tree_card": "studio/models/AGENT_CARD.md"
+  },
+  "supported_brands": ["huggingface", "ollama", "cloud (anthropic / grok / openai — config-only, no weights)"],
+  "exports": ["search()", "install()", "list_models()", "taxonomy()", "sync_registry()"],
+  "substrate": "studio/models tree (canonical model corpus)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_model_search / cmd_model_install / cmd_model_list / cmd_model_taxonomy / cmd_model_sync",
+      "CLI: python3 model_installer.py search | install | list | taxonomy | sync-registry"
+    ],
+    "outbound_calls": [
+      "subprocess huggingface-cli (download / upload)",
+      "subprocess ollama (pull / list)",
+      "Python fallback: huggingface_hub / ollama packages"
+    ],
+    "substrate_reads": "studio/models/registry.json (for list / sync)",
+    "substrate_writes": "studio/models/{brand}/{category}/{subtype}/<files> + per-model JSON + registry.json"
+  },
+  "guarantees": [
+    "Deterministic path: same (brand, category, subtype) → same directory",
+    "One registry.json — auto-rebuilt by sync-registry; never hand-edit",
+    "Naming convention follows VM-CONSOLIDATION §9: vm_id.brand.category.subtype.name.state.version.json",
+    "Idempotent installs: re-installing a known model updates metadata, doesn't re-download"
+  ],
+  "consumed_by": [
+    "core/lib/model_registry.py (lookup interface; reads registry.json)",
+    "core/lib/token_router.py (tier resolution via ModelRegistry)",
+    "core/lib/forward_projector.py (posthoc projector picks CC_TINY_MODEL from installed Ollama models)"
+  ],
+  "usage_example": "python3 core/lib/model_installer.py install --ollama 'qwen2.5-coder:1.5b' --category text_generation --subtype code\\npython3 core/lib/model_installer.py sync-registry",
+  "chain_runs": ["moe_chain_router_v0"]
+}

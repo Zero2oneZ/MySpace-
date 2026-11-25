@@ -1,0 +1,240 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "document.parser.with_c6f1245e",
+  "category": "scope",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: document parser with summarization and svg extraction",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_text_classification",
+      "agent": "Text Classification",
+      "kernel_ref": "hf:Text Classification",
+      "engine": "hf",
+      "in": [
+        "TEXT"
+      ],
+      "out": "LABEL",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Zero-Shot Classification"
+      ]
+    },
+    {
+      "id": "p01_summarization",
+      "agent": "Summarization",
+      "kernel_ref": "hf:Summarization",
+      "engine": "hf",
+      "in": [
+        "TEXT"
+      ],
+      "out": "TEXT",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Translation",
+        "hf:Fill-Mask",
+        "hf:Question Answering",
+        "hf:Text Generation",
+        "hf:Table Question Answering",
+        "hf:Text Ranking",
+        "hf:Visual Question Answering",
+        "hf:Image-Text-to-Text"
+      ]
+    },
+    {
+      "id": "p02_question_answering",
+      "agent": "Question Answering",
+      "kernel_ref": "hf:Question Answering",
+      "engine": "hf",
+      "in": [
+        "TEXT",
+        "TEXT"
+      ],
+      "out": "TEXT",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Translation",
+        "hf:Fill-Mask",
+        "hf:Summarization",
+        "hf:Text Generation",
+        "hf:Table Question Answering",
+        "hf:Text Ranking",
+        "hf:Visual Question Answering",
+        "hf:Image-Text-to-Text"
+      ]
+    },
+    {
+      "id": "p03_document_question_answer",
+      "agent": "Document Question Answering",
+      "kernel_ref": "hf:Document Question Answering",
+      "engine": "hf",
+      "in": [
+        "DOC",
+        "TEXT"
+      ],
+      "out": "TEXT",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Translation",
+        "hf:Fill-Mask",
+        "hf:Question Answering",
+        "hf:Summarization",
+        "hf:Text Generation",
+        "hf:Table Question Answering",
+        "hf:Text Ranking",
+        "hf:Visual Question Answering"
+      ]
+    },
+    {
+      "id": "p04_visual_document_retrieva",
+      "agent": "Visual Document Retrieval",
+      "kernel_ref": "hf:Visual Document Retrieval",
+      "engine": "hf",
+      "in": [
+        "DOC",
+        "TEXT"
+      ],
+      "out": "DOC",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    },
+    {
+      "id": "p05_image_feature_extraction",
+      "agent": "Image Feature Extraction",
+      "kernel_ref": "hf:Image Feature Extraction",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "EMBEDDING",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    },
+    {
+      "id": "p06_document_processing",
+      "agent": "document_processing",
+      "kernel_ref": "card:document_processing",
+      "engine": "card",
+      "in": [
+        "STR",
+        "STR",
+        "INT",
+        "BOOL"
+      ],
+      "out": "STR",
+      "tier": "deterministic",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "card:autonomous_3d_asset",
+        "card:shader_graph_compose",
+        "card:smooth.twist.on_9c51e081",
+        "card:spiky.twisted.goo_6571b6e5",
+        "card:texture_only_bake",
+        "card:blob_to_unreal",
+        "card:photo_to_avatar_rigged",
+        "card:idle.walk.twist_481cb60a"
+      ]
+    },
+    {
+      "id": "p07_feature_extraction",
+      "agent": "Feature Extraction",
+      "kernel_ref": "hf:Feature Extraction",
+      "engine": "hf",
+      "in": [
+        "TEXT"
+      ],
+      "out": "EMBEDDING",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": []
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "p00_text_classification",
+      "source": "pass:p00_text_classification",
+      "blend": "additive"
+    },
+    {
+      "name": "p01_summarization",
+      "source": "pass:p01_summarization",
+      "blend": "additive"
+    },
+    {
+      "name": "p02_question_answering",
+      "source": "pass:p02_question_answering",
+      "blend": "additive"
+    },
+    {
+      "name": "p03_document_question_answer",
+      "source": "pass:p03_document_question_answer",
+      "blend": "additive"
+    },
+    {
+      "name": "p04_visual_document_retrieva",
+      "source": "pass:p04_visual_document_retrieva",
+      "blend": "additive"
+    },
+    {
+      "name": "p05_image_feature_extraction",
+      "source": "pass:p05_image_feature_extraction",
+      "blend": "additive"
+    },
+    {
+      "name": "p06_document_processing",
+      "source": "pass:p06_document_processing",
+      "blend": "additive"
+    },
+    {
+      "name": "p07_feature_extraction",
+      "source": "pass:p07_feature_extraction",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "card:document_processing",
+    "hf:Document Question Answering",
+    "hf:Feature Extraction",
+    "hf:Image Feature Extraction",
+    "hf:Question Answering",
+    "hf:Summarization",
+    "hf:Text Classification",
+    "hf:Visual Document Retrieval"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "document"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T01:39:04Z"
+  }
+}

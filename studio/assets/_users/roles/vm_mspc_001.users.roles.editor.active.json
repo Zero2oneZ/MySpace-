@@ -1,0 +1,28 @@
+{
+  "_schema": "role_definition_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "users",
+  "category": "roles",
+  "name": "editor",
+  "state": "active",
+  "version": "v0",
+  "role_id": "role_editor",
+  "display_name": "Editor",
+  "description": "Can create and edit projects and assets. Cannot manage users or billing.",
+  "scope": "tenant",
+  "permissions": [
+    "project.create",
+    "project.read",
+    "project.write",
+    "project.deploy",
+    "template.use",
+    "template.configure",
+    "asset.upload",
+    "asset.delete"
+  ],
+  "inherits_from": ["role_viewer"],
+  "created_at": "2026-05-27T23:00:00Z",
+  "crystal": "<sha256 of this file content>"
+}

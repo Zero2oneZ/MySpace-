@@ -1,0 +1,144 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "medieval.ranger.with_72ad85fb",
+  "category": "scope",
+  "state": "active",
+  "version": "v0",
+  "summary": "Deterministically composed from prompt: medieval ranger with bow and quiver",
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "str",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "any"
+    }
+  ],
+  "passes": [
+    {
+      "id": "p00_image_segmentation",
+      "agent": "Image Segmentation",
+      "kernel_ref": "hf:Image Segmentation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "MASK",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "hf:Mask Generation"
+      ],
+      "params": {
+        "model": "facebook/sam-vit-base",
+        "prompt": "medieval ranger with bow and quiver",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p01_blender",
+      "agent": "blender",
+      "kernel_ref": "connector:blender",
+      "engine": "blender",
+      "in": [
+        "ANY"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [
+        "connector:generative"
+      ],
+      "tool": "scene.list_objects",
+      "params": {}
+    },
+    {
+      "id": "p02_depth_estimation",
+      "agent": "Depth Estimation",
+      "kernel_ref": "hf:Depth Estimation",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "DEPTH_MAP",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [],
+      "params": {
+        "model": "Intel/dpt-hybrid-midas",
+        "prompt": "medieval ranger with bow and quiver",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    },
+    {
+      "id": "p03_image_to_3d",
+      "agent": "Image-to-3D",
+      "kernel_ref": "hf:Image-to-3D",
+      "engine": "hf",
+      "in": [
+        "IMAGE"
+      ],
+      "out": "3D",
+      "tier": "fast",
+      "status": "PLANNED",
+      "swap_mode": "tiny",
+      "swap_compatible_with": [],
+      "params": {
+        "model": "openai/shap-e",
+        "prompt": "medieval ranger with bow and quiver",
+        "max_tokens": 256,
+        "temperature": 0.0,
+        "fallback": true
+      }
+    }
+  ],
+  "layer_stack": [
+    {
+      "name": "albedo",
+      "source": "pass:p00_image_segmentation",
+      "blend": "base"
+    },
+    {
+      "name": "normal",
+      "source": "pass:p01_blender",
+      "blend": "additive"
+    },
+    {
+      "name": "roughness",
+      "source": "pass:p02_depth_estimation",
+      "blend": "additive"
+    },
+    {
+      "name": "metallic",
+      "source": "pass:p03_image_to_3d",
+      "blend": "additive"
+    }
+  ],
+  "depends_on": [
+    "connector:blender",
+    "hf:Depth Estimation",
+    "hf:Image Segmentation",
+    "hf:Image-to-3D"
+  ],
+  "composed_by": {
+    "composer_card": "card:workflow_composer",
+    "compose_scope": [
+      "character",
+      "3d"
+    ],
+    "sub_card_paths": [],
+    "composed_at_utc": "2026-05-30T03:39:08Z"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "snap_minis_sdk",
+  "state": "active",
+  "version": "v0",
+  "role": "CONNECTOR · SNAP_MINIS_JS_SDK_COMPANION",
+  "tier": "L0",
+  "module_path": "core/lib/third_party/snap_minis_sdk.py",
+
+  "summary": "Server-side Python companion to the Snapchat Snap Minis JavaScript SDK (https://kit.snapchat.com/docs/snap-minis/). Snap Minis is Snapchat's HTML5 mini-app container — minis load inside the Snapchat app and access host functionality (user identity, Bitmoji avatars + sticker picker, friends-who-use-this-mini, Snap Payments, camera Lens hand-off, Spectacles AR cast, CreativeKit share-to-camera) through the `window.snap` global. The JS bridge POSTs every meaningful surface action back to the studio dApp at /dapp/api/snap_mini_event with a bearer freetier token. This connector (a) records every event into ~/.cc/snap_minis_events.jsonl, (b) crystal-anchors each event via inference_logger.log(tier='social_event', model='snap_minis', scope=f'snap_mini_<event_name>'), (c) verifies the signed_user_info HMAC against SNAP_MINI_APP_SECRET so we can trust external_id, and (d) when event_name=='mini.friends.list_pulled' normalizes the Snap friends payload (externalId/displayName/bitmojiAvatarUrl) into the FB-Instant connected_players shape (id/name/picture) and hands it off to the facebook_friends_graph harvester via source='fb_instant'. The SDK_MANIFEST constant documents 15 window.snap.* JS calls (js_call → server_event_name + scope_required + body_schema + description) so the embedded Godot HTML5 build and the studio dApp know what to wire to which event. Stdlib-only (urllib, hmac, hashlib, json, base64). Sibling/mirror of fb_instant_games.py — same shape, same verifier pattern, same JSONL+crystal substrate.",
+
+  "engine_pattern": "ThirdPartyConnector subclass with SERVICE='snap_minis'. Tool dispatch via send(recipient=tool_name, message=json_args). connect() probes only env vars (no network) and returns True iff SNAP_MINI_APP_ID + SNAP_MINI_APP_SECRET both present — connect status drives whether signed_user_info verification can run, but record_event still works without keys (signed_valid=False). signed_user_info verification is a pure stdlib hmac.compare_digest over `<sig>.<payload>` base64url tokens with HMAC-SHA256(app_secret, payload) — wire format mirrors fb_instant_games signed_player_info exactly so verifiers can share the parse path. Friends-list hand-off has two strategies in order: (1) third_party.facebook_friends_graph.ingest_friends_list if exported at module top-level, else (2) FacebookFriendsGraphConnector.send('harvest_for', {source:'fb_instant', payload:{connected_players: <normalized>}, ...}). Both are wrapped in try/except so this module is useful before agent B is installed.",
+
+  "expected_tools": [
+    "record_event",
+    "verify_signed_data",
+    "manifest",
+    "event_stats"
+  ],
+
+  "sdk_manifest_entries": 15,
+
+  "sdk_manifest_keys": [
+    "app_initializeAsync",
+    "app_exitAsync",
+    "user_getUserAsync",
+    "user_getFriendListAsync",
+    "bitmoji_fetchAvatar2D",
+    "bitmoji_presentStickerPicker",
+    "context_getEntryAsync",
+    "context_shareAsync",
+    "payments_purchaseAsync",
+    "camera_openLensAsync",
+    "spectacles_castAsync",
+    "session_getDeviceClass",
+    "session_onResume",
+    "session_onPause",
+    "creativekit_shareToCamera"
+  ],
+
+  "sdk_manifest_schema_per_entry": {
+    "js_call":           "exact window.snap.* signature the in-browser JS bridge should invoke",
+    "scope_required":    "Snap Kit permission scope the user must have granted (or 'none')",
+    "server_event_name": "the dotted event_name the dApp callback POSTs back to /dapp/api/snap_mini_event",
+    "description":       "one-line behavior summary",
+    "body_schema":       "expected POST body keys + types (for the dApp + embedded Godot HTML5 build)"
+  },
+
+  "env_vars": {
+    "SNAP_MINI_APP_ID":     "Snap Kit App ID (kit.snapchat.com → My Apps → App Info). Drives connect() status.",
+    "SNAP_MINI_APP_SECRET": "Snap Kit App Secret. Required to verify signed_user_info HMACs; absent → signed_valid=False on every record."
+  },
+
+  "user_provisioning_required": {
+    "status": "PENDING — distinct from FB_APP_ID/FB_APP_SECRET",
+    "rationale": "Snap Kit issues a separate App ID + Secret pair, unrelated to the Facebook Instant Games credentials. Provisioning fb_instant_games does NOT provision snap_minis_sdk.",
+    "vars_to_set_in_env": [
+      "SNAP_MINI_APP_ID",
+      "SNAP_MINI_APP_SECRET"
+    ],
+    "docs_link": "https://kit.snapchat.com/docs/snap-minis/"
+  },
+
+  "convenience_wrappers": [
+    "record_event(event_name, user_id, signed_data, payload)  — primary entry; called by the JS bridge via the dApp /dapp/api/snap_mini_event POST. Crystal anchor + JSONL sink + friends_list_pulled hand-off (Snap→FB-shape normalized).",
+    "verify_signed_data(signed_user_info, app_secret)  — verify the Snap-issued HMAC. Returns {valid, external_id, request_payload, issued_at, error?}. Pure stdlib hmac.",
+    "manifest()  — returns the SDK_MANIFEST (15 entries). Consumed by studio/dapp + the embedded Godot HTML5 build to know which JS calls to wire to which server events.",
+    "event_stats(since_ts=None)  — counts events in ~/.cc/snap_minis_events.jsonl by event_name; returns {total, by_event_name, first_ts, last_ts}.",
+    "SnapMinisSDKConnector.verify_dapp_token(token, expected_domain=None)  — staticmethod wrapper around freetier_gate.verify_token for the dApp handler to bearer-gate every /dapp/api/snap_mini_event POST in one call."
+  ],
+
+  "event_sink_format": {
+    "path": "~/.cc/snap_minis_events.jsonl",
+    "shape_per_line": {
+      "ts":               "float — unix seconds at record_event time",
+      "event_name":       "str  — e.g. 'mini.user.identified'",
+      "user_id":          "str  — Snap externalId (or '' if anon)",
+      "signed_valid":     "bool — True iff signed_user_info HMAC verified",
+      "payload_summary":  "dict — redacted summary of the JS-side payload",
+      "crystal_id":       "str  — hex sha256 from inference_logger",
+      "handoff":          "dict — only present when event_name=='mini.friends.list_pulled'"
+    }
+  },
+
+  "friends_harvest_handoff": {
+    "trigger_event": "mini.friends.list_pulled",
+    "target_module": "core/lib/third_party/facebook_friends_graph.py  (agent B — shared with fb_instant_games)",
+    "shape_normalization": {
+      "snap_shape":      "[{external_id, display_name, bitmoji_avatar_url}, ...]",
+      "fb_instant_shape": "[{id, name, picture:{data:{url}}}, ...]",
+      "rationale": "structurally identical — only key names differ; one normalization step lets snap_minis reuse agent B's existing source='fb_instant' code path"
+    },
+    "strategy_1": "third_party.facebook_friends_graph.ingest_friends_list(player_id, friends, source_crystal)  — preferred if module exports it at top level",
+    "strategy_2": "FacebookFriendsGraphConnector.send('harvest_for', {player_id, source:'fb_instant', payload:{connected_players: <normalized>}, source_crystal})  — fallback; uses the existing fb_instant source kind",
+    "wiring": "both strategies wrapped in try/except — if agent B is not yet installed or neither strategy succeeds, record_event still succeeds with metadata.friends_handoff={status:'deferred', ingest_friends_list_error, harvest_for_error} and the friends payload is preserved in the event-sink JSONL for later replay."
+  },
+
+  "exports": [
+    "SnapMinisSDKConnector",
+    "SDK_MANIFEST",
+    "EXPECTED_TOOLS",
+    "EVENT_SINK_PATH",
+    "verify_signed_data",
+    "manifest",
+    "event_stats"
+  ],
+
+  "substrate": "~/.cc/snap_minis_events.jsonl (append-only event sink) + ~/.cc/third_party_logs/snap_minis_sends.jsonl (history) + ~/.cc/inference_master_chain.jsonl (crystal-anchored social_event records, tier='social_event', model='snap_minis')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "studio/dapp/server.py → POST /dapp/api/snap_mini_event (JS bridge callback; bearer freetier token required)",
+      "Godot HTML5 build embedded in a Snap Mini → same /dapp/api/snap_mini_event surface (in-mini events)",
+      "core/cc.sh (future: cmd_snap_mini_stats)"
+    ],
+    "outbound_calls": [
+      "inference_logger.log (tier='social_event', model='snap_minis')",
+      "third_party.facebook_friends_graph.ingest_friends_list (agent B; on mini.friends.list_pulled; try/except)",
+      "third_party.facebook_friends_graph.FacebookFriendsGraphConnector.send('harvest_for', source='fb_instant') (fallback; on mini.friends.list_pulled; try/except)"
+    ],
+    "substrate_reads": "SNAP_MINI_APP_ID + SNAP_MINI_APP_SECRET via studio/auth/keys.load_env (mirrored .env between /data/Projects/MySpace++/.env and /data/Projects/gently/.env)",
+    "substrate_writes": "snap_minis_events.jsonl (event sink) + send_log entries + crystal_chain social_event records"
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "syntax": "ok — python3 ast.parse succeeds",
+    "connect": "expected_false — SNAP_MINI_APP_ID + SNAP_MINI_APP_SECRET absent from .env (user provisioning pending)",
+    "manifest": "15 SDK entries documented (app_initializeAsync … creativekit_shareToCamera)",
+    "record_event": "ok — crystal_id anchored on a fake 'mini.initialized' event; event_sink JSONL appended",
+    "event_stats": "ok — counts by event_name",
+    "verify_signed_data_round_trip": "ok — self-generated <sig>.<payload> verified True; wrong secret → signature_mismatch; 'not_a_dot_string' → malformed",
+    "friends_handoff": "deferred — facebook_friends_graph.ingest_friends_list not exported at top-level; harvest_for fallback attempted; record_event still succeeds with metadata.friends_handoff.status='deferred'"
+  },
+
+  "guarantees": [
+    "Crystal-anchored — every record_event() call appends one InferenceRecord with tier='social_event', model='snap_minis', scope='snap_mini_<event_name>'",
+    "Stdlib-only — urllib, hmac, hashlib, json, base64. No snap-kit-sdk, no requests.",
+    "Graceful — missing SNAP_MINI_APP_SECRET → signed_valid=False on every record_event but the event is still recorded + crystal-anchored",
+    "Redacted logs — signature, signed_data, signed_user_info, access_token, purchase_token, developer_payload stripped from crystal payloads + event-sink summaries",
+    "HMAC-verified identity — verify_signed_data(signed_user_info, app_secret) uses hmac.compare_digest for constant-time comparison; never raises",
+    "Friends-handoff deferable — agent B may not exist yet; record_event always succeeds and the friends payload is preserved in the JSONL sink",
+    "Friends-handoff zero-friction — Snap friend shape normalized to FB-Instant connected_players shape so agent B's existing source='fb_instant' code path handles both sources without modification",
+    "Bearer-gateable — SnapMinisSDKConnector.verify_dapp_token wraps freetier_gate.verify_token so /dapp/api/snap_mini_event is one-call gated",
+    "Surface-documented — SDK_MANIFEST has 15 entries; every entry includes js_call + server_event_name + scope_required + body_schema + description"
+  ],
+
+  "usage_example": "from core.lib.third_party.snap_minis_sdk import SnapMinisSDKConnector\nc = SnapMinisSDKConnector()\nc.connect()\n# In studio/dapp/server.py POST /dapp/api/snap_mini_event handler:\nif not SnapMinisSDKConnector.verify_dapp_token(bearer_token):\n    return 401\nr = c.send('record_event', json.dumps({\n    'event_name': 'mini.user.identified',\n    'user_id':    request_json['user_id'],\n    'signed_data': request_json.get('signed_data', ''),\n    'payload':    request_json.get('payload', {}),\n}))\nreturn {'ok': r.success, 'crystal': r.crystal_id}",
+
+  "sibling_modules": [
+    "core/lib/third_party/fb_instant_games.py  (Facebook Instant Games JS SDK companion — same shape, same verifier pattern; SHARED friends-graph harvester downstream)",
+    "core/lib/third_party/facebook_friends_graph.py  (agent B — friends-graph harvester; receives mini.friends.list_pulled handoff via source='fb_instant' normalized payload)"
+  ],
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "third_party connector expansion — Snapchat Snap Minis JS SDK companion (event sink + signed-identity verifier + 15-entry surface manifest + FB-Instant-shape friends-handoff bridge)"
+}

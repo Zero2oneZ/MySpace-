@@ -1,0 +1,101 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "facebook_sdk_bridge",
+  "state": "active",
+  "version": "v0",
+  "role": "BRIDGE · FACEBOOK_SDK_WEB_NATIVE",
+  "tier": "L0",
+  "module_path": "studio/godot/project/src/facebook_sdk_bridge.gd",
+  "summary": "Godot autoload (class FacebookSDKBridge) with two execution paths. Web builds inject https://connect.facebook.net/en_US/sdk.js via JavaScriptBridge.eval and call FB.init({appId, version}) using FB_APP_ID from ProjectSettings('application/config/facebook_app_id'). Mobile / desktop are signal-only stubs — each call emits pending_native_call(method, args) for phase-2 Android/iOS native plugins. Cross-process events stream to ~/.cc/godot_fb_events.jsonl.",
+  "engine_pattern": "Singleton Node autoload. _ready() reads FB_APP_ID from ProjectSettings; if empty, push_warning + abort. init() branches on OS.has_feature('web'). Web path uses an idempotent JS snippet guarded by window.__mspc_fb_sdk_injected. Native path emits pending_native_call signals for Tom to wire up later.",
+  "exports": [
+    "FacebookSDKBridge",
+    "init",
+    "login",
+    "log_app_event",
+    "share_link",
+    "get_player_id",
+    "is_logged_in",
+    "is_web_build",
+    "is_sdk_initialized"
+  ],
+  "signals": [
+    "login_status_changed(connected: bool, user_id: String)",
+    "app_event_logged(event_name: String)",
+    "share_completed(shared: bool)",
+    "pending_native_call(method: String, args: Dictionary)"
+  ],
+  "env_vars": {
+    "FB_APP_ID": "Facebook App ID — read from ProjectSettings 'application/config/facebook_app_id' (NOT from raw env at runtime). Set per-project in editor or via cc tool."
+  },
+  "project_settings": {
+    "application/config/facebook_app_id": "string — empty disables the bridge entirely"
+  },
+  "runtime_requirements": {
+    "godot": ">= 4.3 (4.6.3-stable target)",
+    "web_build": "JavaScriptBridge singleton (auto-present in HTML5/Web export)",
+    "sdk_version": "v18.0",
+    "sdk_url": "https://connect.facebook.net/en_US/sdk.js"
+  },
+  "execution_paths": {
+    "web": {
+      "trigger": "OS.has_feature('web') == true",
+      "mechanism": "JavaScriptBridge.eval injects SDK script tag + window.fbAsyncInit -> FB.init",
+      "idempotency": "window.__mspc_fb_sdk_injected guard prevents double-injection",
+      "response_channels": {
+        "login": "window.__mspc_fb_login_response (JSON string, poll from GDScript)",
+        "share": "window.__mspc_fb_share_response",
+        "me":    "window.__mspc_fb_me"
+      },
+      "methods_exposed": ["FB.login", "FB.api('/me')", "FB.ui share dialog", "FB.AppEvents.logEvent"]
+    },
+    "native": {
+      "platforms": ["Linux", "Windows", "macOS", "Android", "iOS"],
+      "behavior": "All public methods emit pending_native_call(method, args) and return early",
+      "phase_2_targets": ["Android FB SDK aar via GodotAndroidPlugin", "iOS FB SDK via Swift plugin"]
+    }
+  },
+  "cross_process_events": {
+    "jsonl_path": "~/.cc/godot_fb_events.jsonl",
+    "fallback_path": "user://godot_fb_events.jsonl",
+    "schema": "{ ts: float, event: str, details: dict }",
+    "event_names": [
+      "init_skipped", "init_native_stub", "init_web_injected", "init_web_unavailable",
+      "login_called", "login_web_dispatched", "login_status_changed",
+      "app_event_logged",
+      "share_called", "share_completed",
+      "player_id_requested_web"
+    ]
+  },
+  "routing_connections": {
+    "inbound_callers": [
+      "social_panel.gd (Facebook share button)",
+      "social_client.gd (when SocialClient.upload routes to FB)",
+      "main_controller.gd::_ready (auto-init when app_id set)"
+    ],
+    "outbound_calls": [
+      "JavaScriptBridge.eval(FB SDK injection + FB.* calls) — web only",
+      "pending_native_call signal — native only (consumer TBD)"
+    ],
+    "substrate_reads": "ProjectSettings('application/config/facebook_app_id')",
+    "substrate_writes": "~/.cc/godot_fb_events.jsonl (append)"
+  },
+  "guarantees": [
+    "Graceful no-op when FB_APP_ID is empty — every method returns early with push_warning",
+    "Idempotent SDK injection — guarded by window.__mspc_fb_sdk_injected",
+    "Native callers always get a signal back via pending_native_call (no silent drops)",
+    "All calls journaled to ~/.cc/godot_fb_events.jsonl for cc side audit"
+  ],
+  "blockers_phase_2": [
+    "Android FB SDK GodotAndroidPlugin wrapping com.facebook.FacebookSdk",
+    "iOS FB SDK Swift plugin for Game Center / login flow",
+    "OAuth callback URI registration in Facebook developer dashboard"
+  ],
+  "autoload_registration": "FacebookSDKBridge=\"*res://src/facebook_sdk_bridge.gd\" in project.godot [autoload]",
+  "chain_runs": []
+}

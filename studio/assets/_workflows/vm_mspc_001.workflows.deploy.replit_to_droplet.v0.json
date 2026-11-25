@@ -1,0 +1,127 @@
+{
+  "_schema": "workflow_card_v0",
+  "vm_id": "vm_mspc_001",
+  "name": "replit_to_droplet",
+  "category": "deploy",
+  "state": "active",
+  "version": "v0",
+
+  "summary": "Take a workflow_card → Replit generates the full app → commit → deploy to droplet at 159.89.181.146 via the existing replit-bridge MCP (port 8765, Caddy + systemd already wired). Phase C.4 activation — the connector exists, the deploy scripts exist; this card wires them into studio_runtime so any workflow_card can become a live URL with one call.",
+
+  "inputs": [
+    {"name": "source_card_slug", "type": "str", "required": true,
+      "notes": "Path under studio/assets/_workflows/ — the IR Replit will materialize into a real app"},
+    {"name": "target_route", "type": "str", "required": true,
+      "notes": "Caddy route on droplet, e.g. /apps/realestate-walkthrough"},
+    {"name": "framework", "type": "str", "required": false, "default": "fastapi",
+      "notes": "fastapi | flask | streamlit | static_html_htmx"},
+    {"name": "include_pixel", "type": "bool", "required": false, "default": true,
+      "notes": "Bake Facebook Pixel + Google Analytics snippets into every page"}
+  ],
+
+  "outputs": [
+    {"name": "repl_id", "type": "str"},
+    {"name": "deployed_url", "type": "str"},
+    {"name": "deploy_crystal", "type": "str"},
+    {"name": "caddyfile_route_added", "type": "bool"}
+  ],
+
+  "passes": [
+    {
+      "id": "load_card",
+      "agent": "kernel_registry",
+      "model_path": "core/lib/kernel_registry.py::load_card",
+      "engine": "deterministic",
+      "in": ["source_card_slug"],
+      "out": "card_json",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "Reads studio/assets/_workflows/<slug>.workflow.v0.json. Validates _schema=workflow_card_v0."
+    },
+    {
+      "id": "generate_app",
+      "agent": "replit_bridge",
+      "model_path": "studio/mcp/replit-bridge/server.py::generate_app",
+      "engine": "mcp",
+      "in": ["card_json", "framework"],
+      "out": "repl_id",
+      "tier": "expensive",
+      "status": "PLANNED",
+      "notes": "POST to localhost:8765/mcp/call. Replit API creates a new Repl with the framework template and writes routes/pages from the card's passes + surfaces. Replit-side LLM (Replit Agent) fills in code; deepseek_mcp can fallback."
+    },
+    {
+      "id": "inject_pixels",
+      "agent": "replit_bridge",
+      "model_path": "studio/mcp/replit-bridge/server.py::commit_repl",
+      "engine": "mcp",
+      "in": ["repl_id", "include_pixel"],
+      "out": "pixel_commit",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "Conditional on include_pixel. Edits the base template via Replit GraphQL mutation. Sources from studio/dapp/templates/facebook_pixel.html.j2."
+    },
+    {
+      "id": "deploy_to_droplet",
+      "agent": "replit_bridge",
+      "model_path": "studio/mcp/replit-bridge/server.py::deploy_repl_to_droplet",
+      "engine": "mcp",
+      "in": ["repl_id", "target_route"],
+      "out": "deployed_url",
+      "tier": "medium",
+      "status": "PLANNED",
+      "notes": "Invokes existing studio/mcp/replit-bridge/deploy-to-droplet.sh with --route. Patches Caddyfile.droplet, reloads systemd myspace-bridge.service. Target is 159.89.181.146 over WireGuard or SSH."
+    },
+    {
+      "id": "verify_route_live",
+      "agent": "replit_bridge",
+      "model_path": "studio/mcp/replit-bridge/server.py::verify_route",
+      "engine": "mcp",
+      "in": ["deployed_url"],
+      "out": "caddyfile_route_added",
+      "tier": "fast",
+      "status": "PLANNED",
+      "notes": "GET deployed_url with 5s timeout. Status 200 → caddyfile_route_added=true. Status 502 → re-trigger systemd reload once, then fail."
+    },
+    {
+      "id": "anchor_deploy",
+      "agent": "inference_logger",
+      "model_path": "core/lib/inference_logger.py::log",
+      "engine": "deterministic",
+      "in": ["source_card_slug", "repl_id", "deployed_url"],
+      "out": "deploy_crystal",
+      "tier": "deterministic",
+      "status": "ACTIVE",
+      "notes": "tier='deploy', model='replit_droplet', chain_context=f'deployed:{target_route}'. coords=[byte_size, dep_count, route_depth]."
+    }
+  ],
+
+  "layer_stack": [
+    {"name": "ir", "source": "pass:load_card", "blend": "base"},
+    {"name": "generated_code", "source": "pass:generate_app", "blend": "additive"},
+    {"name": "pixels", "source": "pass:inject_pixels", "blend": "screen"},
+    {"name": "live_url", "source": "pass:deploy_to_droplet", "blend": "alpha"}
+  ],
+
+  "surfaces": {
+    "replit": {
+      "template_repo": "templates/replit_base_<framework>",
+      "agent": "replit_agent",
+      "out_path": "remote — Replit cloud"
+    },
+    "droplet": {
+      "host": "159.89.181.146",
+      "caddyfile": "studio/mcp/replit-bridge/Caddyfile.droplet",
+      "systemd_unit": "studio/mcp/replit-bridge/myspace-bridge.service",
+      "deploy_script": "studio/mcp/replit-bridge/deploy-to-droplet.sh"
+    }
+  },
+
+  "depends_on": [
+    "studio/mcp/replit-bridge/server.py (extend with 3 new MCP tools per Phase C.4)",
+    "studio/mcp/replit-bridge/deploy-to-droplet.sh (exists)",
+    "studio/mcp/replit-bridge/Caddyfile.droplet (exists)",
+    "studio/mcp/replit-bridge/myspace-bridge.service (exists)",
+    "core/lib/studio_runtime.py::_dispatch_replit (Phase C.4 new)",
+    "core/lib/inference_logger.py (existing)"
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "moe_chain_router",
+  "state": "active",
+  "version": "v0",
+  "role": "PLATFORM · INFRASTRUCTURE",
+  "tier": "L0",
+  "summary": "Deterministic Mixture-of-Experts router via retrieval over the crystal chain. No training. No weight updates. Smartness grows by indexing every past inference call and feeding matched experts' forward chains forward as priors. XMLParser-shaped cursor pattern across every substrate.",
+  "responsibilities": [
+    "Walk the crystal chain through CrystalChainCursor (XMLParser-shaped)",
+    "Index every past inference record by n-gram hash (model + tier + forward_chain)",
+    "Score incoming prompts against the n-gram index; surface top-k matched experts",
+    "Walk the user_graph through UserGraph (XMLParser-shaped)",
+    "Predict next likely turns from the user's chain-of-thought n-grams",
+    "Project the forward chain from each completed call (inline first, posthoc fallback)",
+    "Feed prior turn's forward chain + matched expert forward chains as priors to the next call",
+    "Persist all of it to the append-only crystal chain — chain still verifies after every write"
+  ],
+  "models": {
+    "tiny": "qwen2.5-coder:1.5b",
+    "medium": "qwen3-coder-next:latest",
+    "large": "claude-sonnet-4-6",
+    "epic": "claude-opus-4-7"
+  },
+  "permissions": [
+    "read_inference_log",
+    "append_inference_log",
+    "read_user_graph",
+    "append_user_graph",
+    "spawn_tiny_model"
+  ],
+  "engine_pattern": "XMLParser cursor (open / read / get_node_type / get_node_name / get_node_data / get_node_offset / seek / skip_section / has_attribute / get_named_attribute_value)",
+  "substrates": [
+    {
+      "name": "crystal_chain",
+      "path": "~/.cc/inference_master_chain.jsonl",
+      "shape": "append-only JSONL, one inference record per line, blake3-chained for tamper-evidence",
+      "cursor": "core/lib/moe_router.py::CrystalChainCursor",
+      "presents_as": "NODE_ELEMENT name='record' with attributes (crystal_id, prev_crystal, master_index, agent_uuid, tier, model, scope, timestamp, forward_source) and data (original_prompt, enhanced_prompt, output_text, reasoning_trace, forward_chain_inline, forward_chain_posthoc)"
+    },
+    {
+      "name": "user_graph",
+      "path": "~/.cc/user_graph.jsonl",
+      "shape": "append-only JSONL, XMLParser document of <turn> elements with nested <words>/<prompt>/<produced_chain>/<forward_chain>/<ngram> children",
+      "cursor": "core/lib/user_graph.py::UserGraph",
+      "presents_as": "NODE_ELEMENT name='turn' with attributes (uuid, user, turn_idx, timestamp, chain_crystal, tier) and child nodes (words, prompt, produced_chain, forward_chain, ngrams)"
+    },
+    {
+      "name": "semantic_index",
+      "path": "~/.cc/inference_semantic_index.json",
+      "shape": "keyword → list[crystal_id] reverse index, rebuilt on every log",
+      "cursor": "core/lib/inference_logger.py::SemanticIndex",
+      "presents_as": "fast fallback keyword search alongside the n-gram MoE index"
+    }
+  ],
+  "modules": [
+    "core/lib/parser_cursor.py     — XMLParser cursor base + ParserWriter",
+    "core/lib/inference_logger.py  — InferenceRecord, InferenceLogger, SemanticIndex",
+    "core/lib/forward_projector.py — extract_inline + project_posthoc + project (inline-first, posthoc-fallback)",
+    "core/lib/user_graph.py        — UserGraph cursor + UserGraphIndex with predict_next",
+    "core/lib/moe_router.py        — CrystalChainCursor + MoERouter with find_experts + summarize_for_prompt",
+    "core/lib/chat.py              — gateway: enhance → moe retrieve → user_graph predict → forward inject → assemble → route → slice → project → log",
+    "core/lib/prompt_enhancer.py   — spell-fix + structural enhancement; OUTPUT marker now instructs models to emit <forward> tail",
+    "core/lib/token_router.py      — token-bucket tier selection; reads model_registry for canonical model names",
+    "core/lib/model_registry.py    — read-only lookup over studio/models/registry.json (kimi side)",
+    "core/lib/model_installer.py   — HF + Ollama unified installer; writes studio/models/registry.json (kimi side)",
+    "core/lib/endpoints/*          — inbound listener fabric (kimi side); action=chain dispatches into this MoE pipeline",
+    "core/lib/third_party/*        — outbound connector fabric (kimi side); every send logs as InferenceRecord and becomes a retrievable expert"
+  ],
+  "commands": {
+    "cc chat <prompt>": "Full pipeline. Enhances prompt, retrieves MoE experts, injects priors, routes by token bucket, projects forward chain, logs to crystal chain + user_graph. Returns JSON with crystal_id, turn_uuid, moe_experts, user_graph_prediction, forward_chain.",
+    "cc chat --enhance-only <prompt>": "Only spell-fix + structural enhancement (SCOPE/INTENT/CONSTRAINTS/OUTPUT markers). No model call.",
+    "cc chat --route-only <prompt>": "Only token count + tier/model selection. No enhancement.",
+    "cc chat --chain-only <prompt>": "Assemble and render the master workspace-coordinate chain. No model call.",
+    "cc chat --godot <prompt>": "Emit cc_godot_bridge_v1 JSON packet for Godot's CCBridge autoload to consume.",
+    "cc chat --master <prompt>": "Render the full master chain.",
+    "cc chat --slice <prompt>": "Slice the master chain by tier (alias for chain rendering).",
+    "cc inference-chain [-n N]": "Show last N crystal-chained inference records.",
+    "cc inference-verify": "Replay every record and verify blake3 chain integrity. Returns {verified: true|false}.",
+    "cc inference-search <query>": "Keyword search across the semantic index. Returns matched crystal_ids with model + snippet.",
+    "cc inference-get <crystal_id>": "Retrieve one full inference record by hash.",
+    "python3 core/lib/moe_router.py find <prompt> -k 5": "Direct MoE retrieval. Returns top-k experts with score, fit_ratio, matched_ngrams, forward_chain.",
+    "python3 core/lib/moe_router.py walk": "Walk the crystal chain as <record> elements (XMLParser-style dump).",
+    "python3 core/lib/moe_router.py summary <prompt>": "Emit the PRIOR EXPERT FORWARD CHAINS block for a given prompt.",
+    "python3 core/lib/user_graph.py predict <words> -k 5": "Query the user-graph for next-turn predictions.",
+    "python3 core/lib/user_graph.py walk": "Walk the user_graph as <turn>/<ngram> elements.",
+    "python3 core/lib/forward_projector.py project --reasoning ... --output ...": "Test forward projection standalone (inline + posthoc)."
+  },
+  "env_vars": {
+    "CC_FORWARD_POSTHOC": "Set to 1 to enable tiny-model posthoc projection on every chat call. Default off (saves ~10s per turn). Inline extraction always runs.",
+    "CC_TINY_MODEL": "Tiny model used for posthoc projection. Default qwen2.5-coder:1.5b.",
+    "CC_FORWARD_TIMEOUT": "Seconds before the posthoc call gives up. Default 20.",
+    "CC_HOME": "Override the ~/.cc directory (rare). Affects all substrates and the chain.",
+    "CC_AGENT_UUID": "Agent identity stamped on every InferenceRecord.",
+    "CC_CORRELATION_ID": "Cross-half correlation ID (joint ID when MySpace++ and GentlyOS coordinate).",
+    "CC_SESSION_ID": "cc chat session ID for per-session log retrieval."
+  },
+  "pipeline_order": [
+    "1. _read_prev_forward() — pull last turn's forward chain from crystal chain tail",
+    "2. _user_graph_predict(prompt, k=5) — chain-of-thought match",
+    "3. _moe_find_experts(prompt, k=5) — content match across all past records, returns matches + PRIOR EXPERT FORWARD CHAINS block",
+    "4. enhancer.enhance(prompt) — spell-fix + inject SCOPE/INTENT/CONSTRAINTS/OUTPUT (OUTPUT instructs models to emit <forward>...</forward> tail)",
+    "5. Inject PRIOR FORWARD CHAIN + PRIOR EXPERT FORWARD CHAINS at the head of the enhanced prompt",
+    "6. assembler.assemble() — master workspace-coordinate chain",
+    "7. router.route(master_render) — token-bucket tier+model selection",
+    "8. slicer.slice_by_tier() — split chain for the routed tier",
+    "9. (if large/epic) slicer.downward_slice() — generate scoped slices for lower tiers",
+    "10. project_forward(reasoning_trace, output_text, prev_forward) — inline extract, posthoc fallback when enabled",
+    "11. _log_inference() → crystal_id (appends to crystal chain, indexes for semantic search)",
+    "12. _user_graph_record(prompt, …, chain_crystal=crystal_id) — appends turn + ngrams + edges to user_graph"
+  ],
+  "output_fields": {
+    "crystal_id": "blake3 hash of this turn's InferenceRecord — primary key into the crystal chain",
+    "user_graph_turn_uuid": "deterministic uuid of this turn in the user_graph",
+    "moe_experts": "list of {crystal_id, score, fit_ratio, matched_ngrams, tier, model, forward_chain, ...} for top-k past matches",
+    "moe_prior_block_chars": "byte length of the PRIOR EXPERT FORWARD CHAINS block injected into the prompt (0 if no matched experts had forward chains)",
+    "user_graph_prediction": "list of {turn_uuid, score, matched_ngrams, words, forward_chain, ...} for top-k past user-graph turns",
+    "forward_chain": "{inline, posthoc, source, chosen, prev} — this turn's projected forward chain plus the prev turn's that was consumed"
+  },
+  "guarantees": [
+    "Deterministic: same input + same chain state → same output, byte-for-byte (except for posthoc which is tiny-model best-effort)",
+    "Tamper-evident: every crystal record is blake3-chained; cc inference-verify replays and validates the entire chain",
+    "Append-only: no UPDATE, no DELETE — state changes by appending new records (or, for the asset registry, by mv'ing files)",
+    "XMLParser semantics: every substrate is walkable via the same cursor API; seek() to any byte offset is reproducible",
+    "Backward-compatible record schema: old records without reasoning_trace / forward_chain fields still verify"
+  ],
+  "usage_example": "echo 'wire the moe router into the godot bridge for live forward projection' | python3 core/lib/chat.py full | jq '.crystal_id, .moe_experts[0].score, .forward_chain.source'",
+  "next_components": [
+    "cc chat --report : surface PRIOR FORWARD CHAIN + MoE matches + user_graph prediction as a between-turn chat-feed report",
+    "studio/godot/project/src/cc_bridge.gd : consume forward_chain + moe_experts + user_graph_prediction fields from packet",
+    "studio/.cc/local.db : persistent BRAID storage (braid_node / braid_edge / braid_chain / braid_run / braid_cache)"
+  ],
+  "chain_runs": ["moe_chain_router_v0"]
+}

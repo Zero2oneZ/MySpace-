@@ -1,0 +1,53 @@
+; MySpace++ Godot Studio Project
+; Engine: Godot 4.6.3-stable (mono + standard)
+; Architecture: VM navigator + Chain runner + Task manager + Sym indexer
+; Native layer: C++ GDExtension for spatial/inference acceleration
+
+[application]
+config/name="MySpace++ Studio"
+config/description="Deterministic 3D inference substrate with VM graph walking, chain coordination, and task management."
+config/version="0.1.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[layer_names]
+3d_physics/layer_1="world"
+3d_physics/layer_2="avatar"
+3d_physics/layer_3="ui"
+
+[autoload]
+VMNavigator="*res://src/vm_navigator.gd"
+ChainRunner="*res://src/chain_runner.gd"
+TaskManager="*res://src/task_manager.gd"
+SymIndexer="*res://src/sym_indexer.gd"
+CCBridge="*res://src/cc_bridge.gd"
+SocialClient="*res://src/social_client.gd"
+MetaXRBridge="*res://src/meta_xr_bridge.gd"
+FacebookSDKBridge="*res://src/facebook_sdk_bridge.gd"
+ScenePlanLoader="*res://src/scene_plan_loader.gd"
+ChainRenderBridge="*res://src/chain_render_bridge.gd"
+IKShim="*res://src/ik_shim.gd"
+SpatialBridgeShim="*res://src/spatial_bridge_shim.gd"
+
+[dotnet]
+project/assembly_name="MySpaceStudio"
+
+[editor]
+export/convert_text_resources_to_binary=true
+
+[memory]
+limits/multithreaded_server/rid_pool_prealloc=128
+
+[native_extension]
+path="res://cpp/mspc.gdextension"

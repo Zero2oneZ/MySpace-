@@ -1,0 +1,62 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "dialectic_walker",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · BACKWARD_DIALECTICAL_CLOSURE",
+  "tier": "L0",
+  "module_path": "core/lib/dialectic_walker.py",
+  "summary": "The closure pass. Walks the crystal chain backward from the present (latest record) to the oldest. For every step computes: IS (the thesis — the present record at this step), IS-NOT (the antithesis — antipodal wave + flipped time + negated sentence + zero-overlap n-grams), BECOMING (the synthesis — measured transition n → n+1 using the same gradient math as transition_field). Emits ~/.cc/dialectic_chain.jsonl as a parallel chain anchored to the present. Closes the architecture: every record now carries IS / IS-NOT / BECOMING crystals.",
+  "engine_pattern": "deterministic reverse traversal of inference_master_chain. Cross-substrate antithesis composition (energy_inversion.invert_vec on wave; forward-flip on time; word-flip dict on sentence; n-gram zero-overlap count on vector). Becoming uses transition_field-style measurement on chain pairs.",
+  "the_dialectic": {
+    "IS":       "the present record at step n — vector_emb, wave_emb, time_vec, sentence_emb (when present), forward_chain, crystal",
+    "IS_NOT":   "antithesis across measurable axes — derived deterministically, no LLM call. is_not_wave = -wave_emb. is_not_time_forward = -time_forward. is_not_sentence_preview = word-flip dict applied. is_not_vector_overlap_count = how many other records share ZERO n-grams (loneliness measure).",
+    "BECOMING": "measured transition n → n+1 — delta_seconds (from ISO timestamps), value_delta_magnitude (across wave_emb), velocity, color_velocity, flow_sig_head (8-d DCT of magnitudes). Anchored at the present which has no 'becoming' because it IS the becoming."
+  },
+  "smoke_test_results_2026_05_28": {
+    "steps_walked":            19,
+    "anchor_present":          "2e16bc86b6d9de67  (\"design the realestate walkthrough generator...\")",
+    "oldest_step":             "fa55950e1d572aff  (\"build spatial pipeline\" — first real record)",
+    "step_1_becoming":         "delta=74s · value_mag=0.034 · velocity=0.0005 · target=2e16bc86b6d9 (the present)",
+    "step_1_flow_signature":   "[0.91, -0.11, -0.12, 0.18, -0.33, 0.02, -0.12, -0.01]",
+    "is_not_unique_per_step":  "vector_overlap_count varies 0-17 across the 19 steps — measures each record's content rarity"
+  },
+  "output_chain_schema": {
+    "file": "~/.cc/dialectic_chain.jsonl",
+    "schema_root": "dialectic_chain_v0",
+    "step_kind": "element name='dialectic_step' depth=1 parent='chain'",
+    "step_attributes": "step_index, chain_index, present_crystal, is_not_crystal, becoming_crystal, crystal, prev_step_crystal, next_step_crystal, becoming_velocity, is_not_overlap_count",
+    "step_data":       "tier, model, ts, prompt_preview, is_not_sentence_preview, is_not_wave_head, is_not_time_head, becoming_flow_sig_head, becoming_value_delta_mag, becoming_delta_seconds"
+  },
+  "exports": ["DialecticalStep", "DialecticWalker"],
+  "substrate": "~/.cc/dialectic_chain.jsonl (ParserCursor-compatible — joinable with all other JSONL chains)",
+  "routing_connections": {
+    "inbound_callers": [
+      "CLI: python3 dialectic_walker.py walk | summary | step N",
+      "(planned) cc dialectic-walk dispatcher in cc.sh",
+      "(planned) chat.py — every new chat turn appends a dialectic step"
+    ],
+    "outbound_calls": [
+      "inference_logger.get_chain (reads crystal chain backward)",
+      "energy_inversion.invert_vec (antipodal computation)",
+      "moe_router._extract_ngrams (zero-overlap count)",
+      "blake3 / blake2b for step crystals"
+    ],
+    "substrate_reads": "~/.cc/inference_master_chain.jsonl",
+    "substrate_writes": "~/.cc/dialectic_chain.jsonl"
+  },
+  "the_closure": "Before this: chain only stored what HAPPENED. After: chain stores what HAPPENED + what DIDN'T HAPPEN (is-not) + what was BECOMING (synthesis). The present anchors the entire past as a measured trajectory. Reading dialectic_chain.jsonl forward (oldest → newest) tells the story of how the present came into being through repeated triad: thesis (is) → antithesis (is-not) → synthesis (becoming).",
+  "guarantees": [
+    "Deterministic — same crystal chain → same dialectic_chain bytes",
+    "Anchored to present — step 0 is the latest record; the walk is past-pointing",
+    "Cross-substrate joinable — every IS-NOT and BECOMING crystal can be retrieved across the existing 22+ MoE lenses",
+    "Append-friendly — when a new chat turn lands, re-running walk produces a NEW step 0 and shifts the prior step 0 to step 1 (it now has a measurable becoming toward the new present)"
+  ],
+  "usage_example": "from dialectic_walker import DialecticWalker\\nsteps = DialecticWalker().walk()\\nprint(steps[0].present_crystal, steps[1].becoming_velocity)\\n# Or via CLI:\\n# python3 core/lib/dialectic_walker.py summary",
+  "chain_runs": ["moe_chain_router_v0"]
+}

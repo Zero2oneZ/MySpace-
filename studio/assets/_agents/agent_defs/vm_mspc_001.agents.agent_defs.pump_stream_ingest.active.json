@@ -1,0 +1,132 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "pump_stream_ingest",
+  "state": "active",
+  "version": "v0",
+  "role": "SOURCE · SOLANA_LIVE_LOGS · PUMP_FUN_INGEST",
+  "tier": "L0",
+  "module_path": "core/lib/pump_stream_ingest.py",
+
+  "summary": "Solana RPC live-logs ingest for pump.fun. Subscribes to a single program ID via `solana logs --url <RPC> <PROGRAM_ID>` (stdlib subprocess, zero pip deps), parses each transaction block into a canonical PumpEvent dataclass, and appends one JSON line per event to ~/.cc/pump_stream/<YYYY-MM-DD>.jsonl. The downstream feature extractor (agent B) consumes these jsonl files for opcode-router training data and live signal generation. v1 captures lightweight fields only (signature, slot, program, kind heuristic, raw_logs, status, err_code); amount/payer/mint/jito-tip are left as schema-stable zero defaults so the feature extractor can hydrate them on demand via getTransaction (solana_mcp.tx_status or a direct HTTP RPC call). Crystal-anchors only the session bookends — per-event crystallization would be too noisy for a busy pump.fun slot. Stdlib only: subprocess + json + pathlib + dataclasses.",
+
+  "engine_pattern": "Drives `solana logs --url <RPC> --commitment confirmed <PROGRAM_ID>` as a long-lived Popen subprocess. Block-accumulator state machine reads stdout line-by-line: 'Transaction executed in slot N:' opens a block; 'Signature: <sig>' / 'Status: <s>' / 'Log Messages:' / indented 'Program …' lines populate it; the next slot-header (or stream end) flushes the prior block via _emit_event_from_block(). Each emitted block becomes one JSONL line. Friendly stderr warning when running against the public mainnet-beta RPC (rate-limited). Graceful no-op when the `solana` binary is absent — searches PUMP_SOLANA_BIN, then $PATH, then the Agave install at ~/.local/share/solana/install/active_release/bin/solana before bailing.",
+
+  "v1_limitation": {
+    "what_is_captured": "signature, slot, program ('pump.fun'|'pumpswap'|'unknown'), kind ('buy'|'sell'|'create_pool'|'remove_liquidity'|'unknown' — heuristic match against 'Program log: Instruction: <Kind>' lines), status ('ok'|'error_<code>'|'unknown'), err_code (e.g. '0x4' parsed from 'custom program error: 0x4'), raw_logs (capped at 128 lines per tx), wall-clock ts",
+    "what_is_NOT_captured_v1": "payer pubkey, mint address, sol_amount (lamports), token_amount, priority_fee_lamports, jito_tip_lamports — `solana logs` does NOT carry these in its text stream. Schema-stable zero defaults are emitted so the JSONL row count stays consistent.",
+    "hydration_strategy": "The feature extractor (agent B) reads each row and calls getTransaction via solana_mcp.tx_status (or a direct urllib.request POST to PUMP_RPC_HTTPS) to enrich payer/mint/amounts/fees. Hydration is lazy + opt-in so the ingest hot path stays cheap (one JSONL append per event, no HTTP fetch).",
+    "why_not_websockets": "`websockets` library is not installed; a stdlib raw-socket WebSocket client to logsSubscribe is possible but verbose (frame parsing, ping/pong, reconnect). v1 chose the `solana logs` subprocess as the transport for zero-dep simplicity. v2 can swap in a websockets-based or solana-py-based driver behind the same ingest_loop() API."
+  },
+
+  "jsonl_schema": {
+    "path": "~/.cc/pump_stream/<YYYY-MM-DD>.jsonl (one file per local date, append-only)",
+    "fields": {
+      "ts": "float — wall-clock epoch seconds at capture",
+      "signature": "str — base58 tx signature",
+      "slot": "int — slot number",
+      "program": "str — 'pump.fun' | 'pumpswap' | 'unknown'",
+      "kind": "str — 'buy' | 'sell' | 'create_pool' | 'remove_liquidity' | 'unknown'",
+      "payer": "str — wallet pubkey (v1: empty, hydrated by feature extractor)",
+      "mint": "str — token mint addr (v1: empty, hydrated)",
+      "sol_amount": "float — lamports/1e9 (v1: 0.0, hydrated)",
+      "token_amount": "float — raw token amount (v1: 0.0, hydrated)",
+      "priority_fee_lamports": "int — compute-budget priority fee (v1: 0, hydrated)",
+      "jito_tip_lamports": "int — Jito bundle tip (v1: 0, hydrated)",
+      "raw_logs": "list[str] — log lines capped at 128 per tx",
+      "status": "str — 'ok' | 'error_<code>' | 'unknown'",
+      "err_code": "str — e.g. '0x4' (parsed from Status line)"
+    }
+  },
+
+  "constants": {
+    "PUMP_FUN_PROGRAM_ID": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    "PUMPSWAP_PROGRAM_ID_DEFAULT": "PSwApMUFqDsBvVBkU2DJYWuJokSjUMyJ4dxxnFnDxxh",
+    "DEFAULT_MAINNET_RPC_HTTPS": "https://api.mainnet-beta.solana.com",
+    "DEFAULT_DEVNET_RPC_HTTPS": "https://api.devnet.solana.com",
+    "DEFAULT_OUT_DIR": "~/.cc/pump_stream"
+  },
+
+  "env_vars": {
+    "PUMP_RPC_WSS":        "explicit WebSocket RPC override (Helius/Triton). solana CLI takes http(s); if a wss:// is passed it is auto-converted.",
+    "PUMP_RPC_HTTPS":      "explicit HTTPS RPC override (used when PUMP_RPC_WSS unset)",
+    "SOLANA_NETWORK":      "devnet | testnet | mainnet-beta (default mainnet-beta)",
+    "PUMP_SWAP_PROGRAM_ID": "override for the PumpSwap AMM router program ID",
+    "PUMP_SOLANA_BIN":     "absolute path to the `solana` binary (default search: $PATH then ~/.local/share/solana/install/active_release/bin/solana)"
+  },
+
+  "public_api": [
+    "PumpEvent — @dataclass with 14 canonical fields",
+    "ingest_loop(duration_seconds=0, max_events=0, rpc_wss='', out_dir=None, program_id=PUMP_FUN_PROGRAM_ID) → int  // events_written",
+    "replay_jsonl(jsonl_path: Path) → Iterator[PumpEvent]"
+  ],
+
+  "exports": [
+    "PumpEvent",
+    "ingest_loop",
+    "replay_jsonl",
+    "PUMP_FUN_PROGRAM_ID",
+    "PUMPSWAP_PROGRAM_ID_DEFAULT",
+    "DEFAULT_OUT_DIR"
+  ],
+
+  "substrate": "~/.cc/pump_stream/*.jsonl (canonical capture store, one file per local date) + ~/.cc/inference_master_chain.jsonl (two session-bookend InferenceRecord rows per ingest_loop: scope='session_start' and scope='session_end', tier='pump_stream_session', model='solana_pump_stream')",
+
+  "routing_connections": {
+    "inbound_callers": [
+      "core/cc.sh::cmd_pump_stream_start (future)",
+      "core/cc.sh::cmd_pump_stream_status (future)",
+      "studio_runtime live-trade pass (when card pass.engine='pump_stream')",
+      "watchdog cron: keep one ingest_loop running per box"
+    ],
+    "outbound_calls": [
+      "subprocess: `solana logs --url <RPC> --commitment confirmed <PROGRAM_ID>` (long-lived Popen, stdout reader)",
+      "inference_logger.log (TWO calls per session: scope='session_start' / 'session_end', tier='pump_stream_session', model='solana_pump_stream')"
+    ],
+    "substrate_reads": "os.environ (PUMP_RPC_*, SOLANA_NETWORK, PUMP_SWAP_PROGRAM_ID, PUMP_SOLANA_BIN); no .env load — these are runtime knobs",
+    "substrate_writes": "~/.cc/pump_stream/<YYYY-MM-DD>.jsonl (one line per event); ~/.cc/inference_master_chain.jsonl (2 rows per session)"
+  },
+
+  "feature_extractor_handoff": {
+    "downstream_consumer": "agent B (next to be built) — reads ~/.cc/pump_stream/*.jsonl, hydrates payer/mint/amounts via getTransaction, emits feature vectors for the opcode-router training pipeline",
+    "hydration_path": "for each row → solana_mcp.tx_status(signature) OR direct POST to PUMP_RPC_HTTPS with getTransaction JSON-RPC body → enrich the row with parsed instruction args from the message's accountKeys + instructions list",
+    "lazy_by_design": "ingest stays cheap (one append per event); hydration runs on a slower cadence (batch by 100s or on demand) so feature extraction can prioritize hot mints"
+  },
+
+  "crystal_anchor_policy": {
+    "session_start": "tier='pump_stream_session', scope='session_start', model='solana_pump_stream'; output_text captures rpc/network/program_id/pumpswap_program/duration_seconds/max_events/solana_bin/out_dir",
+    "session_end":   "tier='pump_stream_session', scope='session_end',   model='solana_pump_stream'; output_text captures events_captured/duration_s/session_start_crystal/exit_reason ('duration_elapsed'|'max_events_reached'|'keyboard_interrupt'|'broken_pipe'|'exception:<…>')",
+    "per_event":     "NOT crystallized — too noisy for busy pump.fun slots. The JSONL itself is the per-event log of record."
+  },
+
+  "smoke_test_results_2026_05_28": {
+    "parse_ok": "ok — ast.parse clean (stdlib only: subprocess + json + pathlib + dataclasses + re + os + sys + time)",
+    "info_subcommand": "resolves PUMP_FUN_PROGRAM_ID + PUMPSWAP_PROGRAM_ID_DEFAULT + solana_bin path correctly",
+    "synthetic_write": "ok — PumpEvent → asdict → json.dumps → ~/.cc/pump_stream/test_synth.jsonl round-trips through replay_jsonl",
+    "solana_logs_reachable": "ok — `solana logs --url devnet` connects to devnet RPC and emits transaction blocks (no pump.fun on devnet so 0 events, as expected)",
+    "graceful_no_binary": "ok — when PUMP_SOLANA_BIN points to a non-existent path AND `solana` not in $PATH AND Agave install absent, ingest_loop() returns 0 with a stderr ERROR message (no crash)",
+    "next": "wire agent B (feature extractor) to consume ~/.cc/pump_stream/*.jsonl and hydrate payer/mint/amounts via solana_mcp.tx_status"
+  },
+
+  "guarantees": [
+    "Stdlib only — no `websockets`, no `solana-py`, no `solders`, no `requests`. subprocess + json + pathlib + dataclasses + re only.",
+    "Append-only daily JSONL — one ~/.cc/pump_stream/<YYYY-MM-DD>.jsonl file per local date; rolling files capped naturally by the date change.",
+    "Schema-stable PumpEvent — all 14 fields always present even when not yet hydrated, so the JSONL never needs a migration when amounts are filled in later.",
+    "Graceful CLI failures — if `solana` binary is absent, ingest_loop() returns 0 with a friendly stderr ERROR (never raises into the caller).",
+    "Public-RPC rate-limit warning — when streaming via api.mainnet-beta.solana.com, a one-line WARN is emitted to stderr so production runs visibly know they should switch to Helius/Triton.",
+    "Bounded raw_logs — raw_logs is capped at 128 lines per tx so a pathological multi-CPI transaction can't blow up the JSONL row size.",
+    "Session crystal bookends — every ingest_loop() invocation emits two InferenceRecord rows (start + end) with the events_captured count + exit_reason so the chain has provable session boundaries without per-event noise.",
+    "Replay deterministic — replay_jsonl(path) yields PumpEvent rows in file order; tolerant of partial/malformed lines (skips them)."
+  ],
+
+  "kinds_widening_note": "studio/auth/keys.py KINDS is NOT widened for pump_stream. The RPC URLs are runtime knobs (no shared secret), read from os.environ. PUMP_SOLANA_BIN is a filesystem path, not a salted token. This stays consistent with the solana_mcp connector's same rationale.",
+
+  "usage_example": "from pump_stream_ingest import ingest_loop, replay_jsonl, PumpEvent\\n# short capture session — 60 seconds, max 500 events, public mainnet RPC (rate-limited warning to stderr)\\nn = ingest_loop(duration_seconds=60, max_events=500)\\nprint(f'captured {n} events')\\n# replay yesterday's capture for analysis\\nfrom pathlib import Path; import time\\np = Path.home()/'.cc/pump_stream'/f'{time.strftime(\"%Y-%m-%d\")}.jsonl'\\nfor evt in replay_jsonl(p):\\n    if evt.kind == 'buy': print(evt.signature, evt.slot)",
+
+  "chain_runs": ["moe_chain_router_v0"],
+  "phase": "B.1 of live-trade pipeline (pump_stream_ingest → feature_extractor → opcode_router signal)"
+}

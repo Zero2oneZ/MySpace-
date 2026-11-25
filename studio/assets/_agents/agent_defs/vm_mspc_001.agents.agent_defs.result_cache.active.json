@@ -1,0 +1,49 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "result_cache",
+  "state": "active",
+  "version": "v0",
+  "role": "CACHE · CONTENT_ADDRESSED_RESULTS",
+  "tier": "L0",
+  "module_path": "core/lib/result_cache.py",
+  "summary": "BLAKE3-keyed cache for GPU + Ollama + Cloud results. Memory LRU (100 entries) + disk JSON at ~/.cc/result_cache/. Same call (same model + same prompt + same params + same input_crystal) always hits. Surfaces hit_rate in cc chat feed.",
+  "engine_pattern": "Two-tier: OrderedDict memory LRU front, blake3-prefix-sharded disk JSON files behind. Optional TTL per entry.",
+  "key_function": "blake3(model_id + canonical_prompt + canonical_params + input_crystal)",
+  "storage": {
+    "memory": "OrderedDict (default 100 entries)",
+    "disk": "~/.cc/result_cache/<first2chars>/<crystal_id>.json"
+  },
+  "exports": ["ResultCache", "compute_key"],
+  "substrate": "result_cache (disk JSONL + memory LRU)",
+  "routing_connections": {
+    "inbound_callers": [
+      "core/lib/task_queue.py::TaskQueue.submit (cache lookup before dispatch + write on success)",
+      "core/lib/forward_projector.py (when extended — cache posthoc projections)",
+      "core/lib/workflow_generator.py (when extended — cache emitted artifacts)"
+    ],
+    "outbound_calls": ["blake3 (or blake2b fallback)", "disk read/write"],
+    "substrate_reads": "~/.cc/result_cache/<prefix>/<id>.json",
+    "substrate_writes": "same"
+  },
+  "guarantees": [
+    "Deterministic — same canonical inputs → same key, every time",
+    "TTL-aware — stale entries evict on read",
+    "LRU memory front → hot entries always fast",
+    "Disk fallback → survives process restart"
+  ],
+  "stats_surface": {
+    "hits_mem": "memory-tier hits",
+    "hits_disk": "disk-tier hits (promote to memory on hit)",
+    "misses": "no cached result",
+    "puts": "writes",
+    "evictions": "LRU evictions from memory",
+    "hit_rate": "(hits_mem + hits_disk) / total_lookups"
+  },
+  "usage_example": "from result_cache import ResultCache, compute_key\\nc = ResultCache()\\nkey = compute_key('qwen2.5-coder:1.5b', 'hi', {}, '')\\nif (r := c.get(key)):\\n    print('cached:', r['result'])\\nelse:\\n    out = run_model()\\n    c.put(key, out, model_id='qwen2.5-coder:1.5b', source='ollama')",
+  "chain_runs": ["moe_chain_router_v0"]
+}

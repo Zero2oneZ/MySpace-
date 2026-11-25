@@ -1,0 +1,70 @@
+{
+  "_schema": "agent_def_v1",
+  "vm_id": "vm_mspc_001",
+  "symbol": "vm_mspc_001",
+  "array": "[0]",
+  "domain": "agents",
+  "category": "agent_defs",
+  "name": "sentence_chain",
+  "state": "active",
+  "version": "v0",
+  "role": "SUBSTRATE · FREE_SYNTACTIC_EMBEDDING_AXIS",
+  "tier": "L0",
+  "module_path": "core/lib/sentence_chain.py",
+  "summary": "The FREE 4th retrieval axis — pure-Python NLP heuristics produce a 96-dim L2-normalized sentence embedding with zero LLM calls and zero model loads. Old-school tricks: suffix-based POS proxies, stop-word filtering, n-gram bucketing, skeleton hashing, subject-verb-object state machine, and chain-context modulation (prior sentences bias the embedding). Pairs with tri_modal_embedder (vector + wave + time) to make the full 4D MoE retrieval substrate.",
+  "engine_pattern": "pure Python stdlib only (re, math, string, collections, hashlib/blake3). No numpy. No nltk. No spaCy. No transformers. Sub-100ms per sentence.",
+  "embedding_layout_96d": {
+    "[0:16]":  "surface stats — length, word count, avg word len, cap rate, punct density, stop-word ratio, content-word ratio, is_question, is_negated, is_imperative, starts_with_conjunction, has_subject/verb/object guess, ends_with_?_!",
+    "[16:48]": "n-gram buckets — 32 hashed word-bigram counts (blake2b → mod 32)",
+    "[48:64]": "skeleton buckets — 16 binary content-word presence flags (blake2b → mod 16)",
+    "[64:80]": "POS histogram — 16 buckets across (noun verb pronoun preposition conjunction determiner aux adj adv other)",
+    "[80:96]": "chain context — position, shared-words-with-prior, subject-continuity, conjunction-cont, etc."
+  },
+  "old_school_nlp_tricks": [
+    "Sentence boundary via regex: (?<=[.!?])\\s+(?=[A-Z\\\"'])",
+    "Stop-word filtering using a hand-curated ~100-word set (NO nltk)",
+    "POS proxy via suffix matching — verbs end in -ing/-ed/-en/-ize/-ize/-ify/-ate; nouns end in -tion/-ment/-ness/-ity/-er/-or; adverbs end in -ly/-ward; adjectives end in -ous/-ful/-able/-ive/-ic/-al",
+    "Closed-class lookup for pronouns/prepositions/conjunctions/determiners/aux-verbs",
+    "Subject-Verb-Object guess via 3-state machine over tokens",
+    "Skeleton = content words sorted + blake3 → deterministic semantic core",
+    "Chain context: prior sentences modulate current embedding (Markov-ish bias) — shared words, subject continuity, length deltas"
+  ],
+  "exports": ["SentenceFeatures", "SentenceNode", "split_sentences", "tokenize",
+              "pos_class", "featurize", "sentence_embedding", "embed_chain",
+              "cosine_similarity", "find_sentence_neighbors", "STOP_WORDS",
+              "PRONOUNS", "PREPOSITIONS", "CONJUNCTIONS", "DETERMINERS",
+              "AUX_VERBS", "QUESTION_WORDS", "NEGATIONS"],
+  "substrate": "in-memory (stateless transform; caller persists)",
+  "routing_connections": {
+    "inbound_callers": [
+      "moe_router.find_sentence_neighbors (4th retrieval axis)",
+      "(planned) chat.py for cross-modal expert finding alongside wave/time/vector",
+      "(planned) workflow_generator for description-quality scoring"
+    ],
+    "outbound_calls": ["blake3 / blake2b for skeleton + crystal hashing"],
+    "substrate_reads": "none",
+    "substrate_writes": "none"
+  },
+  "smoke_test_results_2026_05_28": {
+    "embed_3sentence_chain":     "3 nodes with position-aware chain-context embeddings — pass",
+    "related_pair_cosine":       0.601974,
+    "unrelated_pair_cosine":     0.456609,
+    "discrimination_delta":      0.145365,
+    "pos_proxy_accuracy_smoke":  "5/9 obvious tokens correct (limits: numeric words, mid-list verbs without -ing/-ed)"
+  },
+  "limits_v0": [
+    "Suffix-based POS misses irregular verbs (e.g., 'emits' not detected — no -ing/-ed)",
+    "Mistakes numeric words ending in -en (e.g., 'seven' tagged as verb)",
+    "Sentence-split breaks on abbreviations (Dr., etc.)",
+    "Subject-verb-object is positional heuristic — won't handle passive voice, complex embedding"
+  ],
+  "guarantees": [
+    "Deterministic — same input → same 96-d vector, byte-exact",
+    "L2-normalized — cosine similarity = dot product (cheap)",
+    "Sub-100ms per sentence on typical content",
+    "Free — no model load, no LLM call, no training cost",
+    "Composable — 4th MoE axis alongside vector / wave / time"
+  ],
+  "usage_example": "from sentence_chain import embed_chain, sentence_embedding, cosine_similarity\\nnodes = embed_chain('Build the avatar. Connect depth, pose, TTS. Render sprite sheet.')\\nprint(nodes[0].skeleton, nodes[0].crystal[:16])",
+  "chain_runs": ["moe_chain_router_v0"]
+}
